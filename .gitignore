@@ -1,0 +1,73 @@
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+
+.idea/
+
+
+# VS Code
+.vscode/
+
+
+.env
+config.env
+bot_config.py
+secrets.py
+
+
+# Log files
+*.log
+logs/
+bot.log
+client.log
+
+
+# Windows
+*.lnk
+
+
+# Session files
+*.session
+*.session-journal
+
+
+# Media files (if any)
+media/
+uploads
+downloads/
+
+
+# Cache directories
+.cache/
+cache/
+
+
+# Database migrations (if using ORM)
+migrations/__pycache__/
