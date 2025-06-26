@@ -1,6 +1,6 @@
 -- ========== 1. Users (Foydalanuvchilar) ==========
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     telegram_id BIGINT UNIQUE NOT NULL,
     username TEXT,
     full_name TEXT,
@@ -31,20 +31,20 @@ CREATE INDEX idx_materials_category ON materials(category);
 
 -- ========== 3. Zayavki (Murojaatlar) ==========
 CREATE TABLE IF NOT EXISTS zayavki (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     description TEXT NOT NULL,
     media TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'new' CHECK (status IN (
         'new', 'pending', 'in_progress', 'completed', 'cancelled'
     )),
     address TEXT,
-    latitude DECIMAL(10, 8),
-    longitude DECIMAL(11, 8),
+    location TEXT,
     zayavka_type VARCHAR(50),
     abonent_id VARCHAR(50),
-    assigned_to INTEGER REFERENCES users(id),
+    assigned_to BIGINT REFERENCES users(id) ON DELETE SET NULL,
     ready_to_install BOOLEAN DEFAULT FALSE,
+    created_by_role VARCHAR(20),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP WITH TIME ZONE
 );
@@ -57,8 +57,8 @@ CREATE INDEX idx_zayavki_created_at ON zayavki(created_at DESC);
 -- ========== 4. Solutions (Zayavka yechimlari) ==========
 CREATE TABLE IF NOT EXISTS solutions (
     id SERIAL PRIMARY KEY,
-    zayavka_id INTEGER REFERENCES zayavki(id),
-    instander_id INTEGER REFERENCES users(id),
+    zayavka_id BIGINT REFERENCES zayavki(id) ON DELETE SET NULL,
+    instander_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     solution_text TEXT NOT NULL,
     media TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -69,8 +69,8 @@ CREATE INDEX idx_solutions_zayavka_id ON solutions(zayavka_id);
 -- ========== 5. Feedback (Foydalanuvchi baholari) ==========
 CREATE TABLE IF NOT EXISTS feedback (
     id SERIAL PRIMARY KEY,
-    zayavka_id INTEGER REFERENCES zayavki(id),
-    user_id INTEGER REFERENCES users(id),
+    zayavka_id BIGINT REFERENCES zayavki(id) ON DELETE SET NULL,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     rating INTEGER CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -81,8 +81,8 @@ CREATE INDEX idx_feedback_zayavka_id ON feedback(zayavka_id);
 -- ========== 6. Status Logs (Status o'zgarish tarixi) ==========
 CREATE TABLE IF NOT EXISTS status_logs (
     id SERIAL PRIMARY KEY,
-    zayavka_id INTEGER REFERENCES zayavki(id),
-    changed_by INTEGER REFERENCES users(id),
+    zayavka_id BIGINT REFERENCES zayavki(id) ON DELETE SET NULL,
+    changed_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
     old_status VARCHAR(20),
     new_status VARCHAR(20),
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -93,10 +93,10 @@ CREATE INDEX idx_status_logs_zayavka_id ON status_logs(zayavka_id);
 -- ========== 7. Issued Items (Berilgan jihozlar) ==========
 CREATE TABLE IF NOT EXISTS issued_items (
     id SERIAL PRIMARY KEY,
-    zayavka_id INTEGER REFERENCES zayavki(id),
-    material_id INTEGER REFERENCES materials(id),
+    zayavka_id BIGINT REFERENCES zayavki(id) ON DELETE SET NULL,
+    material_id INTEGER REFERENCES materials(id) ON DELETE SET NULL,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
-    issued_by INTEGER REFERENCES users(id),
+    issued_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
     issued_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -106,7 +106,7 @@ CREATE INDEX idx_issued_items_material_id ON issued_items(material_id);
 -- ========== 8. Login Logs (Kirish loglari) ==========
 CREATE TABLE IF NOT EXISTS login_logs (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
     ip_address TEXT,
     user_agent TEXT,
     logged_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -118,8 +118,8 @@ CREATE INDEX idx_login_logs_logged_at ON login_logs(logged_at DESC);
 -- ========== 9. Notifications (Xabarlar) ==========
 CREATE TABLE IF NOT EXISTS notifications (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    zayavka_id INTEGER REFERENCES zayavki(id),
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    zayavka_id BIGINT REFERENCES zayavki(id) ON DELETE SET NULL,
     message TEXT NOT NULL,
     channel VARCHAR(10) CHECK (channel IN ('telegram', 'email')),
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import logging
 from aiogram.client.default import DefaultBotProperties
-from config import BOT_TOKEN
+from config import config
 from utils.logger import logger
 
 logging.basicConfig(level=logging.INFO)
@@ -13,26 +13,23 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 
 # Initialize bot
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 bot.pool = None  # Initialize pool attribute
-bot.zayavka_group_id = int(os.getenv("ZAYAVKA_GROUP_ID"))
+bot.zayavka_group_id = config.ZAYAVKA_GROUP_ID
 
 async def create_db_pool():
     """Create database connection pool"""
     try:
         pool = await asyncpg.create_pool(
-            host=os.getenv("DB_HOST", "localhost"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            database=os.getenv("DB_NAME", "alfaconnect_db"),
-            user=os.getenv("DB_USER", "postgres"),
-            password=os.getenv("DB_PASSWORD", "postgres")
+            host=config.DB_HOST,
+            port=config.DB_PORT,
+            database=config.DB_NAME,
+            user=config.DB_USER,
+            password=config.DB_PASSWORD
         )
         bot.pool = pool
         logger.info("Database connection pool created with settings: host=%s, port=%s, db=%s, user=%s",
-                   os.getenv("DB_HOST", "localhost"),
-                   os.getenv("DB_PORT", "5432"),
-                   os.getenv("DB_NAME", "alfaconnect_db"),
-                   os.getenv("DB_USER", "postgres"))
+                   config.DB_HOST, config.DB_PORT, config.DB_NAME, config.DB_USER)
         return pool
     except Exception as e:
         logger.error(f"Database connection error: {str(e)}", exc_info=True)

@@ -5,6 +5,7 @@ ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS priority INTEGER DEFAULT 1; -- 1=pa
 ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS estimated_time INTEGER; -- soatlarda
 ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS actual_time INTEGER; -- haqiqiy vaqt
 ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS completion_notes TEXT; -- yakunlash eslatmalari
+ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS created_by_role VARCHAR(20);
 
 -- Zayavka statuslarini yangilash
 DO $$ 

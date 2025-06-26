@@ -1,72 +1,72 @@
 import logging
-import os
-from logging.handlers import RotatingFileHandler
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional
+import json
 
-def setup_logger(name=None):
-    """Setup logger with optional name parameter"""
-    logger = logging.getLogger(name if name else __name__)
-    logger.setLevel(logging.INFO)
+class StructuredFormatter(logging.Formatter):
+    """Custom formatter for structured logging"""
     
-    # Create formatters
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    def format(self, record: logging.LogRecord) -> str:
+        log_data = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'level': record.levelname,
+            'module': record.module,
+            'function': record.funcName,
+            'line': record.lineno,
+            'message': record.getMessage()
+        }
+        
+        # Add extra fields if present
+        if hasattr(record, 'user_id'):
+            log_data['user_id'] = record.user_id
+        if hasattr(record, 'action'):
+            log_data['action'] = record.action
+        if hasattr(record, 'order_id'):
+            log_data['order_id'] = record.order_id
+            
+        return json.dumps(log_data, ensure_ascii=False)
+
+def setup_logger(name: str = "bot", level: int = logging.INFO) -> logging.Logger:
+    """Setup logger with structured formatting"""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
     
-    # Create and setup file handler (with rotation)
-    log_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'bot.log')
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
+    # Remove existing handlers
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
     
-    # Create and setup console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    # Add handlers to logger
-    logger.addHandler(file_handler)
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(StructuredFormatter())
     logger.addHandler(console_handler)
+    
+    # File handler
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    file_handler = logging.FileHandler(log_dir / f"{name}.log", encoding='utf-8')
+    file_handler.setFormatter(StructuredFormatter())
+    logger.addHandler(file_handler)
     
     return logger
 
-def setup_module_logger(module_name):
-    """Setup a dedicated logger for a specific module with its own log file"""
-    logger = logging.getLogger(module_name)
-    logger.setLevel(logging.INFO)
-    
-    # Create formatters
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    
-    # Create logs directory if it doesn't exist
-    logs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
-    os.makedirs(logs_dir, exist_ok=True)
-    
-    # Create and setup file handler (with rotation)
-    log_file = os.path.join(logs_dir, f'{module_name}.log')
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    
-    # Create and setup console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    
-    # Remove any existing handlers
-    logger.handlers = []
-    
-    # Add handlers to logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    
-    return logger
+def setup_module_logger(module_name: str) -> logging.Logger:
+    """Setup logger for specific module"""
+    return setup_logger(f"bot.{module_name}")
 
-logger = setup_logger() 
+# Main logger
+logger = setup_logger()
+
+def log_user_action(user_id: int, action: str, **kwargs):
+    """Log user action with context"""
+    logger.info(f"User action: {action}", extra={
+        'user_id': user_id,
+        'action': action,
+        **kwargs
+    })
+
+def log_error(error: Exception, context: Dict[str, Any] = None):
+    """Log error with context"""
+    logger.error(f"Error occurred: {str(error)}", extra=context or {}, exc_info=True)

@@ -8,6 +8,7 @@ class I18n:
         self.locales_dir = Path(__file__).parent.parent / "locales"
         self.messages: Dict[str, Dict[str, Any]] = {}
         self.keyboards: Dict[str, Dict[str, Any]] = {}
+        self.send_templates: Dict[str, Dict[str, Any]] = {}
         self.load_translations()
 
     def load_translations(self):
@@ -24,6 +25,12 @@ class I18n:
             if keyboards_file.exists():
                 with open(keyboards_file, "r", encoding="utf-8") as f:
                     self.keyboards[lang] = json.load(f)
+
+            # Yangi: send_templates.json
+            send_templates_file = self.locales_dir / lang / "send_templates.json"
+            if send_templates_file.exists():
+                with open(send_templates_file, "r", encoding="utf-8") as f:
+                    self.send_templates[lang] = json.load(f)
 
     def get_message(self, lang: str, key: str, **kwargs) -> str:
         """Xabarni olish"""
@@ -63,6 +70,43 @@ class I18n:
             return self.keyboards[lang][keyboard_type]
         except KeyError:
             return {}
+
+    def get_template(self, lang: str, role: str, key: str, **kwargs) -> str:
+        try:
+            template = self.send_templates[lang][role][key]
+            if kwargs:
+                template = template.format(**kwargs)
+            return template
+        except (KeyError, TypeError):
+            # fallback: uz
+            if lang != 'uz':
+                try:
+                    template = self.send_templates['uz'][role][key]
+                    if kwargs:
+                        template = template.format(**kwargs)
+                    return template
+                except (KeyError, TypeError):
+                    pass
+            # NEW: fallback to messages.json
+            try:
+                message = self.messages[lang]
+                for k in [role, key]:
+                    message = message[k]
+                if kwargs:
+                    message = message.format(**kwargs)
+                return message
+            except (KeyError, TypeError):
+                if lang != 'uz':
+                    try:
+                        message = self.messages['uz']
+                        for k in [role, key]:
+                            message = message[k]
+                        if kwargs:
+                            message = message.format(**kwargs)
+                        return message
+                    except (KeyError, TypeError):
+                        pass
+            return f"Missing template: {role}.{key}"
 
 i18n = I18n()
 

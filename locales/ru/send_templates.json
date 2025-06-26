@@ -1,0 +1,28 @@
+{
+  "client": {
+    "order_notify_manager": "Создан новый заказ! ID заказа: {order_id}",
+    "welcome": "Добро пожаловать! Пожалуйста, выберите действие:",
+    "welcome_back": "С возвращением! Главное меню:",
+    "order_notify_technician": "Вам назначена новая задача! ID заказа: {order_id}",
+    "order_notify_client": "Ваш заказ принят! ID заказа: {order_id}",
+    "order_status_changed": "Статус вашего заказа изменен: {status}",
+    "order_completed": "Ваш заказ выполнен! Спасибо.",
+    "my_order_info": "📝 Информация о заказе:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n📞 Телефон: {client_phone}\n🏠 Адрес: {address}\n📝 Описание: {description}\n📅 Дата: {created_at}\n",
+    "order_confirmation": "Подтвердите следующие данные:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n📞 Телефон: {client_phone}\n🏠 Адрес: {address}\n📝 Описание: {description}\n",
+    "order_solution": "\n<b>🔧 Комментарий техника:</b> <i>{solution_text}</i>\n👨‍🔧 <b>Исполнитель:</b> <i>{instander_name}</i>\n🕒 <b>Время:</b> <i>{created_at}</i>"
+  },
+  "manager": {
+    "manager_welcome": "Добро пожаловать, менеджер! Пожалуйста, выберите одно из следующих действий:",
+    "main_menu": "Главное меню",
+    "manager_order_info": "📝 Детали заказа:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n📞 Телефон: {client_phone}\n🏠 Адрес: {address}\n📝 Описание: {description}\n📅 Дата: {created_at}\n🔧 Техник: {technician_name}\n📞 Тел. техника: {technician_phone}\n"
+  },
+  "technician": {
+    "technician_welcome": "Добро пожаловать!",
+    "tech_order_brief": "🆕 Новая задача:\n🆔 ID: {order_id}\n🏠 Адрес: {address}\n📝 Описание: {description}\n",
+    "tech_order_full": "📝 Детали задачи:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n📞 Телефон: {client_phone}\n🏠 Адрес: {address}\n📝 Описание: {description}\n📅 Дата: {created_at}\n",
+    "tech_report_info": "📝 Отчёт:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n🏠 Адрес: {address}\n📝 Описание: {description}\n📅 Дата: {created_at}\n🔧 Техник: {technician_name}\n"
+  },
+  "admin": {
+    "admin_order_info": "📝 Детали заказа:\n🆔 ID: {order_id}\n👤 Клиент: {client_name}\n📞 Телефон: {client_phone}\n🏠 Адрес: {address}\n📝 Описание: {description}\n📅 Дата: {created_at}\n🔧 Техник: {technician_name}\n📞 Тел. техника: {technician_phone}\n"
+  }
+} 

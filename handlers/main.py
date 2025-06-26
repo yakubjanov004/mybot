@@ -7,10 +7,14 @@ from .client import router as client_router
 from .language import router as language_router
 from .technician import router as technician_router
 from .manager import router as manager_router
-from database.queries import get_user_by_telegram_id, create_user
+from database.queries import get_user_by_telegram_id, create_user, db_manager
 from utils.i18n import i18n
 from utils.logger import logger
 from aiogram.fsm.state import State, StatesGroup
+from utils.inline_cleanup import safe_remove_inline
+from utils.get_lang import get_user_lang
+from utils.get_role import get_user_role
+from utils.templates import get_template_text
 
 router = Router()
 
@@ -56,15 +60,12 @@ async def unified_start(message: Message, state: FSMContext):
                 return
         else:
             # Yangi foydalanuvchi - client sifatida yaratish
-            from database.queries import _pool
-            async with _pool.acquire() as conn:
-                new_user = await create_user(
-                    conn,
-                    telegram_id=message.from_user.id,
-                    full_name=message.from_user.full_name,
-                    role='client'
-                )
-                logger.info(f"Yangi foydalanuvchi yaratildi: {new_user}")
+            new_user = await create_user(
+                message.from_user.id,
+                message.from_user.full_name,
+                role='client'
+            )
+            logger.info(f"Yangi foydalanuvchi yaratildi: {new_user}")
             
             from .client import cmd_start as client_start
             await client_start(message, state)
@@ -73,7 +74,10 @@ async def unified_start(message: Message, state: FSMContext):
         
     except Exception as e:
         logger.error(f"Unified start buyrug'ida xatolik: {str(e)}", exc_info=True)
-        await message.answer("Xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.")
+        lang = await get_user_lang(message.from_user.id)
+        await safe_remove_inline(message)
+        text = await get_template_text(lang, 'client', 'error_occurred')
+        await message.answer(text)
 
 # Include all other routers
 router.include_router(client_router) 

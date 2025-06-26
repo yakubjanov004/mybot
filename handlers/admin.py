@@ -1,8 +1,8 @@
-from asyncio.log import logger
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
+from typing import Optional, Dict, Any, List
 from keyboards.client_buttons import get_contact_keyboard, get_language_keyboard, get_main_menu_keyboard
 from loader import bot
 from keyboards.admin_buttons import (
@@ -18,31 +18,77 @@ from database.queries import (
 )
 from states.user_states import UserStates
 from utils.i18n import i18n
+from utils.logger import setup_logger, log_user_action, log_error
 from datetime import datetime, timedelta
 import asyncio
+import inspect
+from functools import wraps
+from utils.inline_cleanup import safe_remove_inline, safe_remove_inline_call
+from utils.get_lang import get_user_lang
+from utils.get_role import get_user_role
+from utils.templates import get_template_text
+
+# Setup logger
+logger = setup_logger('bot.admin')
 
 router = Router()
 
-async def is_admin(user_id: int) -> bool:
-    pool = bot.pool
-    async with pool.acquire() as conn:
-        user = await conn.fetchrow(
-            'SELECT role FROM users WHERE telegram_id = $1',
-            user_id
-        )
-        return user and user['role'] == 'admin'
+class AdminPermissions:
+    """Admin permission management"""
+    @staticmethod
+    async def is_admin(user_id: int) -> bool:
+        try:
+            user = await get_user_by_telegram_id(user_id)
+            return user and user.get('role') == 'admin'
+        except Exception as e:
+            log_error(e, {'context': 'is_admin_check', 'user_id': user_id})
+            return False
+
+    @staticmethod
+    async def has_role(user_id: int, required_roles: List[str]) -> bool:
+        try:
+            user = await get_user_by_telegram_id(user_id)
+            return user and user.get('role') in required_roles
+        except Exception as e:
+            log_error(e, {'context': 'role_check', 'user_id': user_id})
+            return False
+
+def require_admin(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        message_or_call = args[0]
+        user_id = message_or_call.from_user.id
+        from database.queries import get_user_by_telegram_id
+        from utils.logger import log_error
+        try:
+            user = await get_user_by_telegram_id(user_id)
+            if not user or user.get('role') != 'admin':
+                text = "Sizda admin huquqlari yo'q."
+                if hasattr(message_or_call, 'answer'):
+                    await message_or_call.answer(text)
+                else:
+                    await message_or_call.message.answer(text)
+                return
+        except Exception as e:
+            log_error(e, {'context': 'is_admin_check', 'user_id': user_id})
+            text = "Sizda admin huquqlari yo'q."
+            if hasattr(message_or_call, 'answer'):
+                await message_or_call.answer(text)
+            else:
+                await message_or_call.message.answer(text)
+            return
+        return await func(*args, **kwargs)
+    return wrapper
 
 async def cmd_start(message: Message, state: FSMContext):
     """Start command handler for admins"""
     try:
-        # Check if user is admin
-        if await is_admin(message.from_user.id):
+        if await AdminPermissions.is_admin(message.from_user.id):
             user = await get_user_by_telegram_id(message.from_user.id)
-            lang = user.get('language', 'uz')
-            welcome_text = i18n.get_message(lang, "admin.welcome")
-            if not welcome_text:
-                welcome_text = "Admin paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в панель администратора!"
-            
+            lang = await get_user_lang(message.from_user.id)
+            role = await get_user_role(message.from_user.id)
+            await safe_remove_inline(message)
+            welcome_text = await get_template_text(lang, role, "admin_welcome")
             await message.answer(
                 welcome_text,
                 reply_markup=admin_main_menu
@@ -50,44 +96,58 @@ async def cmd_start(message: Message, state: FSMContext):
             await state.set_state(AdminStates.main_menu)
             return
         else:
-            await message.answer("Sizda admin huquqlari yo'q.")
-            
+            await safe_remove_inline(message)
+            lang = await get_user_lang(message.from_user.id)
+            text = await get_template_text(lang, 'admin', 'no_access')
+            await message.answer(text)
     except Exception as e:
         logger.error(f"Admin start buyrug'ida xatolik: {str(e)}", exc_info=True)
-        user = await get_user_by_telegram_id(message.from_user.id)
-        lang = user.get('language', 'uz') if user else 'uz'
-        await message.answer(i18n.get_message(lang, "error_occurred"))
+        lang = await get_user_lang(message.from_user.id)
+        await safe_remove_inline(message)
+        text = await get_template_text(lang, 'admin', 'error_occurred')
+        await message.answer(text)
 
 @router.message(F.text == "📋 Zayavkalar")
+@require_admin
 async def zayavka_management(message: Message):
-    if await is_admin(message.from_user.id):
+    """Zayavka management menu"""
+    try:
+        log_user_action(message.from_user.id, "admin_zayavka_menu")
         await message.answer("Zayavkalar boshqaruvi:", reply_markup=zayavka_management_keyboard)
-    else:
-        await message.answer("Sizda admin huquqlari yo'q.")
+    except Exception as e:
+        log_error(e, {'context': 'zayavka_management', 'user_id': message.from_user.id})
+        await message.answer("Xatolik yuz berdi.")
 
 @router.message(F.text == "🆕 Yangi zayavkalar")
+@require_admin
 async def new_zayavki(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         async with bot.pool.acquire() as conn:
             zayavki = await get_zayavki_by_status(conn, 'new')
             if zayavki:
                 for zayavka in zayavki:
-                    text = f"Zayavka #{zayavka['id']}\n"
-                    text += f"Foydalanuvchi: {zayavka['user_name']}\n"
-                    text += f"Tavsif: {zayavka['description']}\n"
-                    text += f"Manzil: {zayavka['address']}\n"
-                    text += f"Vaqt: {zayavka['created_at'].strftime('%Y-%m-%d %H:%M')}"
-                    
+                    text = await get_template_text(
+                        zayavka.get('language', 'uz'), 'admin', 'admin_order_info',
+                        order_id=zayavka['id'],
+                        client_name=zayavka.get('user_name', '-'),
+                        client_phone=zayavka.get('user_phone', '-'),
+                        address=zayavka.get('address', '-'),
+                        description=zayavka.get('description', '-'),
+                        created_at=zayavka.get('created_at', '-'),
+                        technician_name=zayavka.get('technician_name', '-'),
+                        technician_phone=zayavka.get('technician_phone', '-')
+                    )
                     await message.answer(text, reply_markup=zayavka_status_keyboard(zayavka['id']))
             else:
                 await message.answer("Yangi zayavkalar yo'q.")
     else:
         await message.answer("Sizda admin huquqlari yo'q.")
 
-@router.callback_query(F.data.startswith("status_"))
+@router.callback_query(F.data.startswith("admin_status_"))
+@require_admin
 async def change_zayavka_status(call: CallbackQuery):
-    if await is_admin(call.from_user.id):
-        _, zayavka_id, new_status = call.data.split("_")
+    if await AdminPermissions.is_admin(call.from_user.id):
+        _, _, zayavka_id, new_status = call.data.split("_")
         zayavka_id = int(zayavka_id)
         
         async with bot.pool.acquire() as conn:
@@ -128,8 +188,9 @@ async def assign_zayavka_handler(call: CallbackQuery):
         await call.answer("Sizda admin yoki menejer huquqlari yo'q.")
 
 @router.message(F.text == "👥 Foydalanuvchilar")
+@require_admin
 async def user_management(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer(
@@ -140,8 +201,9 @@ async def user_management(message: Message):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(F.text == "👥 Barcha foydalanuvchilar")
+@require_admin
 async def list_all_users(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         
@@ -171,8 +233,9 @@ async def list_all_users(message: Message):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(F.text == "👨‍💼 Xodimlar")
+@require_admin
 async def list_staff(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         
@@ -192,8 +255,9 @@ async def list_staff(message: Message):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(F.text == "🔄 Rol o'zgartirish")
+@require_admin
 async def change_role(message: Message, state: FSMContext):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer(
@@ -205,8 +269,9 @@ async def change_role(message: Message, state: FSMContext):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.callback_query(F.data == "search_by_telegram_id", AdminStates.waiting_for_user_id_or_username)
+@require_admin
 async def search_by_telegram_id_callback(call: CallbackQuery, state: FSMContext):
-    if await is_admin(call.from_user.id):
+    if await AdminPermissions.is_admin(call.from_user.id):
         user = await get_user_by_telegram_id(call.from_user.id)
         lang = user.get('language', 'uz')
         await call.message.edit_text(i18n.get_message(lang, "admin.enter_telegram_id"))
@@ -215,8 +280,9 @@ async def search_by_telegram_id_callback(call: CallbackQuery, state: FSMContext)
         await call.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.callback_query(F.data == "search_by_phone", AdminStates.waiting_for_user_id_or_username)
+@require_admin
 async def search_by_phone_callback(call: CallbackQuery, state: FSMContext):
-    if await is_admin(call.from_user.id):
+    if await AdminPermissions.is_admin(call.from_user.id):
         user = await get_user_by_telegram_id(call.from_user.id)
         lang = user.get('language', 'uz')
         await call.message.edit_text(i18n.get_message(lang, "admin.enter_phone"))
@@ -225,8 +291,9 @@ async def search_by_phone_callback(call: CallbackQuery, state: FSMContext):
         await call.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(AdminStates.waiting_for_telegram_id)
+@require_admin
 async def process_telegram_id(message: Message, state: FSMContext):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         try:
             target_telegram_id = int(message.text)
             user = await get_user_by_telegram_id(message.from_user.id)
@@ -268,8 +335,9 @@ async def process_telegram_id(message: Message, state: FSMContext):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(AdminStates.waiting_for_phone)
+@require_admin
 async def process_phone(message: Message, state: FSMContext):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         phone = message.text
         if not phone.startswith('+'):
             phone = '+' + phone
@@ -309,8 +377,9 @@ async def process_phone(message: Message, state: FSMContext):
         await message.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.callback_query(F.data.startswith("set_role_"))
+@require_admin
 async def set_role_callback(call: CallbackQuery):
-    if await is_admin(call.from_user.id):
+    if await AdminPermissions.is_admin(call.from_user.id):
         try:
             parts = call.data.split("_")
             telegram_id = int(parts[-2])
@@ -368,8 +437,9 @@ async def set_role_callback(call: CallbackQuery):
         await call.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.callback_query(F.data.startswith("confirm_role_"))
+@require_admin
 async def confirm_role_change(call: CallbackQuery):
-    if await is_admin(call.from_user.id):
+    if await AdminPermissions.is_admin(call.from_user.id):
         try:
             parts = call.data.split("_")
             telegram_id = int(parts[-2])
@@ -453,8 +523,9 @@ async def confirm_role_change(call: CallbackQuery):
         await call.answer(i18n.get_message("uz", "admin.no_access"), show_alert=True)
 
 @router.callback_query(F.data == "cancel_role_change")
+@require_admin
 async def cancel_role_change(call: CallbackQuery):
-    if await is_admin(call.from_user.id):
+    if await AdminPermissions.is_admin(call.from_user.id):
         user = await get_user_by_telegram_id(call.from_user.id)
         lang = user.get('language', 'uz')
         await call.message.edit_text(i18n.get_message(lang, "admin.role_change_cancelled"))
@@ -462,15 +533,17 @@ async def cancel_role_change(call: CallbackQuery):
         await call.answer(i18n.get_message("uz", "admin.no_access"))
 
 @router.message(F.text == "📊 Statistika")
+@require_admin
 async def show_statistics(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         await message.answer("Statistika:", reply_markup=statistics_keyboard)
     else:
         await message.answer("Sizda admin huquqlari yo'q.")
 
 @router.message(F.text == "📊 Umumiy statistika")
+@require_admin
 async def show_general_statistics(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         async with bot.pool.acquire() as conn:
             # Get total users
             total_users = await conn.fetchval("SELECT COUNT(*) FROM users")
@@ -512,15 +585,17 @@ async def show_general_statistics(message: Message):
         await message.answer("Sizda admin huquqlari yo'q.")
 
 @router.message(F.text == "⚙️ Sozlamalar")
+@require_admin
 async def show_settings(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         await message.answer("Sozlamalar:", reply_markup=settings_keyboard)
     else:
         await message.answer("Sizda admin huquqlari yo'q.")
 
 @router.message(F.text == "◀️ Orqaga")
+@require_admin
 async def go_back(message: Message):
-    if await is_admin(message.from_user.id):
+    if await AdminPermissions.is_admin(message.from_user.id):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer(
@@ -567,4 +642,4 @@ async def process_contact(message: Message, state: FSMContext):
         logger.error(f"Kontaktni qayta ishlashda xatolik: {str(e)}", exc_info=True)
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
-        await message.answer(i18n.get_message(lang, "error_occurred")) 
+        await message.answer(i18n.get_message(lang, "error_occurred"))

@@ -1,5 +1,16 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from utils.i18n import i18n
+from typing import List, Dict, Any
+import hashlib
+
+def safe_callback_data(data: str, max_length: int = 64) -> str:
+    """Create safe callback data within Telegram limits"""
+    if len(data) <= max_length:
+        return data
+    
+    # Create hash for long data
+    hash_obj = hashlib.md5(data.encode())
+    return f"hash_{hash_obj.hexdigest()[:50]}"
 
 def get_contact_keyboard(lang="uz"):
     """Kontakt ulashish klaviaturasi"""
@@ -10,34 +21,35 @@ def get_contact_keyboard(lang="uz"):
     return keyboard
 
 def get_main_menu_keyboard(lang="uz"):
-    """Asosiy menyu klaviaturasi"""
+    """Asosiy menyu klaviaturasi - 2 ustunli, 2 qatorli"""
     buttons = [
-        i18n.get_message(lang, "new_order"),
-        i18n.get_message(lang, "my_orders"),
-        i18n.get_message(lang, "contact_operator"),
-        i18n.get_message(lang, "change_language")
+        [
+            KeyboardButton(text=i18n.get_message(lang, "new_order")),
+            KeyboardButton(text=i18n.get_message(lang, "my_orders"))
+        ],
+        [
+            KeyboardButton(text=i18n.get_message(lang, "contact_operator")),
+            KeyboardButton(text=i18n.get_message(lang, "change_language"))
+        ]
     ]
-    
     keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=text)] for text in buttons],
+        keyboard=buttons,
         resize_keyboard=True
     )
     return keyboard
 
 def get_back_keyboard(lang="uz"):
-    """Orqaga qaytish klaviaturasi"""
+    """Foydalanuvchiga har doim faqat 'Asosiy menyu' tugmasini chiqaradi"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [
-                KeyboardButton(text=i18n.get_message(lang, "back"))
-            ]
+            [KeyboardButton(text=i18n.get_message(lang, "main_menu"))]
         ],
         resize_keyboard=True
     )
     return keyboard
 
 def get_reply_keyboard(lang="uz"):
-    """4 button keyboard for reply confirmation"""
+    """4 button keyboard for reply confirmation - 2 tilda"""
     return ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -53,7 +65,7 @@ def get_reply_keyboard(lang="uz"):
     )
 
 def get_language_keyboard():
-    """Til tanlash klaviaturasi"""
+    """Til tanlash klaviaturasi - har doim bir xil"""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
@@ -62,74 +74,38 @@ def get_language_keyboard():
     )
     return keyboard
 
-def zayavka_type_keyboard():
-    """Zayavka turini tanlash klaviaturasi"""
+def zayavka_type_keyboard(lang="uz"):
+    """Zayavka turini tanlash klaviaturasi - 2 tilda"""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="B2B", callback_data="zayavka_type_b2b")],
-            [InlineKeyboardButton(text="B2C", callback_data="zayavka_type_b2c")]
+            [InlineKeyboardButton(text=i18n.get_message(lang, "person_physical"), callback_data="zayavka_type_b2b")],
+            [InlineKeyboardButton(text=i18n.get_message(lang, "person_legal"), callback_data="zayavka_type_b2c")]
         ]
     )
     return keyboard
 
-def media_attachment_keyboard():
+def media_attachment_keyboard(lang="uz"):
+    """Media biriktirish klaviaturasi - 2 tilda"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Ha", callback_data="attach_media_yes")],
-        [InlineKeyboardButton(text="Yo'q", callback_data="attach_media_no")]
+        [InlineKeyboardButton(text=i18n.get_message(lang, "yes"), callback_data="attach_media_yes")],
+        [InlineKeyboardButton(text=i18n.get_message(lang, "no"), callback_data="attach_media_no")]
     ])
     return keyboard
 
-def geolocation_keyboard():
+def geolocation_keyboard(lang="uz"):
+    """Geolokatsiya klaviaturasi - 2 tilda"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Ha", callback_data="send_location_yes")],
-        [InlineKeyboardButton(text="Yo'q", callback_data="send_location_no")]
+        [InlineKeyboardButton(text=i18n.get_message(lang, "yes"), callback_data="send_location_yes")],
+        [InlineKeyboardButton(text=i18n.get_message(lang, "no"), callback_data="send_location_no")]
     ])
     return keyboard
 
-def confirmation_keyboard():
+def confirmation_keyboard(lang="uz"):
+    """Tasdiqlash klaviaturasi - 2 tilda"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Tasdiqlayman", callback_data="confirm_zayavka"),
-            InlineKeyboardButton(text="🔄 Qayta yuborish", callback_data="resend_zayavka")
+            InlineKeyboardButton(text=i18n.get_message(lang, "confirm"), callback_data="confirm_zayavka"),
+            InlineKeyboardButton(text=i18n.get_message(lang, "resend"), callback_data="resend_zayavka")
         ]
     ])
     return keyboard
-
-def get_technician_selection_keyboard(technicians):
-    """Technician tanlash klaviaturasi"""
-    buttons = []
-    for tech in technicians:
-        active_tasks = tech.get('active_tasks', 0)
-        text = f"👨‍🔧 {tech['full_name']} ({active_tasks} vazifa)"
-        buttons.append([InlineKeyboardButton(
-            text=text,
-            callback_data=f"select_tech_{tech['id']}"
-        )])
-    
-    buttons.append([InlineKeyboardButton(
-        text="❌ Bekor qilish",
-        callback_data="cancel_assignment"
-    )])
-    
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-def get_task_action_keyboard(zayavka_id):
-    """Vazifa amal klaviaturasi"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="▶️ Boshlash", callback_data=f"start_task_{zayavka_id}"),
-            InlineKeyboardButton(text="✅ Yakunlash", callback_data=f"complete_task_{zayavka_id}")
-        ],
-        [
-            InlineKeyboardButton(text="🔄 O'tkazish so'rovi", callback_data=f"transfer_task_{zayavka_id}")
-        ]
-    ])
-
-def get_completion_keyboard(zayavka_id):
-    """Yakunlash klaviaturasi"""
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="✅ Izohsiz yakunlash", callback_data=f"complete_no_comment_{zayavka_id}"),
-            InlineKeyboardButton(text="📝 Izoh bilan yakunlash", callback_data=f"complete_with_comment_{zayavka_id}")
-        ]
-    ])
