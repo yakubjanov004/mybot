@@ -11,8 +11,9 @@ def get_manager_main_keyboard(lang='uz'):
     generate_report_text = "📊 Hisobot yaratish" if lang == "uz" else "📊 Создать отчет"
     equipment_issuance_text = "📦 Jihozlar berish" if lang == "uz" else "📦 Выдача оборудования"
     ready_for_installation_text = "✅ O'rnatishga tayyor" if lang == "uz" else "✅ Готов к установке"
+    staff_activity_text = "👥 Xodimlar faoliyati" if lang == "uz" else "👥 Активность сотрудников"
+    notifications_text = "🔔 Bildirishnomalar" if lang == "uz" else "🔔 Уведомления"
     change_language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
-    main_menu_text = "🏠 Asosiy menyu" if lang == "uz" else "🏠 Главное меню"
     
     keyboard = [
         [KeyboardButton(text=create_application_text),
@@ -23,6 +24,8 @@ def get_manager_main_keyboard(lang='uz'):
          KeyboardButton(text=generate_report_text)],
         [KeyboardButton(text=equipment_issuance_text),
          KeyboardButton(text=ready_for_installation_text)],
+        [KeyboardButton(text=staff_activity_text),
+         KeyboardButton(text=notifications_text)],
         [KeyboardButton(text=change_language_text)]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -37,8 +40,7 @@ def get_status_keyboard(statuses: list, application_id: int, lang='uz') -> Inlin
         'pending': '⏸️ Kutilmoqda' if lang == "uz" else '⏸️ Ожидает',
         'rejected': '🚫 Rad etilgan' if lang == "uz" else '🚫 Отклонено'
     }
-    
-    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+
     
     buttons = []
     for status in statuses:
@@ -49,13 +51,7 @@ def get_status_keyboard(statuses: list, application_id: int, lang='uz') -> Inlin
             )
         )
     
-    # Add back button
-    buttons.append(
-        InlineKeyboardButton(
-            text=back_text,
-            callback_data="back_to_status_menu"
-        )
-    )
+
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[buttons[:-1], [buttons[-1]]]  # Last button on separate row
@@ -344,3 +340,101 @@ def confirmation_keyboard(lang="uz"):
         ]
     ])
     return keyboard
+
+def get_staff_activity_menu(lang='uz'):
+    """Staff activity monitoring menu"""
+    technician_performance_text = "👨‍🔧 Texniklar samaradorligi" if lang == "uz" else "👨‍🔧 Производительность техников"
+    daily_activity_text = "📅 Kunlik faollik" if lang == "uz" else "📅 Ежедневная активность"
+    weekly_summary_text = "📊 Haftalik xulosalar" if lang == "uz" else "📊 Недельная сводка"
+    individual_reports_text = "👤 Shaxsiy hisobotlar" if lang == "uz" else "👤 Индивидуальные отчеты"
+    team_comparison_text = "⚖️ Jamoa taqqoslash" if lang == "uz" else "⚖️ Сравнение команды"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=technician_performance_text,
+                callback_data="staff_technician_performance"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=daily_activity_text,
+                callback_data="staff_daily_activity"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=weekly_summary_text,
+                callback_data="staff_weekly_summary"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=individual_reports_text,
+                callback_data="staff_individual_reports"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=team_comparison_text,
+                callback_data="staff_team_comparison"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="manager_back_main"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_notifications_settings_menu(lang='uz'):
+    """Notifications settings menu"""
+    new_orders_text = "🆕 Yangi buyurtmalar" if lang == "uz" else "🆕 Новые заказы"
+    status_changes_text = "🔄 Status o'zgarishlari" if lang == "uz" else "🔄 Изменения статуса"
+    urgent_issues_text = "🚨 Shoshilinch masalalar" if lang == "uz" else "🚨 Срочные вопросы"
+    daily_summary_text = "📊 Kunlik xulosalar" if lang == "uz" else "📊 Ежедневная сводка"
+    system_alerts_text = "⚠️ Tizim ogohlantirishlari" if lang == "uz" else "⚠️ Системные предупреждения"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=new_orders_text,
+                callback_data="notif_new_orders"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=status_changes_text,
+                callback_data="notif_status_changes"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=urgent_issues_text,
+                callback_data="notif_urgent_issues"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=daily_summary_text,
+                callback_data="notif_daily_summary"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=system_alerts_text,
+                callback_data="notif_system_alerts"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="manager_back_main"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

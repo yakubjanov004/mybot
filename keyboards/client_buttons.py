@@ -21,11 +21,13 @@ def get_contact_keyboard(lang="uz"):
     return keyboard
 
 def get_main_menu_keyboard(lang="uz"):
-    """Asosiy menyu klaviaturasi - 2 ustunli, 2 qatorli"""
+    """Asosiy menyu klaviaturasi - 2 ustunli, 3 qatorli"""
     new_order_text = "🆕 Yangi buyurtma" if lang == "uz" else "🆕 Новый заказ"
     my_orders_text = "📋 Mening buyurtmalarim" if lang == "uz" else "📋 Мои заказы"
     contact_operator_text = "📞 Operator bilan bog'lanish" if lang == "uz" else "📞 Связаться с оператором"
     change_language_text = "🌐 Til o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
+    profile_text = "👤 Profil" if lang == "uz" else "👤 Профиль"
+    help_text = "❓ Yordam" if lang == "uz" else "❓ Помощь"
     
     buttons = [
         [
@@ -34,6 +36,10 @@ def get_main_menu_keyboard(lang="uz"):
         ],
         [
             KeyboardButton(text=contact_operator_text),
+            KeyboardButton(text=profile_text)
+        ],
+        [
+            KeyboardButton(text=help_text),
             KeyboardButton(text=change_language_text)
         ]
     ]
@@ -133,3 +139,77 @@ def confirmation_keyboard(lang="uz"):
         ]
     ])
     return keyboard
+
+def get_client_profile_menu(lang="uz"):
+    """Client profile menu"""
+    update_contact_text = "📱 Kontaktni yangilash" if lang == "uz" else "📱 Обновить контакт"
+    update_address_text = "📍 Manzilni yangilash" if lang == "uz" else "📍 Обновить адрес"
+    view_info_text = "👁️ Ma'lumotlarni ko'rish" if lang == "uz" else "👁️ Просмотр информации"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=update_contact_text,
+                callback_data="client_update_contact"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=update_address_text,
+                callback_data="client_update_address"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=view_info_text,
+                callback_data="client_view_info"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_client_help_menu(lang="uz"):
+    """Client help menu"""
+    faq_text = "❓ Tez-tez so'raladigan savollar" if lang == "uz" else "❓ Часто задаваемые вопросы"
+    contact_support_text = "📞 Qo'llab-quvvatlash xizmati" if lang == "uz" else "📞 Служба поддержки"
+    how_to_order_text = "📝 Qanday buyurtma berish" if lang == "uz" else "📝 Как сделать заказ"
+    track_order_text = "📍 Buyurtmani kuzatish" if lang == "uz" else "📍 Отслеживание заказа"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=faq_text,
+                callback_data="client_faq"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=how_to_order_text,
+                callback_data="client_how_to_order"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=track_order_text,
+                callback_data="client_track_order"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=contact_support_text,
+                callback_data="client_contact_support"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_client_help_back_inline(lang="uz"):
+    """Faqat orqaga tugmasi uchun inline keyboard"""
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(
+            text=back_text,
+            callback_data="client_back_help"
+        )]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

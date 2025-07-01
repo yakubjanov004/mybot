@@ -93,9 +93,9 @@ async def unified_start(message: Message, state: FSMContext):
         await message.answer(text)
 
 # Include all other routers (language_router is already included in main.py)
+router.include_router(manager_router)
 router.include_router(client_router) 
 router.include_router(admin_router)
-router.include_router(manager_router)
 router.include_router(technician_router)
 
 class ManagerStates(StatesGroup):

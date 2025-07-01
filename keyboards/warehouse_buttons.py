@@ -159,3 +159,45 @@ def inventory_actions_keyboard(language: str) -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def warehouse_detailed_statistics_menu(language: str) -> InlineKeyboardMarkup:
+    """Detailed statistics menu for warehouse"""
+    daily_stats = "📅 Kunlik statistika" if language == 'uz' else "📅 Ежедневная статистика"
+    weekly_stats = "📊 Haftalik hisobot" if language == 'uz' else "📊 Недельный отчет"
+    monthly_stats = "📈 Oylik hisobot" if language == 'uz' else "📈 Месячный отчет"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=daily_stats, callback_data="warehouse_stats_daily")],
+        [InlineKeyboardButton(text=weekly_stats, callback_data="warehouse_stats_weekly")],
+        [InlineKeyboardButton(text=monthly_stats, callback_data="warehouse_stats_monthly")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def inventory_detailed_list_menu(language: str) -> InlineKeyboardMarkup:
+    """Detailed inventory list menu"""
+    all_items = "📦 Barcha mahsulotlar" if language == 'uz' else "📦 Все товары"
+    low_stock = "⚠️ Kam zaxira" if language == 'uz' else "⚠️ Низкий запас"
+    out_of_stock = "❌ Zaxira tugagan" if language == 'uz' else "❌ Нет в наличии"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=all_items, callback_data="inventory_all_items")],
+        [InlineKeyboardButton(text=low_stock, callback_data="inventory_low_stock")],
+        [InlineKeyboardButton(text=out_of_stock, callback_data="inventory_out_of_stock")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_inventory")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def export_format_keyboard(language: str) -> InlineKeyboardMarkup:
+    """Export format selection keyboard"""
+    excel = "📊 Excel" if language == 'uz' else "📊 Excel"
+    pdf = "📄 PDF" if language == 'uz' else "📄 PDF"
+    word = "📝 Word" if language == 'uz' else "📝 Word"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=excel, callback_data="export_excel")],
+        [InlineKeyboardButton(text=pdf, callback_data="export_pdf")],
+        [InlineKeyboardButton(text=word, callback_data="export_word")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

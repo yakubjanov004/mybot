@@ -12,7 +12,7 @@ from database.queries import (
     create_chat_session, get_active_chat_sessions
 )
 from keyboards.call_center_buttons import (
-    call_center_main_menu, new_order_menu, client_search_menu,
+    new_order_menu, client_search_menu,
     order_types_keyboard, call_status_keyboard,
     call_center_main_menu_reply
 )
@@ -28,6 +28,7 @@ from keyboards.support_chat_buttons import (
 )
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from handlers.language import show_language_selection, process_language_change, get_user_lang
 
 router = Router()
 
@@ -212,7 +213,7 @@ async def set_order_priority(callback: CallbackQuery, state: FSMContext):
         
         await callback.message.edit_text(
             text,
-            reply_markup=call_center_main_menu(user['language'])
+            reply_markup=call_center_main_menu_reply(user['language'])
         )
         
         logger.info(f"New order #{order_id} created by call center operator {user['id']}")
@@ -267,25 +268,47 @@ async def search_client(message: Message, state: FSMContext):
     await message.answer(text)
 
 @router.callback_query(F.data == "call_statistics")
-async def call_statistics(callback: CallbackQuery, state: FSMContext):
-    """Show call center statistics"""
+async def call_statistics_menu(callback: CallbackQuery, state: FSMContext):
+    """Show call center statistics menu"""
     user = await get_user_by_telegram_id(callback.from_user.id)
     lang = user.get('language', 'uz')
-    stats = await get_call_center_stats(user['id'])
     
-    stats_text = "Call center statistikasi" if lang == 'uz' else "Статистика call center"
-    calls_today_text = "Bugungi qo'ng'iroqlar" if lang == 'uz' else "Звонки сегодня"
-    orders_today_text = "Bugungi buyurtmalar" if lang == 'uz' else "Заказы сегодня"
-    avg_duration_text = "O'rtacha qo'ng'iroq vaqti" if lang == 'uz' else "Среднее время звонка"
-    successful_text = "Muvaffaqiyatli qo'ng'iroqlar" if lang == 'uz' else "Успешные звонки"
-    conversion_text = "Konversiya darajasi" if lang == 'uz' else "Коэффициент конверсии"
+    from keyboards.call_center_buttons import call_center_statistics_menu
+    stats_text = "Statistika bo'limi" if lang == 'uz' else "Раздел статистики"
+    await callback.message.edit_text(
+        stats_text,
+        reply_markup=call_center_statistics_menu(lang)
+    )
+
+@router.callback_query(F.data.startswith("stats_"))
+async def handle_statistics_requests(callback: CallbackQuery, state: FSMContext):
+    """Handle different statistics requests"""
+    stats_type = callback.data.split("_")[1]
+    user = await get_user_by_telegram_id(callback.from_user.id)
+    lang = user.get('language', 'uz')
     
-    text = f"📊 {stats_text}\n\n"
-    text += f"📞 {calls_today_text}: {stats['calls_today']}\n"
-    text += f"📋 {orders_today_text}: {stats['orders_today']}\n"
-    text += f"⏱️ {avg_duration_text}: {stats['avg_call_duration']} мин\n"
-    text += f"✅ {successful_text}: {stats['successful_calls']}%\n"
-    text += f"🎯 {conversion_text}: {stats['conversion_rate']}%\n"
+    if stats_type == "daily":
+        stats = await get_call_center_stats(user['id'], period='daily')
+        title = "Bugungi ko'rsatkichlar" if lang == 'uz' else "Сегодняшние показатели"
+    elif stats_type == "weekly":
+        stats = await get_call_center_stats(user['id'], period='weekly')
+        title = "Haftalik hisobot" if lang == 'uz' else "Недельный отчет"
+    elif stats_type == "monthly":
+        stats = await get_call_center_stats(user['id'], period='monthly')
+        title = "Oylik hisobot" if lang == 'uz' else "Месячный отчет"
+    elif stats_type == "performance":
+        stats = await get_call_center_stats(user['id'], period='performance')
+        title = "Mening samaradorligim" if lang == 'uz' else "Моя эффективность"
+    
+    # Format statistics text
+    calls_text = "Qo'ng'iroqlar" if lang == 'uz' else "Звонки"
+    orders_text = "Buyurtmalar" if lang == 'uz' else "Заказы"
+    conversion_text = "Konversiya" if lang == 'uz' else "Конверсия"
+    
+    text = f"📊 {title}\n\n"
+    text += f"📞 {calls_text}: {stats.get('calls', 0)}\n"
+    text += f"📋 {orders_text}: {stats.get('orders', 0)}\n"
+    text += f"🎯 {conversion_text}: {stats.get('conversion_rate', 0)}%\n"
     
     await callback.message.edit_text(text)
 
@@ -319,7 +342,7 @@ async def call_center_back(callback: CallbackQuery, state: FSMContext):
     welcome_text = "Call center paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в панель call center!"
     await callback.message.edit_text(
         welcome_text,
-        reply_markup=call_center_main_menu(user['language'])
+        reply_markup=call_center_main_menu_reply(user['language'])
     )
 
 @router.callback_query(F.data == "request_feedback")
@@ -553,44 +576,114 @@ async def reply_chat(message: Message, state: FSMContext):
         await message.answer(text)
 
 @router.message(F.text.in_(["📊 Statistika", "📊 Статистика"]))
-async def reply_statistics(message: Message, state: FSMContext):
+async def call_center_statistics_handler(message: Message, state: FSMContext):
+    """Handle call center statistics"""
     user = await get_user_by_telegram_id(message.from_user.id)
-    lang = user.get('language', 'uz')
     if not user or user['role'] != 'call_center':
+        lang = user.get('language', 'uz') if user else 'uz'
         text = "Sizda ruxsat yo'q." if lang == 'uz' else "У вас нет доступа."
         await message.answer(text)
         return
-    stats = await get_call_center_stats(user['id'])
-    stats_text = "Call center statistikasi" if lang == 'uz' else "Статистика call center"
-    calls_today_text = "Bugungi qo'ng'iroqlar" if lang == 'uz' else "Звонки сегодня"
-    orders_today_text = "Bugungi buyurtmalar" if lang == 'uz' else "Заказы сегодня"
-    avg_duration_text = "O'rtacha qo'ng'iroq vaqti" if lang == 'uz' else "Среднее время звонка"
-    successful_text = "Muvaffaqiyatli qo'ng'iroqlar" if lang == 'uz' else "Успешные звонки"
-    conversion_text = "Konversiya darajasi" if lang == 'uz' else "Коэффициент конверсии"
-    text = f"📊 {stats_text}\n\n"
-    text += f"📞 {calls_today_text}: {stats['calls_today']}\n"
-    text += f"📋 {orders_today_text}: {stats['orders_today']}\n"
-    text += f"⏱️ {avg_duration_text}: {stats['avg_call_duration']} мин\n"
-    text += f"✅ {successful_text}: {stats['successful_calls']}%\n"
-    text += f"🎯 {conversion_text}: {stats['conversion_rate']}%\n"
-    await message.answer(text)
+    
+    lang = user.get('language', 'uz')
+    from keyboards.call_center_buttons import call_center_detailed_statistics_menu
+    stats_text = "Statistika bo'limi" if lang == 'uz' else "Раздел статистики"
+    await message.answer(
+        stats_text,
+        reply_markup=call_center_detailed_statistics_menu(lang)
+    )
 
-@router.message(F.text.in_(["⏳ Kutilayotgan", "⏳ Ожидающие"]))
-async def reply_pending_calls(message: Message, state: FSMContext):
-    user = await get_user_by_telegram_id(message.from_user.id)
+@router.callback_query(F.data.startswith("cc_stats_"))
+async def handle_call_center_statistics(callback: CallbackQuery, state: FSMContext):
+    """Handle call center statistics requests"""
+    stats_type = callback.data.split("_")[2]
+    user = await get_user_by_telegram_id(callback.from_user.id)
     lang = user.get('language', 'uz')
+    
+    try:
+        if stats_type == "daily":
+            stats = await get_call_center_stats(user['id'], period='daily')
+            title = "Bugungi ko'rsatkichlar" if lang == 'uz' else "Сегодняшние показатели"
+        elif stats_type == "weekly":
+            stats = await get_call_center_stats(user['id'], period='weekly')
+            title = "Haftalik hisobot" if lang == 'uz' else "Недельный отчет"
+        elif stats_type == "monthly":
+            stats = await get_call_center_stats(user['id'], period='monthly')
+            title = "Oylik hisobot" if lang == 'uz' else "Месячный отчет"
+        elif stats_type == "performance":
+            stats = await get_call_center_stats(user['id'], period='performance')
+            title = "Mening samaradorligim" if lang == 'uz' else "Моя эффективность"
+        elif stats_type == "conversion":
+            stats = await get_call_center_stats(user['id'], period='conversion')
+            title = "Konversiya darajasi" if lang == 'uz' else "Коэффициент конверсии"
+        
+        # Format statistics text
+        calls_text = "Qo'ng'iroqlar" if lang == 'uz' else "Звонки"
+        orders_text = "Buyurtmalar" if lang == 'uz' else "Заказы"
+        conversion_text = "Konversiya" if lang == 'uz' else "Конверсия"
+        avg_time_text = "O'rtacha vaqt" if lang == 'uz' else "Среднее время"
+        success_rate_text = "Muvaffaqiyat darajasi" if lang == 'uz' else "Процент успеха"
+        
+        text = f"📊 {title}\n\n"
+        text += f"📞 {calls_text}: {stats.get('calls', 0)}\n"
+        text += f"📋 {orders_text}: {stats.get('orders', 0)}\n"
+        text += f"🎯 {conversion_text}: {stats.get('conversion_rate', 0)}%\n"
+        text += f"⏱️ {avg_time_text}: {stats.get('avg_call_time', 0)} daqiqa\n"
+        text += f"✅ {success_rate_text}: {stats.get('success_rate', 0)}%\n"
+        
+        if stats_type == "performance":
+            rating_text = "Reyting" if lang == 'uz' else "Рейтинг"
+            feedback_text = "Fikr-mulohazalar" if lang == 'uz' else "Отзывы"
+            text += f"⭐ {rating_text}: {stats.get('rating', 0)}/5\n"
+            text += f"💬 {feedback_text}: {stats.get('feedback_count', 0)}\n"
+        
+        await callback.message.edit_text(text)
+        await callback.answer()
+        
+    except Exception as e:
+        logger.error(f"Error in call center statistics: {str(e)}")
+        error_text = "Statistikani olishda xatolik yuz berdi" if lang == 'uz' else "Ошибка при получении статистики"
+        await callback.message.edit_text(error_text)
+        await callback.answer()
+
+@router.callback_query(F.data == "cc_back_main")
+async def call_center_back_to_main(callback: CallbackQuery, state: FSMContext):
+    """Go back to call center main menu"""
+    user = await get_user_by_telegram_id(callback.from_user.id)
+    lang = user.get('language', 'uz')
+    
+    await state.set_state(CallCenterStates.main_menu)
+    welcome_text = "Call center paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в панель call center!"
+    await callback.message.edit_text(welcome_text)
+    await callback.answer()
+
+@router.message(F.text.in_(["🌐 Tilni o'zgartirish", "🌐 Изменить язык"]))
+async def call_center_change_language(message: Message, state: FSMContext):
+    """Change language for call center"""
+    user = await get_user_by_telegram_id(message.from_user.id)
     if not user or user['role'] != 'call_center':
-        text = "Sizda ruxsat yo'q." if lang == 'uz' else "У вас нет доступа."
-        await message.answer(text)
         return
-    pending_calls = await get_pending_calls()
-    pending_text = "Kutilayotgan qo'ng'iroqlar" if lang == 'uz' else "Ожидающие звонки"
-    text = f"📞 {pending_text}\n\n"
-    if pending_calls:
-        for call in pending_calls:
-            text += f"📞 {call['client_phone']} - {call['client_name']}\n"
-            text += f"⏰ {call['scheduled_time']}\n"
-            text += f"📝 {call['notes']}\n\n"
-    else:
-        text += "Kutilayotgan qo'ng'iroqlar yo'q." if lang == 'uz' else "Ожидающих звонков нет."
-    await message.answer(text)
+    
+    success = await show_language_selection(message, "call_center", state)
+    if not success:
+        lang = user.get('language', 'uz')
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await message.answer(error_text)
+
+@router.callback_query(F.data.startswith("call_center_lang_"))
+async def process_call_center_language_change(callback: CallbackQuery, state: FSMContext):
+    """Process call center language change"""
+    try:
+        await process_language_change(
+            call=callback,
+            role="call_center",
+            get_main_keyboard_func=call_center_main_menu_reply,
+            state=state
+        )
+        await state.set_state(CallCenterStates.main_menu)
+    except Exception as e:
+        logger.error(f"Call center tilni o'zgartirishda xatolik: {str(e)}")
+        lang = await get_user_lang(callback.from_user.id)
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await callback.message.answer(error_text)
+        await callback.answer()

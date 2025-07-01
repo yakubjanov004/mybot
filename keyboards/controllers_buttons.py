@@ -200,3 +200,199 @@ def technician_assignment_keyboard(language: str, technicians: list) -> InlineKe
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def quality_control_menu(language: str) -> InlineKeyboardMarkup:
+    """Quality control menu"""
+    customer_feedback_text = "💬 Mijoz fikrlari" if language == "uz" else "💬 Отзывы клиентов"
+    unresolved_issues_text = "⚠️ Hal etilmagan muammolar" if language == "uz" else "⚠️ Нерешенные проблемы"
+    service_quality_text = "⭐ Xizmat sifatini baholash" if language == "uz" else "⭐ Оценка качества услуг"
+    quality_trends_text = "📈 Sifat tendensiyalari" if language == "uz" else "📈 Тенденции качества"
+    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=customer_feedback_text,
+                callback_data="quality_customer_feedback"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=unresolved_issues_text,
+                callback_data="quality_unresolved_issues"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=service_quality_text,
+                callback_data="quality_service_assessment"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=quality_trends_text,
+                callback_data="quality_trends"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="controllers_back"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def feedback_filter_menu(language: str) -> InlineKeyboardMarkup:
+    """Feedback filter menu"""
+    all_feedback_text = "📋 Barcha fikrlar" if language == "uz" else "📋 Все отзывы"
+    low_ratings_text = "⭐ Past baholar (1-2)" if language == "uz" else "⭐ Низкие оценки (1-2)"
+    medium_ratings_text = "⭐⭐⭐ O'rta baholar (3)" if language == "uz" else "⭐⭐⭐ Средние оценки (3)"
+    high_ratings_text = "⭐⭐⭐⭐⭐ Yuqori baholar (4-5)" if language == "uz" else "⭐⭐⭐⭐⭐ Высокие оценки (4-5)"
+    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=all_feedback_text,
+                callback_data="feedback_filter_all"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=low_ratings_text,
+                callback_data="feedback_filter_low"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=medium_ratings_text,
+                callback_data="feedback_filter_medium"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=high_ratings_text,
+                callback_data="feedback_filter_high"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="quality_control"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def quality_control_detailed_menu(language: str) -> InlineKeyboardMarkup:
+    """Detailed quality control menu"""
+    customer_feedback_text = "💬 Mijoz fikrlari" if language == "uz" else "💬 Отзывы клиентов"
+    unresolved_issues_text = "⚠️ Hal etilmagan muammolar" if language == "uz" else "⚠️ Нерешенные проблемы"
+    service_quality_text = "⭐ Xizmat sifatini baholash" if language == "uz" else "⭐ Оценка качества услуг"
+    quality_trends_text = "📈 Sifat tendensiyalari" if language == "uz" else "📈 Тенденции качества"
+    quality_reports_text = "📋 Sifat hisobotlari" if language == "uz" else "📋 Отчеты по качеству"
+    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=customer_feedback_text,
+                callback_data="quality_customer_feedback"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=unresolved_issues_text,
+                callback_data="quality_unresolved_issues"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=service_quality_text,
+                callback_data="quality_service_assessment"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=quality_trends_text,
+                callback_data="quality_trends"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=quality_reports_text,
+                callback_data="quality_reports"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="controllers_back"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def feedback_detailed_filter_menu(language: str) -> InlineKeyboardMarkup:
+    """Detailed feedback filter menu"""
+    all_feedback_text = "📋 Barcha fikrlar" if language == "uz" else "📋 Все отзывы"
+    excellent_ratings_text = "⭐⭐⭐⭐⭐ A'lo (5)" if language == "uz" else "⭐⭐⭐⭐⭐ Отлично (5)"
+    good_ratings_text = "⭐⭐⭐⭐ Yaxshi (4)" if language == "uz" else "⭐⭐⭐⭐ Хорошо (4)"
+    average_ratings_text = "⭐⭐⭐ O'rta (3)" if language == "uz" else "⭐⭐⭐ Средне (3)"
+    poor_ratings_text = "⭐⭐ Yomon (2)" if language == "uz" else "⭐⭐ Плохо (2)"
+    terrible_ratings_text = "⭐ Juda yomon (1)" if language == "uz" else "⭐ Ужасно (1)"
+    recent_feedback_text = "🕐 So'nggi fikrlar" if language == "uz" else "🕐 Последние отзывы"
+    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=all_feedback_text,
+                callback_data="feedback_filter_all"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=excellent_ratings_text,
+                callback_data="feedback_filter_5"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=good_ratings_text,
+                callback_data="feedback_filter_4"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=average_ratings_text,
+                callback_data="feedback_filter_3"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=poor_ratings_text,
+                callback_data="feedback_filter_2"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=terrible_ratings_text,
+                callback_data="feedback_filter_1"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=recent_feedback_text,
+                callback_data="feedback_filter_recent"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="quality_control"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

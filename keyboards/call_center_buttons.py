@@ -1,24 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters.callback_data import CallbackData
 
-def call_center_main_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """Call center main menu keyboard"""
-    new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
-    search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
-    stats = "📊 Statistika" if lang == 'uz' else "📊 Статистика"
-    pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
-    feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
-    chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
-    keyboard = [
-        [InlineKeyboardButton(text=new_order, callback_data="new_order"),
-         InlineKeyboardButton(text=search, callback_data="client_search")],
-        [InlineKeyboardButton(text=feedback, callback_data="request_feedback"),
-         InlineKeyboardButton(text=chat, callback_data="start_chat")],
-        [InlineKeyboardButton(text=stats, callback_data="call_statistics"),
-         InlineKeyboardButton(text=pending, callback_data="pending_calls")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
 def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
     search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
@@ -26,10 +8,13 @@ def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
     feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
     chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
+    change_lang = "🌐 Tilni o'zgartirish" if lang == 'uz' else "🌐 Изменить язык"
+    
     keyboard = [
         [KeyboardButton(text=new_order), KeyboardButton(text=search)],
         [KeyboardButton(text=feedback), KeyboardButton(text=chat)],
-        [KeyboardButton(text=stats), KeyboardButton(text=pending)]
+        [KeyboardButton(text=stats), KeyboardButton(text=pending)],
+        [KeyboardButton(text=change_lang)]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
@@ -158,5 +143,41 @@ def call_result_keyboard(language: str) -> InlineKeyboardMarkup:
                 callback_data="call_result_refused"
             )
         ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def call_center_statistics_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Call center statistics menu"""
+    daily_stats = "📅 Bugungi ko'rsatkichlar" if lang == 'uz' else "📅 Сегодняшние показатели"
+    weekly_stats = "📊 Haftalik hisobot" if lang == 'uz' else "📊 Недельный отчет"
+    monthly_stats = "📈 Oylik hisobot" if lang == 'uz' else "📈 Месячный отчет"
+    performance = "🎯 Mening samaradorligim" if lang == 'uz' else "🎯 Моя эффективность"
+    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    
+    keyboard = [
+        [InlineKeyboardButton(text=daily_stats, callback_data="stats_daily"),
+         InlineKeyboardButton(text=weekly_stats, callback_data="stats_weekly")],
+        [InlineKeyboardButton(text=monthly_stats, callback_data="stats_monthly"),
+         InlineKeyboardButton(text=performance, callback_data="stats_performance")],
+        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def call_center_detailed_statistics_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Detailed statistics menu for call center"""
+    daily_stats = "📅 Bugungi ko'rsatkichlar" if lang == 'uz' else "📅 Сегодняшние показатели"
+    weekly_stats = "📊 Haftalik hisobot" if lang == 'uz' else "📊 Недельный отчет"
+    monthly_stats = "📈 Oylik hisobot" if lang == 'uz' else "📈 Месячный отчет"
+    performance = "🎯 Mening samaradorligim" if lang == 'uz' else "🎯 Моя эффективность"
+    conversion = "📈 Konversiya darajasi" if lang == 'uz' else "📈 Коэффициент конверсии"
+    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    
+    keyboard = [
+        [InlineKeyboardButton(text=daily_stats, callback_data="cc_stats_daily"),
+         InlineKeyboardButton(text=weekly_stats, callback_data="cc_stats_weekly")],
+        [InlineKeyboardButton(text=monthly_stats, callback_data="cc_stats_monthly"),
+         InlineKeyboardButton(text=performance, callback_data="cc_stats_performance")],
+        [InlineKeyboardButton(text=conversion, callback_data="cc_stats_conversion")],
+        [InlineKeyboardButton(text=back, callback_data="cc_back_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

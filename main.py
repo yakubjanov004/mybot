@@ -49,7 +49,7 @@ async def on_startup():
         bot.pool = pool
         # Initialize database
         await create_tables(pool)
-        await add_missing_columns()
+        await add_missing_columns(pool)
         # Test database connection
         async with pool.acquire() as conn:
             await conn.fetchval("SELECT 1")

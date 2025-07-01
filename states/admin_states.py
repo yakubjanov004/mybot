@@ -1,33 +1,105 @@
 from aiogram.fsm.state import State, StatesGroup
 
 class AdminStates(StatesGroup):
-    """Admin states"""
+    # Main menu states
     main_menu = State()
+    
+    # User management states
+    user_management = State()
+    adding_user = State()
+    editing_user = State()
+    user_roles = State()
+    
+    # System management states
+    system_menu = State()
+    system_stats = State()
+    system_logs = State()
+    system_backup = State()
+    system_maintenance = State()
+    
+    # Database management states
+    database_menu = State()
+    database_backup = State()
+    database_restore = State()
+    database_cleanup = State()
+    
+    # Settings states
+    settings_menu = State()
+    bot_settings = State()
+    language_settings = State()
+    notification_settings = State()
+    security_settings = State()
+    
+    # Reports states
+    reports_menu = State()
+    system_report = State()
+    user_activity_report = State()
+    performance_report = State()
+    error_report = State()
+    
+    # Monitoring states
+    monitoring_menu = State()
+    real_time_monitoring = State()
+    performance_monitoring = State()
+    error_monitoring = State()
+    
+    # Broadcast states
+    broadcast_menu = State()
+    broadcast_message = State()
+    broadcast_recipients = State()
+    broadcast_confirm = State()
+    
+    # Maintenance states
+    maintenance_menu = State()
+    scheduled_maintenance = State()
+    emergency_maintenance = State()
+    maintenance_notification = State()
+    
+    # System settings
+    system_settings = State()
+    database_management = State()
+    backup_restore = State()
+    
+    # Analytics and reports
+    analytics_menu = State()
+    system_analytics = State()
+    user_analytics = State()
+    performance_reports = State()
+    
+    # Configuration
+    bot_configuration = State()
+    feature_toggles = State()
+    maintenance_mode = State()
+    
+    # Security
+    security_settings = State()
+    access_control = State()
+    audit_logs = State()
+    
+    # Notifications
+    system_notifications = State()
+    broadcast_messages = State()
+    
+    # Integration management
+    integration_settings = State()
+    api_management = State()
+    
+    # Language and localization
+    language_management = State()
+    content_management = State()
+    
+    # Backup and recovery
+    backup_settings = State()
+    recovery_options = State()
+    
+    # System health
+    health_checks = State()
+    diagnostic_tools = State()
+    
+    # Update management
+    system_updates = State()
+    feature_updates = State()
+
     waiting_for_user_id_or_username = State()
     waiting_for_telegram_id = State()
     waiting_for_phone = State()
-    waiting_for_role = State()
-    waiting_for_zayavka_id = State()
-    waiting_for_zayavka_status = State()
-    waiting_for_zayavka_assignee = State()
-    waiting_for_zayavka_filter = State()
-    waiting_for_settings = State()
-    waiting_for_statistics = State()
-    
-    # User management states
-    waiting_for_username = State()
-    waiting_for_role_change = State()
-    
-    # Zayavka management states
-    waiting_for_zayavka_search = State()
-    waiting_for_zayavka_comment = State()
-    waiting_for_zayavka_assignment = State()
-    
-    # Settings states
-    waiting_for_notification_text = State()
-    waiting_for_template_text = State()
-    waiting_for_system_setting = State()
-    
-    # Statistics states
-    waiting_for_date_range = State()
-    waiting_for_statistics_type = State() 

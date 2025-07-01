@@ -8,6 +8,7 @@ from states.user_states import UserStates
 from database.queries import get_user_by_telegram_id, update_user_language
 from utils.logger import logger
 from utils.inline_cleanup import safe_remove_inline, safe_remove_inline_call
+from keyboards.call_center_buttons import call_center_main_menu_reply
 
 router = Router()
 
@@ -92,11 +93,10 @@ async def process_language_change(
                 reply_markup=get_manager_main_keyboard(new_lang)
             )
         elif role == 'call_center':
-            from keyboards.call_center_buttons import call_center_main_menu
             main_menu_text = "Call center paneliga xush kelibsiz!" if new_lang == 'uz' else "Добро пожаловать в панель call center!"
             await call.message.answer(
                 main_menu_text,
-                reply_markup=call_center_main_menu(new_lang)
+                reply_markup=call_center_main_menu_reply(new_lang)
             )
         elif role == 'controller':
             from keyboards.controllers_buttons import controllers_main_menu
@@ -229,11 +229,10 @@ async def change_language(call: CallbackQuery, state: FSMContext):
                 reply_markup=get_manager_main_keyboard(new_lang)
             )
         elif role == 'call_center':
-            from keyboards.call_center_buttons import call_center_main_menu
             main_menu_text = "Call center paneliga xush kelibsiz!" if new_lang == 'uz' else "Добро пожаловать в панель call center!"
             await call.message.answer(
                 main_menu_text,
-                reply_markup=call_center_main_menu(new_lang)
+                reply_markup=call_center_main_menu_reply(new_lang)
             )
         elif role == 'controller':
             from keyboards.controllers_buttons import controllers_main_menu

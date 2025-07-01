@@ -1,38 +1,97 @@
 from aiogram.fsm.state import State, StatesGroup
 
 class ManagerStates(StatesGroup):
+    # Main menu
     main_menu = State()
-    # Application related states
-    VIEW_APPLICATIONS = State()
-    FILTER_APPLICATIONS = State()
-    CHANGE_STATUS = State()
-    WAITING_FOR_APP_ID_FOR_STATUS_CHANGE = State()
-    SELECT_STATUS = State()
     
-    # Assignment related states
-    ASSIGN_RESPONSIBLE = State()
-    SELECT_RESPONSIBLE = State()
-    ASSIGN_TECHNICIAN = State()
+    # Application management
+    viewing_applications = State()
+    application_details = State()
+    filtering_applications = State()
     
-    # Report related states
-    GENERATE_REPORT = State()
-    SELECT_REPORT_TYPE = State()
-    
-    # Equipment related states
-    EQUIPMENT_ISSUANCE = State()
-    SELECT_EQUIPMENT = State()
-    READY_FOR_INSTALLATION = State()
-    VIEW_EQUIPMENT_APPLICATIONS = State()
-
-    waiting_for_application_id = State()
-    waiting_for_status = State()
-
-    # Multi-step zayavka creation (like client)
-    choosing_zayavka_type = State()
-    waiting_for_abonent_id = State()
-    waiting_for_description = State()
-    waiting_for_media = State()
-    waiting_for_address = State()
-    asking_for_location = State()
-    confirming_zayavka = State()
+    # Technician assignment
     assigning_technician = State()
+    selecting_technician = State()
+    
+    # Staff management
+    staff_menu = State()
+    viewing_staff = State()
+    staff_performance = State()
+    staff_statistics = State()
+    
+    # Reports and analytics
+    reports_menu = State()
+    daily_reports = State()
+    weekly_reports = State()
+    monthly_reports = State()
+    custom_reports = State()
+    
+    # Notification management
+    notifications_menu = State()
+    notification_settings = State()
+    urgent_notifications = State()
+    
+    # System monitoring
+    system_monitoring = State()
+    performance_metrics = State()
+    
+    # Quality control
+    quality_control = State()
+    reviewing_feedback = State()
+    
+    # Resource management
+    resource_allocation = State()
+    equipment_management = State()
+    
+    # Communication
+    team_communication = State()
+    announcements = State()
+    
+    # Settings
+    settings_menu = State()
+    language_settings = State()
+    
+    # Emergency management
+    emergency_response = State()
+    escalation_management = State()
+    
+    # Training and development
+    training_menu = State()
+    staff_training = State()
+    
+    # Budget and finance
+    budget_overview = State()
+    cost_analysis = State()
+    
+    # Client relations
+    client_management = State()
+    vip_clients = State()
+    
+    # Inventory oversight
+    inventory_overview = State()
+    supply_management = State()
+
+    creating_application_description = State()
+    creating_application_address = State()
+    creating_application_client_name = State()
+    creating_application_phone = State()
+    creating_application_waiting_media = State()
+    creating_application_waiting_location = State()
+    creating_application_waiting_confirmation = State()
+    creating_application_waiting_resend = State()
+    creating_application_waiting_status = State()
+    creating_application_waiting_assignment = State()
+    entering_application_id_for_status = State()
+    entering_application_id_for_assignment = State()
+    entering_application_id_for_report = State()
+    entering_application_id_for_equipment = State()
+    entering_application_id_for_ready = State()
+    entering_application_id_for_staff = State()
+    entering_application_id_for_notification = State()
+    entering_application_id_for_system = State()
+    entering_application_id_for_quality = State()
+    marking_ready_for_installation = State()
+    entering_application_id_for_quality = State()
+    entering_application_id_for_quality = State()
+
+    changing_status = State()

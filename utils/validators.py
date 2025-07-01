@@ -286,3 +286,9 @@ def validate_input(validation_func):
         
         return wrapper
     return decorator
+
+def validate_phone_number(phone: str) -> str:
+    return DataValidator.validate_phone(phone)
+
+def validate_address(address: str) -> str:
+    return DataValidator.validate_text(address, min_length=5, max_length=200, field_name="Address")

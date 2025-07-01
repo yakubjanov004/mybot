@@ -6,7 +6,7 @@ from keyboards.admin_buttons import get_admin_main_menu
 from keyboards.manager_buttons import get_manager_main_keyboard
 from keyboards.client_buttons import get_main_menu_keyboard
 from keyboards.technician_buttons import get_technician_main_menu_keyboard
-from keyboards.call_center_buttons import call_center_main_menu
+from keyboards.call_center_buttons import call_center_main_menu_reply
 from keyboards.controllers_buttons import controllers_main_menu
 from keyboards.warehouse_buttons import warehouse_main_menu
 from utils.inline_cleanup import safe_remove_inline
@@ -29,7 +29,7 @@ async def back_to_main(message: Message):
         await message.answer(main_menu_text, reply_markup=get_technician_main_menu_keyboard(lang))
     elif role == "call_center":
         main_menu_text = "Call center paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в панель call center!"
-        await message.answer(main_menu_text, reply_markup=call_center_main_menu(lang))
+        await message.answer(main_menu_text, reply_markup=call_center_main_menu_reply(lang))
     elif role == "controller":
         main_menu_text = "Controller paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в панель контроллера!"
         await message.answer(main_menu_text, reply_markup=controllers_main_menu(lang))
