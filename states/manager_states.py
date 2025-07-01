@@ -3,7 +3,6 @@ from aiogram.fsm.state import State, StatesGroup
 class ManagerStates(StatesGroup):
     main_menu = State()
     # Application related states
-    CREATE_APPLICATION = State()
     VIEW_APPLICATIONS = State()
     FILTER_APPLICATIONS = State()
     CHANGE_STATUS = State()
@@ -36,3 +35,4 @@ class ManagerStates(StatesGroup):
     waiting_for_address = State()
     asking_for_location = State()
     confirming_zayavka = State()
+    assigning_technician = State()

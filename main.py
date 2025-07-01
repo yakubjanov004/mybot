@@ -5,10 +5,11 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from database.queries import create_tables, set_pool, add_missing_columns
 from handlers.main import router as main_router
+from handlers.language import router as language_router
 from config import config
 from utils.logger import setup_logger, logger
 from loader import bot, create_db_pool
-from handlers import global_navigation
+from utils import global_navigation
 import signal
 import sys
 import logging
@@ -28,7 +29,14 @@ setup_logger(level=getattr(logging, config.LOG_LEVEL.upper()))
 
 # Dispatcher with memory storage
 dp = Dispatcher(storage=MemoryStorage())
+
+# Include routers - language router should be first to handle language changes
+dp.include_router(language_router)  # Til o'zgartirish uchun birinchi bo'lib qo'shamiz
+
+# Include main router which includes all other routers
 dp.include_router(main_router)
+
+# Include global navigation router for handling back buttons
 dp.include_router(global_navigation.router)
 
 async def on_startup():

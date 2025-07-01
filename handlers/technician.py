@@ -1,18 +1,15 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 from keyboards.technician_buttons import (
     get_technician_main_menu_keyboard, 
     get_language_keyboard, get_contact_keyboard, get_task_action_keyboard, get_completion_keyboard, get_technician_selection_keyboard, get_back_technician_keyboard
 )
 from states.technician_states import TechnicianStates
 from loader import bot
-from utils.i18n import i18n
 from database.queries import get_user_by_telegram_id, get_zayavka_by_id, start_task
-from utils.logger import setup_logger, log_user_action, log_error
+from utils.logger import setup_logger
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
 import functools
@@ -20,7 +17,7 @@ from utils.cache_manager import CacheManager
 from utils.inline_cleanup import safe_remove_inline, safe_remove_inline_call
 from utils.get_lang import get_user_lang
 from utils.get_role import get_user_role
-from utils.templates import get_template_text
+from handlers.language import show_language_selection, process_language_change
 
 # Setup logger
 logger = setup_logger('bot.technician')
@@ -54,18 +51,25 @@ async def get_lang(user_id):
 def require_technician(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        # message_or_call ni aniqlash
-        message_or_call = args[0] if args else kwargs.get('message_or_call')
-        user_id = message_or_call.from_user.id
-        user = await get_user_by_telegram_id(user_id)
-        if not user or user.get('role') != 'technician':
-            text = "Sizda montajchi huquqi yo'q."
-            if hasattr(message_or_call, 'answer'):
-                await message_or_call.answer(text)
-            else:
-                await message_or_call.message.answer(text)
-            return
-        return await func(*args, **kwargs)
+        try:
+            # message_or_call ni aniqlash
+            message_or_call = args[0] if args else kwargs.get('message_or_call')
+            user_id = message_or_call.from_user.id
+            user = await get_user_by_telegram_id(user_id)
+            if not user or user.get('role') != 'technician':
+                lang = await get_user_lang(user_id)
+                text = "Sizda montajchi huquqi yo'q." if lang == 'uz' else "У вас нет прав монтажника."
+                if hasattr(message_or_call, 'answer'):
+                    await message_or_call.answer(text)
+                else:
+                    await message_or_call.message.answer(text)
+                return
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in require_technician decorator: {str(e)}", exc_info=True)
+            if args and hasattr(args[0], 'answer'):
+                lang = await get_user_lang(args[0].from_user.id)
+                await args[0].answer("Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!")
     return wrapper
 
 # @router.message(Command("start"))
@@ -78,19 +82,19 @@ async def cmd_start(message: Message, state: FSMContext):
         if not db_user or db_user.get('role') != 'technician':
             await safe_remove_inline(message)
             lang = await get_user_lang(message.from_user.id)
-            text = await get_template_text(lang, 'technician', 'no_access')
+            text = "Sizda montajchi huquqi yo'q." if lang == 'uz' else "У вас нет прав монтажника."
             await message.answer(text)
             return
         lang = await get_user_lang(message.from_user.id)
         role = await get_user_role(message.from_user.id)
         if not db_user['phone_number']:
             await safe_remove_inline(message)
-            text = await get_template_text(lang, role, "share_contact")
+            text = "Iltimos, kontaktingizni ulashing." if lang == 'uz' else "Пожалуйста, предоставьте свой контактный номер."
             await message.answer(text, reply_markup=get_contact_keyboard(lang))
             await state.set_state(TechnicianStates.waiting_for_phone_number)
         else:
             await safe_remove_inline(message)
-            text = await get_template_text(lang, role, "technician_welcome")
+            text = "Xush kelibsiz! Montajchi paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать! Добро пожаловать в панель монтажника!"
             await message.answer(
                 text=text,
                 reply_markup=get_technician_main_menu_keyboard(lang)
@@ -101,62 +105,96 @@ async def cmd_start(message: Message, state: FSMContext):
         logger.error(f"Technician start buyrug'ida xatolik: {str(e)}", exc_info=True)
         lang = await get_user_lang(message.from_user.id)
         await safe_remove_inline(message)
-        text = await get_template_text(lang, 'technician', 'error_occurred')
+        text = "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring." if lang == 'uz' else "Произошла ошибка. Пожалуйста, попробуйте еще раз."
         await message.answer(text)
 
-@router.message(F.text.in_(["Vazifalarim", "Мои задачи"]))
+@router.message(F.text.in_(["📋 Vazifalarim", "📋 Мои задачи"]))
 @require_technician
 async def my_tasks(message: Message, state: FSMContext):
     """Show technician's assigned tasks"""
+    await safe_remove_inline(message)
     try:
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         from database.queries import get_technician_tasks
         tasks = await get_technician_tasks(user['id'])
         if not tasks:
-            await message.answer(
-                i18n.get_message(lang, "technician.no_my_tasks"),
-                reply_markup=get_back_technician_keyboard(lang)  # Lang parametri qo'shildi
-            )
+            if lang == 'uz':
+                await message.answer(
+                    "Sizda hozircha birorta ham vazifa yo'q.",
+                    reply_markup=get_back_technician_keyboard(lang)
+                )
+            else:
+                await message.answer(
+                    "У вас пока нет задач.",
+                    reply_markup=get_back_technician_keyboard(lang)
+                )
             return
-        await message.answer(
-            i18n.get_message(lang, "technician.my_tasks_list").format(count=len(tasks)),
-            reply_markup=get_back_technician_keyboard(lang)  # Lang parametri qo'shildi
-        )
+        if lang == 'uz':
+            await message.answer(
+                f"Sizga biriktirilgan vazifalar soni: {len(tasks)} ta",
+                reply_markup=get_back_technician_keyboard(lang)
+            )
+        else:
+            await message.answer(
+                f"Количество назначенных вам задач: {len(tasks)}",
+                reply_markup=get_back_technician_keyboard(lang)
+            )
         for task in tasks:
             status_emoji = "🆕" if task['status'] == 'assigned' else ("✅" if task['status'] == 'accepted' else ("⏳" if task['status'] == 'in_progress' else "📋"))
-            status_text = i18n.get_message(lang, f"statuses.{task['status']}") or task['status']
-            task_text = (
-                f"{status_emoji} {i18n.get_message(lang, 'technician.task_details')} #{task['id']}\n"
-                f"👤 {i18n.get_message(lang, 'client.welcome').split(' ')[0]}: {task['client_name']}\n"
-                f"📞 Telefon: {task['client_phone'] or 'Kiritilmagan'}\n"
-                f"📝 {i18n.get_message(lang, 'technician.task_description')}: {task['description']}\n"
-                f"📍 Manzil: {task['address']}\n"
-                f"📅 {i18n.get_message(lang, 'technician.task_date')}: {task['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                f"📊 {i18n.get_message(lang, 'technician.task_status')}: {status_text}"
-            )
+            if lang == 'uz':
+                status_text = {
+                    'assigned': 'Yangi',
+                    'accepted': 'Qabul qilingan',
+                    'in_progress': 'Jarayonda',
+                    'completed': 'Yakunlangan'
+                }.get(task['status'], task['status'])
+                task_text = (
+                    f"{status_emoji} Vazifa #{task['id']}\n"
+                    f"👤 Mijoz: {task['client_name']}\n"
+                    f"📞 Telefon: {task['client_phone'] or 'Kiritilmagan'}\n"
+                    f"📝 Tavsif: {task['description']}\n"
+                    f"📍 Manzil: {task['address']}\n"
+                    f"📅 Sana: {task['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
+                    f"📊 Status: {status_text}"
+                )
+            else:
+                status_text = {
+                    'assigned': 'Новая',
+                    'accepted': 'Принята',
+                    'in_progress': 'В процессе',
+                    'completed': 'Завершена'
+                }.get(task['status'], task['status'])
+                task_text = (
+                    f"{status_emoji} Задача #{task['id']}\n"
+                    f"👤 Клиент: {task['client_name']}\n"
+                    f"📞 Телефон: {task['client_phone'] or 'Не указано'}\n"
+                    f"📝 Описание: {task['description']}\n"
+                    f"📍 Адрес: {task['address']}\n"
+                    f"📅 Дата: {task['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
+                    f"📊 Статус: {status_text}"
+                )
             if task.get('media'):
                 await message.answer_photo(
                     photo=task['media'],
                     caption=task_text,
-                    reply_markup=get_task_action_keyboard(task['id'], task['status'], lang)  # Lang parametri qo'shildi
+                    reply_markup=get_task_action_keyboard(task['id'], task['status'], lang)
                 )
             else:
                 await message.answer(
                     task_text,
-                    reply_markup=get_task_action_keyboard(task['id'], task['status'], lang)  # Lang parametri qo'shildi
+                    reply_markup=get_task_action_keyboard(task['id'], task['status'], lang)
                 )
     except Exception as e:
         logger.error(f"Error in my_tasks: {str(e)}", exc_info=True)
-        await message.answer(i18n.get_message(lang, "error"))
+        lang = await get_user_lang(message.from_user.id)
+        await message.answer("Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!")
 
-@router.message(F.text.in_([
-    "Hisobot", "Hisobotlar",  # uz
-    "Отчет", "Отчеты"         # ru
-]))
+@router.message(F.text.in_(["📊 Hisobot", "📊 Hisobotlar", "📊 Отчет", "📊 Отчеты"]))
 @require_technician
 async def reports(message: Message, state: FSMContext):
     """Show technician's completed work stats with a single 'Batafsil'/'Подробнее' button (multilingual)"""
+    await safe_remove_inline(message)
     try:
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
@@ -172,10 +210,9 @@ async def reports(message: Message, state: FSMContext):
         count_week = sum(1 for t in completed if t['completed_at'] and t['completed_at'].date() >= week_start)
         count_month = sum(1 for t in completed if t['completed_at'] and t['completed_at'].date() >= month_start)
 
-        # Statistika matni 2 tilda
         if lang == "ru":
             stat_text = (
-                f"\U0001F4DD {i18n.get_message(lang, 'technician.reports_list')}\n"
+                f"\U0001F4DD Ваши отчеты\n"
                 f"Всего завершено: {count_total}\n"
                 f"Сегодня: {count_today}\n"
                 f"За неделю: {count_week}\n"
@@ -184,7 +221,7 @@ async def reports(message: Message, state: FSMContext):
             details_btn_text = "Подробнее"
         else:
             stat_text = (
-                f"\U0001F4DD {i18n.get_message(lang, 'technician.reports_list')}\n"
+                f"\U0001F4DD Hisobotlaringiz\n"
                 f"Jami yakunlangan: {count_total} ta\n"
                 f"Bugun: {count_today} ta\n"
                 f"Haftada: {count_week} ta\n"
@@ -198,7 +235,8 @@ async def reports(message: Message, state: FSMContext):
         await message.answer(stat_text, reply_markup=keyboard)
     except Exception as e:
         logger.error(f"Error in reports: {str(e)}", exc_info=True)
-        await message.answer(i18n.get_message(lang, "error"))
+        lang = await get_user_lang(message.from_user.id)
+        await message.answer("Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!")
 
 @router.callback_query(F.data.startswith("techreport_page_"))
 @require_technician
@@ -216,7 +254,8 @@ async def report_details_page(call: CallbackQuery, state: FSMContext):
         end = start + PAGE_SIZE
         page_tasks = completed[start:end]
         if not page_tasks:
-            await call.message.edit_text(i18n.get_message(lang, 'technician.no_reports'))
+            no_reports_text = "Hisobotlar yo'q." if lang == 'uz' else "Отчетов нет."
+            await call.message.edit_text(no_reports_text)
             await call.answer()
             return
         lines = []
@@ -224,109 +263,117 @@ async def report_details_page(call: CallbackQuery, state: FSMContext):
             date_str = t['completed_at'].strftime('%d.%m.%Y %H:%M') if t.get('completed_at') else '-'
             created_str = t['created_at'].strftime('%d.%m.%Y %H:%M') if t.get('created_at') else '-'
             solution = t.get('solution', '-')
-            lines.append(
-                f"\U0001F4DD {i18n.get_message(lang, 'technician.task_details')} #{t['id']}\n"
-                f"\U0001F464 {i18n.get_message(lang, 'client.welcome').split(' ')[0]}: {t.get('user_name', '-')}\n"
-                f"\U0001F4DE {i18n.get_message(lang, 'client.order_status')}: {t.get('client_phone', '-')}\n"
-                f"\U0001F4DD {i18n.get_message(lang, 'technician.task_description')}: {t.get('description', '-')}\n"
-                f"\U0001F4CD {i18n.get_message(lang, 'enter_order_address')}: {t.get('address', '-')}\n"
-                f"\U0001F4C5 {i18n.get_message(lang, 'technician.task_date')}: {created_str}\n"
-                f"\U0001F4CA {i18n.get_message(lang, 'technician.task_status')}: {i18n.get_message(lang, 'statuses.completed')}\n"
-                f"\U0001F551 {i18n.get_message(lang, 'technician.completed_at') if 'completed_at' in i18n.messages[lang].get('technician', {}) else ('Yakunlangan' if lang=='uz' else 'Завершено')}: {date_str}\n"
-                f"\U0001F4AC {i18n.get_message(lang, 'technician.solution') if 'solution' in i18n.messages[lang].get('technician', {}) else ('Yechim' if lang=='uz' else 'Решение')}: {solution}\n"
-                "-----------------------------"
-            )
-        text = i18n.get_message(lang, 'technician.reports_list') + "\n\n" + "\n".join(lines)
+            if lang == 'uz':
+                lines.append(
+                    f"📝 Vazifa tafsilotlari #{t['id']}\n"
+                    f"👤 Foydalanuvchi: {t.get('user_name', '-')}\n"
+                    f"📞 Buyurtma holati: {t.get('client_phone', '-')}\n"
+                    f"📝 Vazifa tavsifi: {t.get('description', '-')}\n"
+                    f"📍 Manzil: {t.get('address', '-')}\n"
+                    f"📅 Vazifa sanasi: {created_str}\n"
+                    f"📊 Vazifa holati: Yakunlangan\n"
+                    f"🕑 Yakunlangan: {date_str}\n"
+                    f"💬 Yechim: {solution}\n"
+                    "-----------------------------"
+                )
+            elif lang == 'ru':
+                lines.append(
+                    f"📝 Детали задачи #{t['id']}\n"
+                    f"👤 Пользователь: {t.get('user_name', '-')}\n"
+                    f"📞 Статус заказа: {t.get('client_phone', '-')}\n"
+                    f"📝 Описание задачи: {t.get('description', '-')}\n"
+                    f"📍 Адрес: {t.get('address', '-')}\n"
+                    f"📅 Дата задачи: {created_str}\n"
+                    f"📊 Статус задачи: Завершено\n"
+                    f"🕑 Завершено: {date_str}\n"
+                    f"💬 Решение: {solution}\n"
+                    "-----------------------------"
+                )
+        reports_list_text = "Hisobotlar ro'yxati:" if lang == 'uz' else "Список отчетов:"
+        text = reports_list_text + "\n\n" + "\n".join(lines)
         nav_buttons = []
         if page > 1:
-            nav_buttons.append(InlineKeyboardButton(text=("⬅️ Orqaga" if lang=="uz" else "⬅️ Назад"), callback_data=f"techreport_page_{page-1}"))
+            nav_buttons.append(InlineKeyboardButton(
+                text="⬅️ Orqaga" if lang == "uz" else "⬅️ Назад",
+                callback_data=f"techreport_page_{page-1}"
+            ))
         if end < len(completed):
-            nav_buttons.append(InlineKeyboardButton(text=("Oldinga ➡️" if lang=="uz" else "Вперёд ➡️"), callback_data=f"techreport_page_{page+1}"))
+            nav_buttons.append(InlineKeyboardButton(
+                text="Oldinga ➡️" if lang == "uz" else "Вперёд ➡️",
+                callback_data=f"techreport_page_{page+1}"
+            ))
         keyboard = InlineKeyboardMarkup(inline_keyboard=[nav_buttons] if nav_buttons else [])
         await call.message.edit_text(text, reply_markup=keyboard)
         await call.answer()
     except Exception as e:
         logger.error(f"Error in report_details_page: {str(e)}", exc_info=True)
-        await call.message.edit_text(i18n.get_message(lang, 'error'))
+        await call.message.answer("Xatolik yuz berdi!")
 
-@router.message(F.text.in_(["Tilni o'zgartirish", "Изменить язык"]))
+@router.message(lambda message: message.text in ["🌐 Tilni o'zgartirish", "🌐 Изменить язык"])
 @require_technician
 async def show_language_keyboard(message: Message, state: FSMContext):
-    """Show language selection keyboard"""
+    """Show language selection keyboard for technicians"""
+    await safe_remove_inline(message)
     try:
-        user = await get_user_by_telegram_id(message.from_user.id)
-        lang = user.get('language', 'uz')
-        await message.answer(
-            i18n.get_message(lang, "select_language"),
-            reply_markup=get_language_keyboard()
-        )
+        success = await show_language_selection(message, "technician", state)
+        if not success:
+            lang = await get_user_lang(message.from_user.id)
+            error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+            await message.answer(error_text)
     except Exception as e:
         logger.error(f"Error in show_language_keyboard: {str(e)}", exc_info=True)
-        await message.answer(i18n.get_message(lang, "error"))
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await message.answer(error_text)
 
-@router.callback_query(F.data.in_(["lang_uz", "lang_ru"]))
+@router.callback_query(F.data.startswith("tech_lang_"))
+@require_technician
 async def change_language(call: CallbackQuery, state: FSMContext):
+    """Handle language change callback for technician role"""
     try:
-        await call.answer()
-        user = await get_user_by_telegram_id(call.from_user.id)
-        if not user:
-            return
-        new_lang = "uz" if call.data == "lang_uz" else "ru"
-        role = user.get('role')
-        from database.queries import _pool
-        async with _pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE users SET language = $1 WHERE telegram_id = $2",
-                new_lang, str(call.from_user.id)
-            )
-        # Reply buttonni yangi tilga mos qilib yuborish
-        if role == "technician":
-            from keyboards.technician_buttons import get_technician_main_menu_keyboard
-            reply_markup = get_technician_main_menu_keyboard(new_lang)
-            menu_text = i18n.get_message(new_lang, "technician.main_menu")
-        elif role == "client":
-            from keyboards.client_buttons import get_main_menu_keyboard
-            reply_markup = get_main_menu_keyboard(new_lang)
-            menu_text = i18n.get_message(new_lang, "main_menu")
-        elif role == "admin":
-            from keyboards.admin_buttons import admin_main_menu
-            reply_markup = admin_main_menu
-            menu_text = i18n.get_message(new_lang, "admin.welcome") or "Admin paneliga xush kelibsiz!"
-        else:
-            reply_markup = None
-            menu_text = "Bosh menyu."
-        await call.message.edit_text(i18n.get_message(new_lang, "language_changed"))
-        await call.message.answer(
-            menu_text,
-            reply_markup=reply_markup
+        await process_language_change(
+            call=call,
+            role="technician",
+            get_main_keyboard_func=get_technician_main_menu_keyboard,
+            state=state
         )
+        await state.set_state(TechnicianStates.main_menu)
     except Exception as e:
         logger.error(f"Error in change_language: {str(e)}", exc_info=True)
+        lang = await get_user_lang(call.from_user.id)
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await call.message.answer(error_text)
         await call.message.answer("Xatolik yuz berdi.")
 
-@router.message(F.text.in_([i18n.get_message('uz', 'back'), i18n.get_message('ru', 'back')]))
+@router.message(F.text.in_(["Orqaga", "Назад"]))
 @require_technician
 async def handle_back(message: Message, state: FSMContext):
     """Handle back button"""
+    await safe_remove_inline(message)
     try:
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
+        main_menu_text = "Asosiy menyu" if lang == 'uz' else "Главное меню"
         await message.answer(
-            i18n.get_message(lang, "technician.main_menu"),
+            main_menu_text,
             reply_markup=get_technician_main_menu_keyboard(lang)
         )
         await state.set_state(TechnicianStates.main_menu)
     except Exception as e:
         logger.error(f"Error in handle_back: {str(e)}", exc_info=True)
-        await message.answer(i18n.get_message(lang, "error"))
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await message.answer(error_text)
 
 @router.message(TechnicianStates.waiting_for_phone_number, F.contact)
 async def process_contact(message: Message, state: FSMContext):
     """Process contact sharing for technicians"""
+    await safe_remove_inline(message)
     try:
         user = await get_user_by_telegram_id(message.from_user.id)
         if not user or user.get('role') != 'technician':
-            await message.answer(i18n.get_message('uz', 'admin.no_access'))
+            no_access_text = "Sizda bu amalni bajarish huquqi yo'q." if lang == 'uz' else "У вас нет доступа к этому действию."
+            await message.answer(no_access_text)
             return
         lang = user.get('language', 'uz')
         from database.queries import _pool
@@ -335,15 +382,18 @@ async def process_contact(message: Message, state: FSMContext):
                 "UPDATE users SET phone_number = $1 WHERE telegram_id = $2",
                 message.contact.phone_number, str(message.from_user.id)
             )
+        welcome_text = "Xush kelibsiz! Montajchi paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать! Добро пожаловать в панель монтажника!"
         await message.answer(
-            i18n.get_message(lang, "technician.welcome"),
+            welcome_text,
             reply_markup=get_technician_main_menu_keyboard(lang)
         )
         await state.set_state(TechnicianStates.main_menu)
         logger.info(f"Technician contact updated: {message.from_user.id}")
     except Exception as e:
         logger.error(f"Error in process_contact: {str(e)}", exc_info=True)
-        await message.answer(i18n.get_message(lang, "error"))
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+        await message.answer(error_text)
 
 # CRM Integration for Technicians
 
@@ -378,6 +428,7 @@ def get_task_inline_keyboard(zayavka_id, status, lang='uz'):
 @require_technician
 async def accept_task_handler(call: CallbackQuery, state: FSMContext):
     """Vazifani qabul qilish (boshlashsiz)"""
+    await safe_remove_inline(call.message)
     zayavka_id = int(call.data.split("_")[-1])
     zayavka = await get_zayavka_by_id(zayavka_id)
     if not zayavka:
@@ -395,38 +446,55 @@ async def accept_task_handler(call: CallbackQuery, state: FSMContext):
     await delete_previous_task_message(call.from_user.id, zayavka_id, bot)
     # Send full info message
     lang = await get_lang(call.from_user.id)
-    text = await get_template_text(
-        lang, 'technician', 'tech_order_full',
-        order_id=zayavka['id'],
-        client_name=zayavka.get('user_name', '-'),
-        client_phone=zayavka.get('phone_number', '-'),
-        address=zayavka.get('address', '-'),
-        description=zayavka.get('description', '-'),
-        created_at=zayavka.get('created_at', '-')
-    )
+    # get_template ishlatmasdan, xabarni qo'lda tuzamiz
+    if lang == 'ru':
+        text = (
+            f"📝 <b>Заявка №{zayavka['id']}</b>\n"
+            f"👤 Клиент: {zayavka.get('user_name', '-')}\n"
+            f"📞 Телефон: {zayavka.get('phone_number', '-')}\n"
+            f"🏠 Адрес: {zayavka.get('address', '-')}\n"
+            f"📝 Описание: {zayavka.get('description', '-')}\n"
+            f"🕒 Создано: {zayavka.get('created_at', '-')}"
+        )
+    else:
+        text = (
+            f"📝 <b>Buyurtma №{zayavka['id']}</b>\n"
+            f"👤 Mijoz: {zayavka.get('user_name', '-')}\n"
+            f"📞 Telefon: {zayavka.get('phone_number', '-')}\n"
+            f"🏠 Manzil: {zayavka.get('address', '-')}\n"
+            f"📝 Tavsif: {zayavka.get('description', '-')}\n"
+            f"🕒 Yaratilgan: {zayavka.get('created_at', '-')}"
+        )
     await call.message.answer(text, reply_markup=get_task_inline_keyboard(zayavka_id, 'accepted', lang))
     await save_task_message(call.from_user.id, zayavka_id, call.message.chat.id, call.message.message_id)
     await call.message.delete()
-    # Menejerlarga qabul qilindi xabarini yuborish (2ta tilda)
+    # Menejerlarga qabul qilindi xabarini yuborish (har bir menejer o'z tilida)
     from database.queries import get_managers_telegram_ids
     managers = await get_managers_telegram_ids()
     now_str = datetime.now().strftime('%d.%m.%Y %H:%M')
     try:
-        uz_text = (
-            f"✅ Vazifa #{zayavka_id} qabul qilindi!\n\n"
-            f"👨‍🔧 Montajchi: {call.from_user.full_name}\n"
-            f"Telegram ID: {call.from_user.id}\n"
-            f"⏰ Sana va vaqt: {now_str}"
-        )
-        ru_text = (
-            f"✅ Заявка #{zayavka_id} принята!\n\n"
-            f"👨‍🔧 Монтажник: {call.from_user.full_name}\n"
-            f"Telegram ID: {call.from_user.id}\n"
-            f"⏰ Дата и время: {now_str}"
-        )
-        for manager_id in managers:
-            await bot.send_message(chat_id=manager_id, text=uz_text)
-            await bot.send_message(chat_id=manager_id, text=ru_text)
+        for manager in managers:
+            # Menejerning tilini aniqlash
+            manager_lang = manager.get('language')
+            if not manager_lang or manager_lang not in ['uz', 'ru']:
+                manager_lang = 'uz'
+            
+            if manager_lang == 'uz':
+                manager_text = (
+                    f"✅ Vazifa #{zayavka_id} qabul qilindi!\n\n"
+                    f"👨‍🔧 Montajchi: {call.from_user.full_name}\n"
+                    f"Telegram ID: {call.from_user.id}\n"
+                    f"⏰ Sana va vaqt: {now_str}"
+                )
+            else:
+                manager_text = (
+                    f"✅ Заявка #{zayavka_id} принята!\n\n"
+                    f"👨‍🔧 Монтажник: {call.from_user.full_name}\n"
+                    f"Telegram ID: {call.from_user.id}\n"
+                    f"⏰ Дата и время: {now_str}"
+                )
+            
+            await bot.send_message(chat_id=manager['telegram_id'], text=manager_text)
     except Exception as e:
         logger.error(f"Menejerlarga vazifa qabul qilindi xabarini yuborishda xatolik: {e}")
 
@@ -434,6 +502,7 @@ async def accept_task_handler(call: CallbackQuery, state: FSMContext):
 @require_technician
 async def start_task_handler(call: CallbackQuery, state: FSMContext):
     """Vazifani boshlash"""
+    await safe_remove_inline(call.message)
     zayavka_id = int(call.data.split("_")[-1])
     zayavka = await get_zayavka_by_id(zayavka_id)
     if not zayavka:
@@ -447,34 +516,43 @@ async def start_task_handler(call: CallbackQuery, state: FSMContext):
         return
     await start_task(zayavka_id, call.from_user.id)
     # Update inline keyboard to only 'complete'
-    await call.message.edit_reply_markup(reply_markup=get_task_inline_keyboard(zayavka_id, 'in_progress', await get_lang(call.from_user.id)))
+    lang = await get_lang(call.from_user.id)
+    await call.message.edit_reply_markup(reply_markup=get_task_inline_keyboard(zayavka_id, 'in_progress', lang))
     # Message remains, just update inline
-    # Menejerlarga boshladi xabarini yuborish (2ta tilda)
+    # Menejerlarga boshladi xabarini yuborish (har bir menejer o'z tilida)
     from database.queries import get_managers_telegram_ids
     managers = await get_managers_telegram_ids()
     now_str = datetime.now().strftime('%d.%m.%Y %H:%M')
     try:
-        uz_text = (
-            f"▶️ Vazifa #{zayavka_id} boshlandi!\n\n"
-            f"👨‍🔧 Montajchi: {call.from_user.full_name}\n"
-            f"Telegram ID: {call.from_user.id}\n"
-            f"⏰ Sana va vaqt: {now_str}"
-        )
-        ru_text = (
-            f"▶️ Заявка #{zayavka_id} начата!\n\n"
-            f"👨‍🔧 Монтажник: {call.from_user.full_name}\n"
-            f"Telegram ID: {call.from_user.id}\n"
-            f"⏰ Дата и время: {now_str}"
-        )
-        for manager_id in managers:
-            await bot.send_message(chat_id=manager_id, text=uz_text)
-            await bot.send_message(chat_id=manager_id, text=ru_text)
+        for manager in managers:
+            # Menejerning tilini aniqlash
+            manager_lang = manager.get('language')
+            if not manager_lang or manager_lang not in ['uz', 'ru']:
+                manager_lang = 'uz'
+            
+            if manager_lang == 'uz':
+                manager_text = (
+                    f"▶️ Vazifa #{zayavka_id} boshlandi!\n\n"
+                    f"👨‍🔧 Montajchi: {call.from_user.full_name}\n"
+                    f"Telegram ID: {call.from_user.id}\n"
+                    f"⏰ Sana va vaqt: {now_str}"
+                )
+            else:
+                manager_text = (
+                    f"▶️ Заявка #{zayavka_id} начата!\n\n"
+                    f"👨‍🔧 Монтажник: {call.from_user.full_name}\n"
+                    f"Telegram ID: {call.from_user.id}\n"
+                    f"⏰ Дата и время: {now_str}"
+                )
+            
+            await bot.send_message(chat_id=manager['telegram_id'], text=manager_text)
     except Exception as e:
         logger.error(f"Menejerlarga vazifa boshlandi xabarini yuborishda xatolik: {e}")
 
 @router.callback_query(F.data.startswith("complete_task_"))
 @require_technician
 async def complete_task_handler(call: CallbackQuery, state: FSMContext):
+    await safe_remove_inline(call.message)
     await call.answer()
     # Inline keyboardni birinchi bosishda yo'qotish
     try:
@@ -483,12 +561,14 @@ async def complete_task_handler(call: CallbackQuery, state: FSMContext):
         pass
     zayavka_id = int(call.data.split("_")[-1])
     await state.update_data(completing_zayavka_id=zayavka_id)
-    await state.set_state(TechnicianStates.waiting_for_completion_comment)
-    await call.message.edit_text("📝 Bajarilgan ish haqida izoh yozing:")
+    lang = await get_user_lang(call.from_user.id)
+    completion_text = "📝 Bajarilgan ish haqida izoh yozing:" if lang == 'uz' else "📝 Напишите комментарий о выполненной работе:"
+    await call.message.edit_text(completion_text)
 
 @router.callback_query(F.data.startswith("complete_with_comment_"))
 @require_technician
 async def complete_with_comment_handler(call: CallbackQuery, state: FSMContext):
+    await safe_remove_inline(call.message)
     await call.answer()
     # Inline keyboardni birinchi bosishda yo'qotish
     try:
@@ -497,13 +577,15 @@ async def complete_with_comment_handler(call: CallbackQuery, state: FSMContext):
         pass
     zayavka_id = int(call.data.split("_")[-1])
     await state.update_data(completing_zayavka_id=zayavka_id)
-    await state.set_state(TechnicianStates.waiting_for_completion_comment)
-    await call.message.edit_text("📝 Bajarilgan ish haqida izoh yozing:")
+    lang = await get_user_lang(call.from_user.id)
+    completion_text = "📝 Bajarilgan ish haqida izoh yozing:" if lang == 'uz' else "📝 Напишите комментарий о выполненной работе:"
+    await call.message.edit_text(completion_text)
 
 @router.message(TechnicianStates.waiting_for_completion_comment)
 @require_technician
 async def process_completion_comment(message: Message, state: FSMContext):
     """Yakunlash izohi"""
+    await safe_remove_inline(message)
     user = await get_user_by_telegram_id(message.from_user.id)
     if not user or user.get('role') != 'technician':
         return
@@ -512,7 +594,9 @@ async def process_completion_comment(message: Message, state: FSMContext):
     zayavka_id = data.get('completing_zayavka_id')
     
     if not zayavka_id:
-        await message.answer("Xatolik yuz berdi!")
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+        await message.answer(error_text)
         return
     
     await complete_task_final(message, user, zayavka_id, message.text)
@@ -520,6 +604,7 @@ async def process_completion_comment(message: Message, state: FSMContext):
 
 async def complete_task_final(message_or_call, user, zayavka_id, solution_text):
     """Vazifani yakuniy yakunlash (2 tilda)"""
+    await safe_remove_inline(message_or_call)
     try:
         from database.queries import complete_task, get_managers_telegram_ids
 
@@ -577,11 +662,23 @@ async def complete_task_final(message_or_call, user, zayavka_id, solution_text):
         
         # Mijozga xabar yuborish (faqat o'z tilida)
         managers = await get_managers_telegram_ids()
-        for manager_id in managers:
+        for manager in managers:
             try:
-                manager = await get_user_by_telegram_id(manager_id)
-                lang = manager.get('language', 'uz') if manager else 'uz'
-                if lang == 'ru':
+                manager_lang = manager.get('language')
+                if not manager_lang or manager_lang not in ['uz', 'ru']:
+                    manager_lang = 'uz'
+                
+                if manager_lang == 'uz':
+                    manager_text = (
+                        f"✅ Vazifa #{zayavka_id} yakunlandi!\n\n"
+                        f"👨‍🔧 Montajchi: {user['full_name']}\n"
+                        f"👤 Mijoz: {zayavka['client_name']}\n"
+                        f"📝 Tavsif: {zayavka['description']}\n"
+                    )
+                    if solution_text:
+                        manager_text += f"💬 Izoh: {solution_text}\n"
+                    manager_text += f"⏰ Yakunlangan: {datetime.now().strftime('%d.%m.%Y %H:%M') }"
+                else:
                     manager_text = (
                         f"✅ Заявка #{zayavka_id} завершена!\n\n"
                         f"👨‍🔧 Техник: {user['full_name']}\n"
@@ -591,29 +688,22 @@ async def complete_task_final(message_or_call, user, zayavka_id, solution_text):
                     if solution_text:
                         manager_text += f"💬 Комментарий: {solution_text}\n"
                     manager_text += f"⏰ Завершено: {datetime.now().strftime('%d.%m.%Y %H:%M') }"
-                else:
-                    manager_text = (
-                        f"✅ Zayavka #{zayavka_id} yakunlandi!\n\n"
-                        f"👨‍🔧 Technician: {user['full_name']}\n"
-                        f"👤 Mijoz: {zayavka['client_name']}\n"
-                        f"📝 Tavsif: {zayavka['description']}\n"
-                    )
-                    if solution_text:
-                        manager_text += f"💬 Izoh: {solution_text}\n"
-                    manager_text += f"⏰ Yakunlangan: {datetime.now().strftime('%d.%m.%Y %H:%M') }"
-                await bot.send_message(chat_id=manager_id, text=manager_text)
+                await bot.send_message(chat_id=manager['telegram_id'], text=manager_text)
             except Exception as e:
                 logger.error(f"Menejerga xabar yuborishda xatolik: {e}")
 
     except Exception as e:
         logger.error(f"Vazifani yakunlashda xatolik: {e}")
         if hasattr(message_or_call, 'answer'):
-            await message_or_call.answer("Xatolik yuz berdi!")
+            lang = await get_user_lang(message_or_call.from_user.id)
+            error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+            await message_or_call.answer(error_text)
 
 @router.callback_query(F.data.startswith("transfer_task_"))
 @require_technician
 async def transfer_task_handler(call: CallbackQuery, state: FSMContext):
     """Vazifani o'tkazish so'rovi"""
+    await safe_remove_inline(call.message)
     await call.answer()
     
     user = await get_user_by_telegram_id(call.from_user.id)
@@ -621,12 +711,15 @@ async def transfer_task_handler(call: CallbackQuery, state: FSMContext):
     await state.update_data(transferring_zayavka_id=zayavka_id)
     await state.set_state(TechnicianStates.waiting_for_transfer_reason)
     
-    await call.message.edit_text("📝 O'tkazish sababini yozing:")
+    lang = await get_user_lang(call.from_user.id)
+    transfer_reason_text = "📝 O'tkazish sababini yozing:" if lang == 'uz' else "📝 Напишите причину передачи:"
+    await call.message.edit_text(transfer_reason_text)
 
 @router.message(TechnicianStates.waiting_for_transfer_reason)
 @require_technician
 async def process_transfer_reason(message: Message, state: FSMContext):
     """O'tkazish sababini qayta ishlash"""
+    await safe_remove_inline(message)
     user = await get_user_by_telegram_id(message.from_user.id)
     if not user or user.get('role') != 'technician':
         return
@@ -635,7 +728,9 @@ async def process_transfer_reason(message: Message, state: FSMContext):
     zayavka_id = data.get('transferring_zayavka_id')
     
     if not zayavka_id:
-        await message.answer("Xatolik yuz berdi!\nПроизошла ошибка!")
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+        await message.answer(error_text)
         return
 
     try:
@@ -676,41 +771,50 @@ async def process_transfer_reason(message: Message, state: FSMContext):
             )]
         ])
 
-        for manager_id in managers:
+        for manager in managers:
             try:
                 # Try to get manager's language, fallback to 'uz'
-                manager = await get_user_by_telegram_id(manager_id)
-                lang = manager.get('language', 'uz') if manager else 'uz'
-                if lang == 'ru':
+                manager_lang = manager.get('language')
+                if not manager_lang or manager_lang not in ['uz', 'ru']:
+                    manager_lang = 'uz'
+                
+                if manager_lang == 'uz':
                     await bot.send_message(
-                        chat_id=manager_id,
-                        text=transfer_text_ru,
-                        reply_markup=transfer_keyboard_ru
+                        chat_id=manager['telegram_id'],
+                        text=transfer_text_uz,
+                        reply_markup=transfer_keyboard_uz
                     )
                 else:
                     await bot.send_message(
-                        chat_id=manager_id,
-                        text=transfer_text_uz,
-                        reply_markup=transfer_keyboard_uz
+                        chat_id=manager['telegram_id'],
+                        text=transfer_text_ru,
+                        reply_markup=transfer_keyboard_ru
                     )
             except Exception as e:
                 logger.error(f"Menejerga o'tkazish so'rovini yuborishda xatolik: {e}")
 
-        await message.answer("✅ O'tkazish so'rovi yuborildi! Menejer tez orada ko'rib chiqadi.\n"
-                             "✅ Запрос на передачу отправлен! Менеджер скоро рассмотрит его.")
+        lang = await get_user_lang(message.from_user.id)
+        success_text_uz = "✅ O'tkazish so'rovi yuborildi! Menejer tez orada ko'rib chiqadi."
+        success_text_ru = "✅ Запрос на передачу отправлен! Менеджер скоро рассмотрит его."
+        await message.answer(success_text_uz if lang == 'uz' else success_text_ru)
         await state.clear()
     except Exception as e:
         logger.error(f"O'tkazish so'rovini yuborishda xatolik: {e}")
-        await message.answer("Xatolik yuz berdi!")
+        lang = await get_user_lang(message.from_user.id)
+        error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+        await message.answer(error_text)
 
 @router.callback_query(F.data.startswith("reassign_zayavka_"))
 async def reassign_zayavka_handler(call: CallbackQuery, state: FSMContext):
     """Zayavkani qayta biriktirish"""
+    await safe_remove_inline(call.message)
     await call.answer()
     
     user = await get_user_by_telegram_id(call.from_user.id)
     if not user or user.get('role') != 'manager':
-        await call.message.answer("Sizda bu amalni bajarish huquqi yo'q!")
+        lang = await get_user_lang(call.from_user.id)
+        no_access_text = "Sizda bu amalni bajarish huquqi yo'q!" if lang == 'uz' else "У вас нет доступа к этому действию!"
+        await call.message.answer(no_access_text)
         return
     
     zayavka_id = int(call.data.split("_")[-1])
@@ -720,18 +824,24 @@ async def reassign_zayavka_handler(call: CallbackQuery, state: FSMContext):
         technicians = await get_available_technicians()
         
         if not technicians:
-            await call.message.edit_text("Hozirda bo'sh technician yo'q!")
+            lang = await get_user_lang(call.from_user.id)
+            no_techs_text = "Hozirda bo'sh technician yo'q!" if lang == 'uz' else "Сейчас нет доступных техников!"
+            await call.message.edit_text(no_techs_text)
             return
         
+        lang = await get_user_lang(call.from_user.id)
+        select_tech_text = "Yangi technician tanlang:" if lang == 'uz' else "Выберите нового техника:"
         await call.message.edit_text(
-            "Yangi technician tanlang:",
+            select_tech_text,
             reply_markup=get_technician_selection_keyboard(technicians)
         )
         await state.update_data(reassigning_zayavka_id=zayavka_id)
         
     except Exception as e:
         logger.error(f"Qayta biriktirish uchun technician ro'yxatini olishda xatolik: {e}")
-        await call.message.edit_text("Xatolik yuz berdi!")
+        lang = await get_user_lang(call.from_user.id)
+        error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+        await call.message.edit_text(error_text)
 
 # nima edi o'zi bu? (Selection is a placeholder for manager assigning a zayavka to a technician)
 # Real implementation would look like this:
@@ -747,7 +857,9 @@ async def manager_assign_zayavka_handler(callback: CallbackQuery, state: FSMCont
         data = await state.get_data()
         technician = data.get('selected_technician')
         if not technician:
-            await callback.message.answer("Technician tanlanmagan.")
+            lang = await get_user_lang(callback.from_user.id)
+            no_tech_text = "Technician tanlanmagan." if lang == 'uz' else "Техник не выбран."
+            await callback.message.answer(no_tech_text)
             return
 
         tech_telegram_id = technician.get('telegram_id')
@@ -757,16 +869,27 @@ async def manager_assign_zayavka_handler(callback: CallbackQuery, state: FSMCont
         from database.queries import get_zayavka_by_id
         application = await get_zayavka_by_id(application_id)
         if not application:
-            await callback.message.answer("Zayavka topilmadi.")
+            lang = await get_user_lang(callback.from_user.id)
+            no_app_text = "Zayavka topilmadi." if lang == 'uz' else "Заявка не найдена."
+            await callback.message.answer(no_app_text)
             return
 
-        # Qisqa info (assigned)
-        short_info = i18n.get_template(
-            tech_lang, 'technician', 'tech_order_brief',
-            order_id=application['id'],
-            address=application.get('address', '-'),
-            description=application.get('description', '-')
-        )
+        # Qisqa info (assigned) - inline language check
+        if tech_lang == 'uz':
+            short_info = (
+                f"🆕 Yangi buyurtma!\n"
+                f"🆔 Buyurtma ID: {application['id']}\n"
+                f"📍 Manzil: {application.get('address', '-')}\n"
+                f"📝 Tavsif: {application.get('description', '-')}"
+            )
+        else:
+            short_info = (
+                f"🆕 Новый заказ!\n"
+                f"🆔 ID заказа: {application['id']}\n"
+                f"📍 Адрес: {application.get('address', '-')}\n"
+                f"📝 Описание: {application.get('description', '-')}"
+            )
+        
         from handlers.technician import get_task_inline_keyboard
         inline_kb = get_task_inline_keyboard(application_id, 'assigned', tech_lang)
         await bot.send_message(
@@ -775,26 +898,12 @@ async def manager_assign_zayavka_handler(callback: CallbackQuery, state: FSMCont
             reply_markup=inline_kb
         )
 
-        await callback.message.answer("Zayavka technician-ga biriktirildi.")
+        lang = await get_user_lang(callback.from_user.id)
+        success_text = "Zayavka technician-ga biriktirildi." if lang == 'uz' else "Заявка назначена технику."
+        await callback.message.answer(success_text)
         await state.clear()
     except Exception as e:
         logger.error(f"manager_assign_zayavka_handler xatolik: {e}")
-        await callback.message.answer("Xatolik yuz berdi!")
-
-# Texnikka birinchi (assigned) xabarda qisqacha, lekin ko'proq info
-async def notify_technician_assigned(tech_telegram_id, lang, zayavka):
-    text = (
-        f"🆕 {'Yangi vazifa' if lang == 'uz' else 'Новая задача'}\n"
-        f"🆔 ID: {zayavka['id']}\n"
-        f"👤 {'Mijoz' if lang == 'uz' else 'Клиент'}: {zayavka.get('client_name', '-') }\n"
-        f"📞 {zayavka.get('phone_number', '-') }\n"
-        f"📍 {'Manzil' if lang == 'uz' else 'Адрес'}: {zayavka.get('address', '-') }\n"
-        f"📝 {'Tavsif' if lang == 'uz' else 'Описание'}: {zayavka.get('description', '-') }\n"
-    )
-    await bot.send_message(
-        chat_id=tech_telegram_id,
-        text=text,
-        reply_markup=get_task_inline_keyboard(zayavka['id'], 'assigned', lang)
-    )
-
-# Qabul qilganda va boshlaganda esa to'liq info yuboriladi (allaqachon mavjud get_template_text orqali)
+        lang = await get_user_lang(callback.from_user.id)
+        error_text = "Xatolik yuz berdi!" if lang == 'uz' else "Произошла ошибка!"
+        await callback.message.answer(error_text)

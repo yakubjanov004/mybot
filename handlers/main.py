@@ -4,17 +4,17 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from .admin import router as admin_router
 from .client import router as client_router
-from .language import router as language_router
 from .technician import router as technician_router
 from .manager import router as manager_router
 from database.queries import get_user_by_telegram_id, create_user, db_manager
-from utils.i18n import i18n
 from utils.logger import logger
 from aiogram.fsm.state import State, StatesGroup
 from utils.inline_cleanup import safe_remove_inline
 from utils.get_lang import get_user_lang
 from utils.get_role import get_user_role
-from utils.templates import get_template_text
+from .call_center import call_center_start as call_center_start
+from .controllers import controllers_start as controller_start
+from .warehouse import warehouse_start as warehouse_start
 
 router = Router()
 
@@ -53,8 +53,21 @@ async def unified_start(message: Message, state: FSMContext):
                 from .client import cmd_start as client_start
                 await client_start(message, state)
                 return
+            elif role == 'call_center':
+                # Call center uchun call_center handler ga yo'naltirish
+                await call_center_start(message, state)
+                return
+            elif role == 'controller':
+                # Controller uchun controller handler ga yo'naltirish
+                await controller_start(message, state)
+                return
+            elif role == 'warehouse':
+                # Warehouse uchun warehouse handler ga yo'naltirish
+                await warehouse_start(message, state)
+                return
             else:
-                # Boshqa rollar uchun client handler ga yo'naltirish
+                # Noma'lum ro'l uchun client handler ga yo'naltirish (fallback)
+                logger.warning(f"Noma'lum ro'l uchun client handler ga yo'naltirildi: {role}")
                 from .client import cmd_start as client_start
                 await client_start(message, state)
                 return
@@ -76,15 +89,14 @@ async def unified_start(message: Message, state: FSMContext):
         logger.error(f"Unified start buyrug'ida xatolik: {str(e)}", exc_info=True)
         lang = await get_user_lang(message.from_user.id)
         await safe_remove_inline(message)
-        text = await get_template_text(lang, 'client', 'error_occurred')
+        text = "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring." if lang == 'uz' else "Произошла ошибка. Пожалуйста, попробуйте еще раз."
         await message.answer(text)
 
-# Include all other routers
+# Include all other routers (language_router is already included in main.py)
 router.include_router(client_router) 
 router.include_router(admin_router)
 router.include_router(manager_router)
 router.include_router(technician_router)
-router.include_router(language_router)
 
 class ManagerStates(StatesGroup):
     # ... mavjud statelar ...

@@ -1,20 +1,24 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
-from utils.i18n import i18n
 
 def get_contact_keyboard(lang="uz"):
     """Kontakt ulashish klaviaturasi - 2 tilda"""
+    share_contact_text = "📱 Kontakt ulashish" if lang == "uz" else "📱 Поделиться контактом"
     keyboard = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=i18n.get_message(lang, "share_contact"), request_contact=True)]],
+        keyboard=[[KeyboardButton(text=share_contact_text, request_contact=True)]],
         resize_keyboard=True
     )
     return keyboard
 
 def get_technician_main_menu_keyboard(lang="uz"):
     """Montajchi asosiy menyu klaviaturasi - 2 tilda"""
+    my_tasks_text = "📋 Mening vazifalarim" if lang == "uz" else "📋 Мои задачи"
+    reports_text = "📊 Hisobotlar" if lang == "uz" else "📊 Отчеты"
+    change_language_text = "🌐 Til o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
+    
     buttons = [
-        [KeyboardButton(text=i18n.get_message(lang, "my_tasks"))],
-        [KeyboardButton(text=i18n.get_message(lang, "reports"))],
-        [KeyboardButton(text=i18n.get_message(lang, "change_language"))]
+        [KeyboardButton(text=my_tasks_text)],
+        [KeyboardButton(text=reports_text)],
+        [KeyboardButton(text=change_language_text)]
     ]
     
     keyboard = ReplyKeyboardMarkup(
@@ -25,9 +29,10 @@ def get_technician_main_menu_keyboard(lang="uz"):
 
 def get_back_technician_keyboard(lang="uz"):
     """Orqaga qaytish klaviaturasi - 2 tilda"""
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=i18n.get_message(lang, "back"))]
+            [KeyboardButton(text=back_text)]
         ],
         resize_keyboard=True
     )
@@ -37,8 +42,8 @@ def get_language_keyboard():
     """Til tanlash klaviaturasi - har doim bir xil"""
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="lang_uz")],
-            [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang_ru")]
+            [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="tech_lang_uz")],
+            [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="tech_lang_ru")]
         ]
     )
     return keyboard

@@ -588,7 +588,7 @@ async def get_staff_members() -> List[Dict[str, Any]]:
             result = await conn.fetch('''
                 SELECT id, full_name, role, telegram_id
                 FROM users 
-                WHERE role IN ('admin', 'operator', 'technician', 'manager', 'instander', 'callcenter', 'kontroler', 'sklad')
+                WHERE role IN ('admin', 'call_center', 'technician', 'manager', 'controller', 'warehouse')
                 ORDER BY role, full_name
             ''')
             return [dict(row) for row in result]
@@ -612,13 +612,44 @@ async def get_applications() -> List[Dict[str, Any]]:
         async with db_manager.get_connection() as conn:
             result = await conn.fetch('''
                 SELECT 
-                    z.id, z.status, z.description, z.address, z.created_at, z.completed_at,
-                    u.full_name as user_name, u.phone_number as user_phone,
-                    t.full_name as technician_name, t.phone_number as technician_phone,
-                    z.assigned_to,
+                    z.*,
+                    u.full_name as user_name,
+                    u.phone_number as user_phone,
+                    t.full_name as technician_name,
+                    t.phone_number as technician_phone,
+                    z.created_at as created_time,
                     (
-                        SELECT s.solution_text FROM solutions s WHERE s.zayavka_id = z.id ORDER BY s.created_at DESC LIMIT 1
-                    ) as solution_text
+                        SELECT changed_at 
+                        FROM status_logs 
+                        WHERE zayavka_id = z.id 
+                        AND new_status = 'assigned'
+                        ORDER BY changed_at DESC 
+                        LIMIT 1
+                    ) as assigned_time,
+                    (
+                        SELECT changed_at 
+                        FROM status_logs 
+                        WHERE zayavka_id = z.id 
+                        AND new_status = 'accepted'
+                        ORDER BY changed_at DESC 
+                        LIMIT 1
+                    ) as accepted_time,
+                    (
+                        SELECT changed_at 
+                        FROM status_logs 
+                        WHERE zayavka_id = z.id 
+                        AND new_status = 'in_progress'
+                        ORDER BY changed_at DESC 
+                        LIMIT 1
+                    ) as started_time,
+                    (
+                        SELECT changed_at 
+                        FROM status_logs 
+                        WHERE zayavka_id = z.id 
+                        AND new_status = 'completed'
+                        ORDER BY changed_at DESC 
+                        LIMIT 1
+                    ) as completed_time
                 FROM zayavki z
                 LEFT JOIN users u ON z.user_id = u.id
                 LEFT JOIN users t ON z.assigned_to = t.id
@@ -846,14 +877,14 @@ async def request_task_transfer(zayavka_id: int, technician_id: int, reason: str
         logger.info(f"Transfer request created for zayavka {zayavka_id}")
     await safe_db_operation("request_task_transfer", _operation)
 
-async def get_managers_telegram_ids() -> List[int]:
-    """Menejerlar telegram ID larini olish"""
+async def get_managers_telegram_ids() -> List[Dict[str, Any]]:
+    """Menejerlar telegram ID va language larini olish"""
     async def _operation():
         async with db_manager.get_connection() as conn:
             result = await conn.fetch('''
-                SELECT telegram_id FROM users WHERE role = 'manager'
+                SELECT telegram_id, language FROM users WHERE role = 'manager'
             ''')
-            return [row['telegram_id'] for row in result]
+            return [dict(row) for row in result]
     return await safe_db_operation("get_managers_telegram_ids", _operation)
 
 async def get_orders_by_status(statuses: list) -> List[Dict[str, Any]]:
@@ -1220,3 +1251,150 @@ async def get_user_by_id(user_id: int) -> Optional[asyncpg.Record]:
             logger.info(f"get_user_by_id: {user_id}, result: {bool(user)}")
             return user
     return await safe_db_operation("get_user_by_id", _operation)
+
+async def create_feedback(feedback_data: dict) -> int:
+    """Create new feedback record"""
+    query = """
+        INSERT INTO feedback (
+            client_id,
+            rating,
+            comment,
+            operator_id,
+            created_at
+        ) VALUES (
+            %(client_id)s,
+            %(rating)s,
+            %(comment)s,
+            %(operator_id)s,
+            NOW()
+        ) RETURNING id;
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, feedback_data)
+            result = await cur.fetchone()
+            return result[0] if result else None
+
+async def get_client_feedback(client_id: int) -> dict:
+    """Get client's most recent feedback"""
+    query = """
+        SELECT 
+            id,
+            client_id,
+            rating,
+            comment,
+            operator_id,
+            created_at
+        FROM feedback
+        WHERE client_id = %(client_id)s
+        ORDER BY created_at DESC
+        LIMIT 1;
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, {'client_id': client_id})
+            result = await cur.fetchone()
+            if result:
+                return {
+                    'id': result[0],
+                    'client_id': result[1],
+                    'rating': result[2],
+                    'comment': result[3],
+                    'operator_id': result[4],
+                    'created_at': result[5]
+                }
+            return None
+
+async def create_chat_session(chat_data: dict) -> int:
+    """Create new chat session"""
+    query = """
+        INSERT INTO chat_sessions (
+            client_id,
+            operator_id,
+            status,
+            created_at
+        ) VALUES (
+            %(client_id)s,
+            %(operator_id)s,
+            %(status)s,
+            NOW()
+        ) RETURNING id;
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, chat_data)
+            result = await cur.fetchone()
+            return result[0] if result else None
+
+async def get_active_chat_sessions(client_id: int) -> list:
+    """Get active chat sessions for client"""
+    query = """
+        SELECT 
+            id,
+            client_id,
+            operator_id,
+            status,
+            created_at
+        FROM chat_sessions
+        WHERE client_id = %(client_id)s
+        AND status = 'active'
+        ORDER BY created_at DESC;
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, {'client_id': client_id})
+            results = await cur.fetchall()
+            return [
+                {
+                    'id': row[0],
+                    'client_id': row[1],
+                    'operator_id': row[2],
+                    'status': row[3],
+                    'created_at': row[4]
+                }
+                for row in results
+            ]
+
+async def save_chat_message(message_data: dict) -> int:
+    """Save chat message"""
+    query = """
+        INSERT INTO chat_messages (
+            chat_id,
+            sender_id,
+            message_text,
+            message_type,
+            created_at
+        ) VALUES (
+            %(chat_id)s,
+            %(sender_id)s,
+            %(message_text)s,
+            %(message_type)s,
+            NOW()
+        ) RETURNING id;
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, message_data)
+            result = await cur.fetchone()
+            return result[0] if result else None
+
+async def close_chat_session(chat_id: int) -> bool:
+    """Close chat session"""
+    query = """
+        UPDATE chat_sessions
+        SET 
+            status = 'closed',
+            closed_at = NOW()
+        WHERE id = %(chat_id)s
+        AND status = 'active';
+    """
+    
+    async with db_manager.get_connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(query, {'chat_id': chat_id})
+            return cur.rowcount > 0

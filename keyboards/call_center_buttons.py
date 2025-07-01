@@ -1,180 +1,118 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from utils.i18n import get_text
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters.callback_data import CallbackData
 
-def call_center_main_menu(language: str) -> InlineKeyboardMarkup:
+def call_center_main_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
     """Call center main menu keyboard"""
+    new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
+    search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
+    stats = "📊 Statistika" if lang == 'uz' else "📊 Статистика"
+    pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
+    feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
+    chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=get_text("new_order", language),
-                callback_data="new_order"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("client_search", language),
-                callback_data="client_search"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("pending_calls", language),
-                callback_data="pending_calls"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("call_statistics", language),
-                callback_data="call_statistics"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("back", language),
-                callback_data="main_menu"
-            )
-        ]
+        [InlineKeyboardButton(text=new_order, callback_data="new_order"),
+         InlineKeyboardButton(text=search, callback_data="client_search")],
+        [InlineKeyboardButton(text=feedback, callback_data="request_feedback"),
+         InlineKeyboardButton(text=chat, callback_data="start_chat")],
+        [InlineKeyboardButton(text=stats, callback_data="call_statistics"),
+         InlineKeyboardButton(text=pending, callback_data="pending_calls")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def new_order_menu(language: str) -> InlineKeyboardMarkup:
-    """New order creation menu"""
+def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
+    search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
+    stats = "📊 Statistika" if lang == 'uz' else "📊 Статистика"
+    pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
+    feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
+    chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=get_text("cancel", language),
-                callback_data="call_center_back"
-            )
-        ]
+        [KeyboardButton(text=new_order), KeyboardButton(text=search)],
+        [KeyboardButton(text=feedback), KeyboardButton(text=chat)],
+        [KeyboardButton(text=stats), KeyboardButton(text=pending)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def new_order_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """New order menu keyboard"""
+    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def client_search_menu(language: str) -> InlineKeyboardMarkup:
-    """Client search menu"""
+def client_search_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Client search menu keyboard"""
+    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=get_text("search_by_phone", language),
-                callback_data="search_by_phone"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("search_by_name", language),
-                callback_data="search_by_name"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("back", language),
-                callback_data="call_center_back"
-            )
-        ]
+        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def order_types_keyboard(language: str) -> InlineKeyboardMarkup:
+def order_types_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
     """Order types selection keyboard"""
+    types = [
+        ("🔧 Ta'mirlash", "repair"),
+        ("🔌 O'rnatish", "installation"),
+        ("🧰 Profilaktika", "maintenance"),
+        ("📡 Sozlash", "setup"),
+        ("❓ Konsultatsiya", "consultation")
+    ]
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=get_text("repair_service", language),
-                callback_data="service_type_repair"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("maintenance_service", language),
-                callback_data="service_type_maintenance"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("installation_service", language),
-                callback_data="service_type_installation"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("consultation_service", language),
-                callback_data="service_type_consultation"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("emergency_service", language),
-                callback_data="service_type_emergency"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("back", language),
-                callback_data="call_center_back"
-            )
-        ]
+        [InlineKeyboardButton(text=text, callback_data=f"service_type_{type_}") for text, type_ in types],
+        [InlineKeyboardButton(text=("🔄 Orqaga" if lang == 'uz' else "🔄 Назад"), callback_data="call_center_back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def call_status_keyboard(language: str) -> InlineKeyboardMarkup:
-    """Call status and priority keyboard"""
+def call_status_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Call status keyboard"""
+    priorities = [
+        ("🔴 Yuqori", "high"),
+        ("🟡 O'rta", "medium"),
+        ("🟢 Past", "low")
+    ]
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=f"🔴 {get_text('urgent', language)}",
-                callback_data="priority_urgent"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=f"🟡 {get_text('high', language)}",
-                callback_data="priority_high"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=f"🟢 {get_text('normal', language)}",
-                callback_data="priority_normal"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=f"🔵 {get_text('low', language)}",
-                callback_data="priority_low"
-            )
-        ]
+        [InlineKeyboardButton(text=text, callback_data=f"priority_{priority}") for text, priority in priorities],
+        [InlineKeyboardButton(text=("🔄 Orqaga" if lang == 'uz' else "🔄 Назад"), callback_data="call_center_back")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def callback_schedule_keyboard(language: str) -> InlineKeyboardMarkup:
     """Callback scheduling keyboard"""
+    schedule_in_1_hour_text = "⏰ 1 soatdan keyin" if language == "uz" else "⏰ Через 1 час"
+    schedule_in_2_hours_text = "⏰ 2 soatdan keyin" if language == "uz" else "⏰ Через 2 часа"
+    schedule_tomorrow_text = "📅 Ertaga" if language == "uz" else "📅 Завтра"
+    custom_time_text = "🕐 Maxsus vaqt" if language == "uz" else "🕐 Специальное время"
+    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
+    
     keyboard = [
         [
             InlineKeyboardButton(
-                text=get_text("schedule_in_1_hour", language),
+                text=schedule_in_1_hour_text,
                 callback_data="callback_1h"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("schedule_in_2_hours", language),
+                text=schedule_in_2_hours_text,
                 callback_data="callback_2h"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("schedule_tomorrow", language),
+                text=schedule_tomorrow_text,
                 callback_data="callback_tomorrow"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("custom_time", language),
+                text=custom_time_text,
                 callback_data="callback_custom"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("back", language),
+                text=back_text,
                 callback_data="call_center_back"
             )
         ]
@@ -183,34 +121,40 @@ def callback_schedule_keyboard(language: str) -> InlineKeyboardMarkup:
 
 def call_result_keyboard(language: str) -> InlineKeyboardMarkup:
     """Call result keyboard"""
+    order_created_text = "✅ Buyurtma yaratildi" if language == "uz" else "✅ Заказ создан"
+    callback_scheduled_text = "📞 Qayta qo'ng'iroq rejalashtirildi" if language == "uz" else "📞 Обратный звонок запланирован"
+    information_provided_text = "ℹ️ Ma'lumot berildi" if language == "uz" else "ℹ️ Предоставлена информация"
+    no_answer_text = "📵 Javob yo'q" if language == "uz" else "📵 Нет ответа"
+    client_refused_text = "❌ Mijoz rad etdi" if language == "uz" else "❌ Клиент отказался"
+    
     keyboard = [
         [
             InlineKeyboardButton(
-                text=get_text("order_created", language),
+                text=order_created_text,
                 callback_data="call_result_order"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("callback_scheduled", language),
+                text=callback_scheduled_text,
                 callback_data="call_result_callback"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("information_provided", language),
+                text=information_provided_text,
                 callback_data="call_result_info"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("no_answer", language),
+                text=no_answer_text,
                 callback_data="call_result_no_answer"
             )
         ],
         [
             InlineKeyboardButton(
-                text=get_text("client_refused", language),
+                text=client_refused_text,
                 callback_data="call_result_refused"
             )
         ]

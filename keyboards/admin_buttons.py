@@ -1,5 +1,5 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
-from utils.i18n import i18n
+
 
 def get_admin_main_menu(lang="uz"):
     """Admin asosiy menyu - 2 tilda"""
@@ -154,7 +154,7 @@ def users_list_keyboard(users: list, lang="uz"):
 def roles_keyboard(telegram_id: int, lang="uz"):
     """Rollar klaviaturasi - 2 tilda"""
     admin_text = "Admin" if lang == "uz" else "Админ"
-    operator_text = "Operator" if lang == "uz" else "Оператор"
+    call_center_text = "Call Center" if lang == "uz" else "Колл-центр"
     tech_text = "Texnik" if lang == "uz" else "Техник"
     manager_text = "Menejer" if lang == "uz" else "Менеджер"
     controller_text = "Kontrolyor" if lang == "uz" else "Контроллер"
@@ -165,20 +165,20 @@ def roles_keyboard(telegram_id: int, lang="uz"):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text=admin_text, callback_data=f"set_role_{telegram_id}_admin"),
-                InlineKeyboardButton(text=operator_text, callback_data=f"set_role_{telegram_id}_operator")
+                InlineKeyboardButton(text=admin_text, callback_data=f"set_role:admin:{telegram_id}"),
+                InlineKeyboardButton(text=call_center_text, callback_data=f"set_role:call_center:{telegram_id}")
             ],
             [
-                InlineKeyboardButton(text=tech_text, callback_data=f"set_role_{telegram_id}_technician"),
-                InlineKeyboardButton(text=manager_text, callback_data=f"set_role_{telegram_id}_manager")
+                InlineKeyboardButton(text=tech_text, callback_data=f"set_role:technician:{telegram_id}"),
+                InlineKeyboardButton(text=manager_text, callback_data=f"set_role:manager:{telegram_id}")
             ],
             [
-                InlineKeyboardButton(text=controller_text, callback_data=f"set_role_{telegram_id}_controller"),
-                InlineKeyboardButton(text=warehouse_text, callback_data=f"set_role_{telegram_id}_warehouse")
+                InlineKeyboardButton(text=controller_text, callback_data=f"set_role:controller:{telegram_id}"),
+                InlineKeyboardButton(text=warehouse_text, callback_data=f"set_role:warehouse:{telegram_id}")
             ],
             [
-                InlineKeyboardButton(text=client_text, callback_data=f"set_role_{telegram_id}_client"),
-                InlineKeyboardButton(text=blocked_text, callback_data=f"set_role_{telegram_id}_blocked")
+                InlineKeyboardButton(text=client_text, callback_data=f"set_role:client:{telegram_id}"),
+                InlineKeyboardButton(text=blocked_text, callback_data=f"set_role:blocked:{telegram_id}")
             ]
         ]
     )
@@ -223,7 +223,7 @@ def assign_zayavka_keyboard(zayavka_id: int, staff_members: list, lang="uz"):
             role_translations = {
                 'technician': 'техник',
                 'manager': 'менеджер',
-                'operator': 'оператор',
+                'call_center': 'колл-центр',
                 'admin': 'админ'
             }
             role_text = role_translations.get(staff['role'], staff['role'])
