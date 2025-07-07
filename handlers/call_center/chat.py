@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
-from database.base_queries import get_user_by_telegram_id
+from database.base_queries import get_user_by_telegram_id, get_user_by_id
 from database.call_center_queries import (
     create_chat_session, get_active_chat_sessions, 
     close_chat_session, save_chat_message
@@ -15,6 +15,7 @@ from keyboards.support_chat_buttons import (
 )
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from loader import bot
 
 def get_call_center_chat_router():
     router = Router()
@@ -144,15 +145,24 @@ def get_call_center_chat_router():
             }
             
             success = await save_chat_message(message_data)
-            
+
             if success:
-                # Here you would implement the logic to forward message to client
-                # This depends on your specific requirements for client communication
-                
+                # Forward message depending on sender role
+                if user['role'] == 'call_center':
+                    client = await get_user_by_id(data.get('client_id'))
+                    if client and client.get('telegram_id'):
+                        await bot.send_message(chat_id=client['telegram_id'], text=message.text)
+                elif user['role'] == 'client':
+                    operator = await get_user_by_id(data.get('operator_id'))
+                    if operator and operator.get('telegram_id'):
+                        await bot.send_message(chat_id=operator['telegram_id'], text=message.text)
+
                 sent_text = "✅ Xabar yuborildi" if lang == 'uz' else "✅ Сообщение отправлено"
                 await message.answer(sent_text)
-                
-                logger.info(f"Chat message sent by operator {user['id']} in session {data['chat_id']}")
+
+                logger.info(
+                    f"Chat message sent by {user['role']} {user['id']} in session {data['chat_id']}"
+                )
             else:
                 text = "❌ Xabarni yuborib bo'lmadi" if lang == 'uz' else "❌ Не удалось отправить сообщение"
                 await message.answer(text)

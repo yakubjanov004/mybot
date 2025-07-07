@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import AsyncMock
 from filters.role_filter import RoleFilter
 
 class MockMessage:
@@ -9,15 +10,16 @@ class MockMessage:
         self.from_user = FromUser(user_id)
 
 @pytest.mark.asyncio
-async def test_role_filter_match(mocker):
-    mocker.patch("utils.get_role.get_user_role", return_value="admin")
+async def test_role_filter_match(monkeypatch):
+    monkeypatch.setattr("filters.role_filter.get_user_role", AsyncMock(return_value="admin"))
     filter = RoleFilter("admin")
     message = MockMessage(user_id=123)
     assert await filter(message) is True
 
 @pytest.mark.asyncio
-async def test_role_filter_no_match(mocker):
-    mocker.patch("utils.get_role.get_user_role", return_value="client")
+async def test_role_filter_no_match(monkeypatch):
+    monkeypatch.setattr("filters.role_filter.get_user_role", AsyncMock(return_value="client"))
     filter = RoleFilter("admin")
     message = MockMessage(user_id=123)
     assert await filter(message) is False 
+
