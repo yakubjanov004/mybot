@@ -5,12 +5,15 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message, CallbackQuery
 
 from config import config
 from loader import bot, inline_message_manager
 from utils.logger import setup_logging
 from utils.cache_manager import cache_maintenance
 from utils.rate_limiter import cleanup_expired_limits
+from middlewares.logger_middleware import LoggerMiddleware
+from middlewares.error_handler import ErrorHandlerMiddleware
 
 # Setup logging
 setup_logging()
@@ -120,6 +123,9 @@ async def on_startup(dp: Dispatcher):
         from handlers import setup_handlers
         setup_handlers(dp)
         
+        # Setup middlewares
+        setup_middlewares(dp)
+        
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
         raise
@@ -156,6 +162,14 @@ async def on_shutdown(dp: Dispatcher):
     except Exception as e:
         logger.error(f"Error during shutdown: {str(e)}")
 
+def setup_middlewares(dp: Dispatcher):
+    # Register global middlewares for messages
+    dp.message.middleware(LoggerMiddleware())
+    dp.message.middleware(ErrorHandlerMiddleware())
+    # Register global middlewares for callback queries
+    dp.callback_query.middleware(LoggerMiddleware())
+    dp.callback_query.middleware(ErrorHandlerMiddleware())
+
 async def main():
     """Main function"""
     try:
@@ -166,6 +180,9 @@ async def main():
         from functools import partial
         dp.startup.register(partial(on_startup, dp))
         dp.shutdown.register(partial(on_shutdown, dp))
+        
+        # Setup middlewares
+        setup_middlewares(dp)
         
         # Start polling
         await dp.start_polling(bot)

@@ -1,6 +1,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from aiogram.filters import StateFilter
 import logging
 
 from database.admin_queries import get_admin_dashboard_stats, log_admin_action
@@ -10,6 +11,8 @@ from states.admin_states import AdminStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
+from loader import inline_message_manager
+from utils.get_lang import get_user_lang
 
 # Setup logger
 logger = setup_logger('bot.admin.main_menu')
@@ -31,10 +34,11 @@ async def show_admin_main_menu(message, state):
             f"👨‍🔧 {'Faol texniklar' if lang == 'uz' else 'Активные техники'}: <b>{stats.get('active_technicians', 0)}</b>\n\n"
             f"{'Kerakli bo\'limni tanlang:' if lang == 'uz' else 'Выберите нужный раздел:'}"
         )
-        await message.answer(
+        sent_message = await message.answer(
             welcome_text,
             reply_markup=get_admin_main_menu(lang)
         )
+        await inline_message_manager.track(message.from_user.id, sent_message.message_id)
         await state.set_state(AdminStates.main_menu)
         
         logger.info(f"Admin panel shown to user {message.from_user.id}")
@@ -46,7 +50,8 @@ async def show_admin_main_menu(message, state):
         except:
             lang = 'ru'
         error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-        await message.answer(error_text)
+        sent_message = await message.answer(error_text)
+        await inline_message_manager.track(message.from_user.id, sent_message.message_id)
 
 def get_admin_main_menu_router():
     router = Router()
@@ -56,49 +61,15 @@ def get_admin_main_menu_router():
     async def admin_start(message: Message, state: FSMContext):
         await show_admin_main_menu(message, state)
 
-    async def show_admin_main_menu(message: Message, state: FSMContext):
-        """Show admin main menu"""
-        try:
-            await cleanup_user_inline_messages(message.from_user.id)
-            lang = await get_user_lang(message.from_user.id)
-            stats = await get_admin_dashboard_stats()
-            await log_admin_action(message.from_user.id, "admin_login")
-            welcome_text = (
-                f"🔧 <b>{'Admin Panel' if lang == 'uz' else 'Панель администратора'}</b>\n\n"
-                f"📊 <b>{'Tizim holati' if lang == 'uz' else 'Состояние системы'}:</b>\n"
-                f"👥 {'Jami foydalanuvchilar' if lang == 'uz' else 'Всего пользователей'}: <b>{stats.get('total_users', 0)}</b>\n"
-                f"📋 {'Bugungi zayavkalar' if lang == 'uz' else 'Заявки сегодня'}: <b>{stats.get('today_orders', 0)}</b>\n"
-                f"✅ {'Bugun bajarilgan' if lang == 'uz' else 'Выполнено сегодня'}: <b>{stats.get('today_completed', 0)}</b>\n"
-                f"⏳ {'Kutilayotgan' if lang == 'uz' else 'Ожидающие'}: <b>{stats.get('pending_orders', 0)}</b>\n"
-                f"👨‍🔧 {'Faol texniklar' if lang == 'uz' else 'Активные техники'}: <b>{stats.get('active_technicians', 0)}</b>\n\n"
-                f"{'Kerakli bo\'limni tanlang:' if lang == 'uz' else 'Выберите нужный раздел:'}"
-            )
-            await message.answer(
-                welcome_text,
-                reply_markup=get_admin_main_menu(lang)
-            )
-            await state.set_state(AdminStates.main_menu)
-            
-            logger.info(f"Admin panel shown to user {message.from_user.id}")
-            
-        except Exception as e:
-            logger.error(f"Error in admin_start: {e}")
-            try:
-                lang = await get_user_lang(message.from_user.id)
-            except:
-                lang = 'ru'
-            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
-
-    @router.message(F.text.in_(['🏠 Bosh sahifa', '🏠 Главная']))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(['🏠 Bosh sahifa', '🏠 Главная']))
     @admin_only
     async def admin_home(message: Message, state: FSMContext):
         """Return to admin home"""
         await admin_start(message, state)
 
-    @router.message(F.text.in_(['📊 Statistika', '📊 Статистика']))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(['📊 Statistika', '📊 Статистика']))
     @admin_only
-    async def admin_dashboard(message: Message):
+    async def admin_dashboard(message: Message, state: FSMContext):
         """Show admin dashboard"""
         try:
             logger.info(f"Admin dashboard requested by user {message.from_user.id}")
@@ -166,7 +137,9 @@ def get_admin_main_menu_router():
                     }.get(status_stat['status'], status_stat['status'])
                     dashboard_text += f"• {status_name}: <b>{status_stat['count']}</b>\n"
             
-            await message.answer(dashboard_text)
+            sent_message = await message.answer(dashboard_text)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
+            await state.set_state(AdminStates.main_menu)
             logger.info(f"Admin dashboard shown to user {message.from_user.id}")
             
         except Exception as e:
@@ -176,11 +149,12 @@ def get_admin_main_menu_router():
             except:
                 lang = 'ru'
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
+            sent_message = await message.answer(error_text)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
 
-    @router.message(F.text.in_(['ℹ️ Yordam', 'ℹ️ Помощь']))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(['ℹ️ Yordam', 'ℹ️ Помощь']))
     @admin_only
-    async def admin_help(message: Message):
+    async def admin_help(message: Message, state: FSMContext):
         """Show admin help"""
         try:
             logger.info(f"Admin help requested by user {message.from_user.id}")
@@ -225,7 +199,9 @@ def get_admin_main_menu_router():
                     f"📞 <b>Для помощи:</b> @support"
                 )
             
-            await message.answer(help_text)
+            sent_message = await message.answer(help_text)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
+            await state.set_state(AdminStates.main_menu)
             logger.info(f"Admin help shown to user {message.from_user.id}")
             
         except Exception as e:
@@ -235,7 +211,8 @@ def get_admin_main_menu_router():
             except:
                 lang = 'ru'
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
+            sent_message = await message.answer(error_text)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
 
     # Test handler without decorator
     @router.message(F.text == '/test_admin')
@@ -253,4 +230,19 @@ def get_admin_main_menu_router():
         except Exception as e:
             await message.answer(f"Error: {str(e)}")
 
+    # Fallback handler must be last and only for main_menu state
+    @router.message(StateFilter(AdminStates.main_menu))
+    async def fallback_admin_main_menu(message: Message, state: FSMContext):
+        known_texts = [
+            "📊 Statistika", "📊 Статистика",
+            "👥 Foydalanuvchilar", "👥 Пользователи",
+            "📝 Zayavkalar", "📝 Заявки",
+            "⚙️ Sozlamalar", "⚙️ Настройки"
+        ]
+        if message.text not in known_texts:
+            lang = await get_user_lang(message.from_user.id)
+            text = "Noma'lum buyruq. Iltimos, menyudagi tugmalardan foydalaning." if lang == 'uz' else "Неизвестная команда. Пожалуйста, используйте кнопки меню."
+            sent_message = await message.answer(text, reply_markup=get_admin_main_menu(lang))
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
+            await state.set_state(AdminStates.main_menu)
     return router

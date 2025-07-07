@@ -15,6 +15,8 @@ from states.admin_states import AdminStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
+from loader import inline_message_manager
+from aiogram.filters import StateFilter
 
 # Setup logger
 logger = setup_logger('bot.admin.statistics')
@@ -22,22 +24,17 @@ logger = setup_logger('bot.admin.statistics')
 def get_admin_statistics_router():
     router = Router()
 
-    @router.message(F.text.in_(["📊 Statistika", "📊 Статистика"]))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📊 Statistika", "📊 Статистика"]))
     @admin_only
     async def statistics_menu(message: Message, state: FSMContext):
         """Statistics main menu"""
         try:
             await cleanup_user_inline_messages(message.from_user.id)
             lang = await get_user_lang(message.from_user.id)
-            
             text = "Statistika bo'limini tanlang:" if lang == 'uz' else "Выберите раздел статистики:"
-            
-            await message.answer(
-                text,
-                reply_markup=get_statistics_keyboard(lang)
-            )
+            sent_message = await message.answer(text, reply_markup=get_statistics_keyboard(lang))
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
             await state.set_state(AdminStates.statistics_menu)
-            
         except Exception as e:
             logger.error(f"Error in statistics menu: {e}")
             lang = await get_user_lang(message.from_user.id)
@@ -290,7 +287,7 @@ def get_admin_statistics_router():
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
             await message.answer(error_text)
 
-    @router.message(F.text.in_(["📤 Ma'lumotlarni eksport qilish", "�� Экспорт данных"]))
+    @router.message(F.text.in_(["📤 Ma'lumotlarni eksport qilish", "📤 Экспорт данных"]))
     @admin_only
     async def export_data_menu(message: Message):
         """Export data menu"""
@@ -452,7 +449,7 @@ def get_admin_statistics_router():
                 # Get last 7 days data
                 dashboard_stats = await get_admin_dashboard_stats()
                 
-                text = "📈 <b>Zayavkalar dinamikasi (oxirgi 7 kun)</b>\n\n" if lang == 'uz' else "�� <b>Динамика заявок (последние 7 дней)</b>\n\n"
+                text = "📈 <b>Zayavkalar dinamikasi (oxirgi 7 kun)</b>\n\n" if lang == 'uz' else "📈 <b>Динамика заявок (последние 7 дней)</b>\n\n"
                 text += "Grafik funksiyasi tez orada qo'shiladi..." if lang == 'uz' else "Функция графиков будет добавлена в ближайшее время..."
                 
             elif chart_type == "status_distribution":

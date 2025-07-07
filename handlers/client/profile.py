@@ -17,7 +17,7 @@ def get_client_profile_router():
     router = Router()
 
     @client_only
-    @router.message(F.text.in_(['👤 Profil', '👤 Профиль']))
+    @router.message(StateFilter(UserStates.main_menu), F.text.in_(['👤 Profil', '👤 Профиль']))
     async def client_profile_handler(message: Message, state: FSMContext):
         """Mijoz profili bilan ishlash"""
         try:

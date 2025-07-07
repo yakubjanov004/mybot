@@ -16,6 +16,8 @@ from states.admin_states import AdminStates
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
+from loader import inline_message_manager
+from aiogram.filters import StateFilter
 
 # Setup logger
 logger = setup_logger('bot.admin.users')
@@ -23,7 +25,7 @@ logger = setup_logger('bot.admin.users')
 def get_admin_users_router():
     router = Router()
     
-    @router.message(F.text.in_(["👥 Foydalanuvchilar", "👥 Пользователи"]))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(['👥 Foydalanuvchilar', '👥 Пользователи']))
     @admin_only
     async def user_management_menu(message: Message, state: FSMContext):
         """User management main menu"""
@@ -76,10 +78,7 @@ def get_admin_users_router():
                 reply_markup=get_user_management_keyboard(lang)
             )
             
-            # Then cleanup old messages
-            await cleanup_user_inline_messages(message.from_user.id)
-            
-            # Finally set state
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
             await state.set_state(AdminStates.user_management)
             
             return sent_message
@@ -286,7 +285,7 @@ def get_admin_users_router():
         """Show search results"""
         try:
             if lang == 'uz':
-                text = f"�� <b>Qidiruv natijalari</b> ({len(users)} ta topildi)\n\n"
+                text = f"🔍 <b>Qidiruv natijalari</b> ({len(users)} ta topildi)\n\n"
             else:
                 text = f"🔍 <b>Результаты поиска</b> (найдено {len(users)})\n\n"
             

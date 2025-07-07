@@ -108,3 +108,9 @@ class AdminStates(StatesGroup):
     waiting_for_order_id = State()
     editing_setting = State()
     waiting_for_setting_value = State()
+
+    settings = State()
+    orders = State()
+    change_role = State()
+    blocking = State()
+    change_language = State()

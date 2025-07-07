@@ -14,6 +14,8 @@ from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import safe_delete_message, answer_and_cleanup
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
+from loader import inline_message_manager
+from aiogram.filters import StateFilter
 
 # Setup logger
 logger = setup_logger('bot.admin.settings')
@@ -21,7 +23,7 @@ logger = setup_logger('bot.admin.settings')
 def get_admin_settings_router():
     router = Router()
 
-    @router.message(F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
     @admin_only
     async def settings_menu(message: Message, state: FSMContext):
         """Settings main menu"""
@@ -29,13 +31,14 @@ def get_admin_settings_router():
             await safe_delete_message(message.bot, message.chat.id, message.message_id)
             lang = await get_user_lang(message.from_user.id)
             
-            text = "Sozlamalar bo'limini tanlang:" if lang == 'uz' else "Выберите раздел настроек:"
+            text = "Sozlamalar bo'limi (stub)." if lang == 'uz' else "Раздел настроек (заглушка)."
             
-            await message.answer(
+            sent_message = await message.answer(
                 text,
                 reply_markup=get_settings_keyboard(lang)
             )
-            await state.set_state(AdminStates.settings_menu)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
+            await state.set_state(AdminStates.settings)
             
         except Exception as e:
             logger.error(f"Error in settings menu: {e}")

@@ -22,6 +22,8 @@ from utils.inline_cleanup import (
 )
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
+from loader import inline_message_manager
+from aiogram.filters import StateFilter
 
 # Setup logger
 logger = setup_logger('bot.admin.orders')
@@ -29,9 +31,9 @@ logger = setup_logger('bot.admin.orders')
 def get_admin_orders_router():
     router = Router()
     
-    @router.message(F.text.in_(["📝 Zayavkalar", "📝 Заявки"]))
+    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📝 Zayavkalar", "📝 Заявки"]))
     @admin_only
-    async def orders_management_menu(message: Message, state: FSMContext):
+    async def orders_menu(message: Message, state: FSMContext):
         """Orders management main menu"""
         try:
             await safe_delete_message(message.bot, message.chat.id, message.message_id)
@@ -85,11 +87,12 @@ def get_admin_orders_router():
                     f"Выберите действие:"
                 )
             
-            await message.answer(
+            sent_message = await message.answer(
                 text,
                 reply_markup=get_orders_management_keyboard(lang)
             )
-            await state.set_state(AdminStates.orders_management)
+            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
+            await state.set_state(AdminStates.orders)
             
         except Exception as e:
             logger.error(f"Error in orders management menu: {e}")
