@@ -1,4 +1,4 @@
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StateFilter
@@ -14,7 +14,7 @@ def get_client_main_menu_router():
     logger = setup_logger('bot.client')
     router = Router()
 
-    @router.message(StateFilter(UserStates.main_menu))
+    @router.message(F.text.in_(["🏠 Asosiy menyu", "🏠 Главное меню"]))
     async def main_menu_handler(message: Message, state: FSMContext):
         try:
             user = await get_user_by_telegram_id(message.from_user.id)
