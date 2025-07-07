@@ -143,6 +143,22 @@ def get_settings_keyboard(lang="uz"):
 
 settings_keyboard = get_settings_keyboard("uz")
 
+# Language selection keyboard
+def language_keyboard(lang="uz"):
+    """Til tanlash klaviaturasi - 2 tilda"""
+    uz_text = "🇺🇿 O'zbek tili" if lang == "uz" else "🇺🇿 Узбекский"
+    ru_text = "🇷🇺 Русский язык" if lang == "uz" else "🇷🇺 Русский"
+    
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=uz_text),
+                KeyboardButton(text=ru_text)
+            ]
+        ],
+        resize_keyboard=True
+    )
+
 # Inline keyboards
 def users_list_keyboard(users: list, lang="uz"):
     """Foydalanuvchilar ro'yxati klaviaturasi"""
@@ -257,3 +273,91 @@ def zayavka_filter_keyboard(lang="uz"):
             InlineKeyboardButton(text=yesterday_text, callback_data="filter_yesterday")
         ]
     ])
+
+def get_orders_management_keyboard(lang="uz"):
+    if lang == "uz":
+        buttons = [
+            [InlineKeyboardButton(text="🆕 Yangi zayavkalar", callback_data="show_new_orders")],
+            [InlineKeyboardButton(text="⏳ Kutilayotgan zayavkalar", callback_data="show_pending_orders")],
+            [InlineKeyboardButton(text="🔄 Jarayondagi zayavkalar", callback_data="show_in_progress_orders")],
+            [InlineKeyboardButton(text="🚨 Tayinlanmagan zayavkalar", callback_data="show_unassigned_orders")],
+            [InlineKeyboardButton(text="🔍 Zayavka qidirish", callback_data="search_orders")],
+        ]
+    else:
+        buttons = [
+            [InlineKeyboardButton(text="🆕 Новые заявки", callback_data="show_new_orders")],
+            [InlineKeyboardButton(text="⏳ Ожидающие заявки", callback_data="show_pending_orders")],
+            [InlineKeyboardButton(text="🔄 Заявки в процессе", callback_data="show_in_progress_orders")],
+            [InlineKeyboardButton(text="🚨 Неназначенные заявки", callback_data="show_unassigned_orders")],
+            [InlineKeyboardButton(text="🔍 Поиск заявки", callback_data="search_orders")],
+        ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_users_reply_keyboard(lang="uz"):
+    """Admin foydalanuvchilar bo'limi uchun reply keyboard"""
+    all_users_text = "👥 Barcha foydalanuvchilar" if lang == "uz" else "👥 Все пользователи"
+    staff_text = "👤 Xodimlar" if lang == "uz" else "👤 Сотрудники"
+    block_text = "🔒 Bloklash/Blokdan chiqarish" if lang == "uz" else "🔒 Блокировка/Разблокировка"
+    role_text = "🔄 Rol o'zgartirish" if lang == "uz" else "🔄 Изменить роль"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=all_users_text), KeyboardButton(text=staff_text)],
+            [KeyboardButton(text=block_text), KeyboardButton(text=role_text)],
+            [KeyboardButton(text=back_text)]
+        ],
+        resize_keyboard=True
+    )
+
+def get_admin_main_keyboard(lang="uz"):
+    """Admin bosh menyu uchun reply keyboard"""
+    return get_admin_main_menu(lang)
+
+def get_stats_reply_keyboard(lang="uz"):
+    """Admin statistika bo'limi uchun reply keyboard"""
+    stats_text = "📊 Umumiy statistika" if lang == "uz" else "📊 Общая статистика"
+    orders_text = "📈 Zayavka statistikasi" if lang == "uz" else "📈 Статистика заявок"
+    users_text = "👥 Foydalanuvchi aktivligi" if lang == "uz" else "👥 Активность пользователей"
+    staff_text = "📋 Xodimlar statistikasi" if lang == "uz" else "📋 Статистика сотрудников"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=stats_text), KeyboardButton(text=orders_text)],
+            [KeyboardButton(text=users_text), KeyboardButton(text=staff_text)],
+            [KeyboardButton(text=back_text)]
+        ],
+        resize_keyboard=True
+    )
+
+def get_zayavka_reply_keyboard(lang="uz"):
+    """Admin zayavkalar bo'limi uchun reply keyboard"""
+    new_text = "🆕 Yangi zayavkalar" if lang == "uz" else "🆕 Новые заявки"
+    pending_text = "⏳ Kutilayotgan zayavkalar" if lang == "uz" else "⏳ Ожидающие заявки"
+    in_progress_text = "🔄 Jarayondagi zayavkalar" if lang == "uz" else "🔄 Заявки в процессе"
+    completed_text = "✅ Bajarilgan zayavkalar" if lang == "uz" else "✅ Выполненные заявки"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=new_text), KeyboardButton(text=pending_text)],
+            [KeyboardButton(text=in_progress_text), KeyboardButton(text=completed_text)],
+            [KeyboardButton(text=back_text)]
+        ],
+        resize_keyboard=True
+    )
+
+def get_settings_reply_keyboard(lang="uz"):
+    """Admin sozlamalar bo'limi uchun reply keyboard"""
+    notifications_text = "🔔 Bildirishnomalar" if lang == "uz" else "🔔 Уведомления"
+    language_text = "🌐 Til sozlamalari" if lang == "uz" else "🌐 Языковые настройки"
+    templates_text = "📝 Xabar shablonlari" if lang == "uz" else "📝 Шаблоны сообщений"
+    system_text = "⚙️ Tizim sozlamalari" if lang == "uz" else "⚙️ Системные настройки"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=notifications_text), KeyboardButton(text=language_text)],
+            [KeyboardButton(text=templates_text), KeyboardButton(text=system_text)],
+            [KeyboardButton(text=back_text)]
+        ],
+        resize_keyboard=True
+    )

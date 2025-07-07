@@ -188,6 +188,44 @@ def inventory_detailed_list_menu(language: str) -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def statistics_menu(language: str) -> InlineKeyboardMarkup:
+    """Warehouse statistics menu"""
+    inventory_stats = "📦 Inventarizatsiya statistikasi" if language == 'uz' else "📦 Статистика инвентаризации"
+    orders_stats = "📋 Buyurtmalar statistikasi" if language == 'uz' else "📋 Статистика заказов"
+    export_stats = "📤 Hisobotni export qilish" if language == 'uz' else "📤 Экспорт отчета"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=inventory_stats, callback_data="warehouse_inventory_stats")],
+        [InlineKeyboardButton(text=orders_stats, callback_data="warehouse_orders_stats")],
+        [InlineKeyboardButton(text=export_stats, callback_data="warehouse_export_stats")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def export_menu(language: str) -> InlineKeyboardMarkup:
+    """Export menu for warehouse operations"""
+    inventory_export = "📦 Inventarizatsiya export" if language == 'uz' else "📦 Экспорт инвентаризации"
+    orders_export = "📋 Buyurtmalar export" if language == 'uz' else "📋 Экспорт заказов"
+    statistics_export = "📊 Statistikalar export" if language == 'uz' else "📊 Экспорт статистики"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=inventory_export, callback_data="export_inventory")],
+        [InlineKeyboardButton(text=orders_export, callback_data="export_orders")],
+        [InlineKeyboardButton(text=statistics_export, callback_data="export_statistics")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def language_selection_keyboard() -> InlineKeyboardMarkup:
+    """Language selection keyboard"""
+    uz_text = "🇺🇿 O'zbek tili"
+    ru_text = "🇷🇺 Русский язык"
+    keyboard = [
+        [InlineKeyboardButton(text=uz_text, callback_data="set_language_uz")],
+        [InlineKeyboardButton(text=ru_text, callback_data="set_language_ru")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def export_format_keyboard(language: str) -> InlineKeyboardMarkup:
     """Export format selection keyboard"""
     excel = "📊 Excel" if language == 'uz' else "📊 Excel"

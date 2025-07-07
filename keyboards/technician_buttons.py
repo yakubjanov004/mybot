@@ -133,6 +133,39 @@ def get_language_keyboard(role="technician"):
     )
     return keyboard
 
+def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Main menu keyboard for technician"""
+    tasks_text = "📋 Vazifalarim" if lang == "uz" else "📋 Мои задачи"
+    reports_text = "📊 Hisobotlar" if lang == "uz" else "📊 Отчеты"
+    help_text = "🆘 Yordam" if lang == "uz" else "🆘 Помощь"
+    language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=tasks_text,
+                callback_data="tech_tasks"
+            ),
+            InlineKeyboardButton(
+                text=reports_text,
+                callback_data="tech_reports"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=help_text,
+                callback_data="tech_help"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=language_text,
+                callback_data="tech_change_lang"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def get_technician_selection_keyboard(technicians):
     """Keyboard for selecting technician for task transfer"""
     keyboard = []
@@ -145,7 +178,7 @@ def get_technician_selection_keyboard(technicians):
         ])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_task_action_keyboard(task_id, status, lang="uz"):
+def get_task_action_keyboard(task_id, status, lang="uz") -> InlineKeyboardMarkup:
     """Task action keyboard"""
     buttons = []
     
@@ -171,13 +204,62 @@ def get_task_action_keyboard(task_id, status, lang="uz"):
     
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+def get_equipment_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Equipment request keyboard for technician"""
+    request_text = "🔧 Jihoz so'rang" if lang == "uz" else "🔧 Запросить оборудование"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=request_text,
+                callback_data="tech_equipment_request"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="tech_back_to_help"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def get_completion_keyboard(task_id, lang="uz"):
     """Completion keyboard for task"""
-    with_comment_text = "📝 Izoh bilan yakunlash" if lang == "uz" else "📝 Завершить с комментарием"
-    without_comment_text = "✅ Oddiy yakunlash" if lang == "uz" else "✅ Простое завершение"
+    with_comment_text = "✅ Bajarildi (izoh bilan)" if lang == "uz" else "✅ Выполнено (с комментарием)"
+    without_comment_text = "✅ Bajarildi" if lang == "uz" else "✅ Выполнено"
     
     keyboard = [
         [InlineKeyboardButton(text=with_comment_text, callback_data=f"complete_with_comment_{task_id}")],
         [InlineKeyboardButton(text=without_comment_text, callback_data=f"complete_without_comment_{task_id}")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_reports_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Reports menu keyboard for technician"""
+    stats_text = "📊 Statistikalarim" if lang == "uz" else "📊 Мои статистики"
+    detailed_text = "📄 Batafsil" if lang == "uz" else "📄 Подробнее"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=stats_text,
+                callback_data="tech_stats"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=detailed_text,
+                callback_data="tech_detailed_report"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="tech_back_to_main"
+            )
+        ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

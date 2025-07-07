@@ -42,6 +42,10 @@ class ManagerStates(StatesGroup):
     # Resource management
     resource_allocation = State()
     equipment_management = State()
+    adding_equipment_name = State()
+    adding_equipment_model = State()
+    adding_equipment_location = State()
+    searching_equipment = State()
     
     # Communication
     team_communication = State()
@@ -95,3 +99,9 @@ class ManagerStates(StatesGroup):
     entering_application_id_for_quality = State()
 
     changing_status = State()
+    adding_equipment_name = State()
+    adding_equipment_model = State()
+    adding_equipment_location = State()
+    searching_equipment = State()
+    sending_notification_user_id = State()
+    sending_notification_message = State()

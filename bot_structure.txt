@@ -72,7 +72,6 @@ utils/
   ├── cache_manager.py        — Kesh bilan ishlash
   ├── get_lang.py             — Foydalanuvchi tilini aniqlash
   ├── get_role.py             — Foydalanuvchi rolini aniqlash
-  ├── i18n.py                 — Xalqaro tillar bilan ishlash
   ├── inline_cleanup.py       — Inline tugmalarni tozalash
   ├── logger.py               — Log yozuvlari
   ├── message_utils.py        — Xabarlar bilan ishlash uchun yordamchi funksiyalar

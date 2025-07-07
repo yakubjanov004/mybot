@@ -1,398 +1,196 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-def controllers_main_menu(language: str) -> ReplyKeyboardMarkup:
-    orders_control_text = "📋 Buyurtmalarni nazorat qilish" if language == "uz" else "📋 Контроль заказов"
-    technicians_control_text = "👨‍🔧 Texniklarni nazorat qilish" if language == "uz" else "👨‍🔧 Контроль техников"
-    system_reports_text = "📊 Tizim hisobotlari" if language == "uz" else "📊 Системные отчеты"
-    quality_control_text = "✅ Sifat nazorati" if language == "uz" else "✅ Контроль качества"
-    change_language_text = "🌐 Tilni o'zgartirish" if language == "uz" else "🌐 Изменить язык"
-    keyboard = [
-        [KeyboardButton(text=orders_control_text), KeyboardButton(text=technicians_control_text)],
-        [KeyboardButton(text=system_reports_text), KeyboardButton(text=quality_control_text)],
-        [KeyboardButton(text=change_language_text)]
-    ]
+def controllers_main_menu(lang='uz'):
+    """Controllers asosiy menyu"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="📋 Buyurtmalar nazorati"), KeyboardButton(text="👨‍🔧 Texniklar nazorati")],
+            [KeyboardButton(text="🎯 Sifat nazorati"), KeyboardButton(text="📊 Hisobotlar")],
+            [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="🌐 Til o'zgartirish")],
+            [KeyboardButton(text="🏠 Bosh menyu")]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="📋 Контроль заказов"), KeyboardButton(text="👨‍🔧 Контроль техников")],
+            [KeyboardButton(text="🎯 Контроль качества"), KeyboardButton(text="📊 Отчеты")],
+            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="🌐 Изменить язык")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-def orders_control_menu(language: str) -> InlineKeyboardMarkup:
-    """Orders control menu"""
-    priority_orders_text = "🔴 Ustuvor buyurtmalar" if language == "uz" else "🔴 Приоритетные заказы"
-    delayed_orders_text = "⏰ Kechiktirilgan buyurtmalar" if language == "uz" else "⏰ Просроченные заказы"
-    assign_technicians_text = "👨‍🔧 Texniklarni tayinlash" if language == "uz" else "👨‍🔧 Назначить техников"
-    order_analytics_text = "📈 Buyurtma tahlili" if language == "uz" else "📈 Аналитика заказов"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=priority_orders_text,
-                callback_data="priority_orders"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=delayed_orders_text,
-                callback_data="delayed_orders"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=assign_technicians_text,
-                callback_data="assign_technicians"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=order_analytics_text,
-                callback_data="order_analytics"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="controllers_back"
-            )
+def orders_control_menu(lang='uz'):
+    """Buyurtmalar nazorati menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="🆕 Yangi buyurtmalar"), KeyboardButton(text="⏳ Kutilayotgan")],
+            [KeyboardButton(text="🔴 Muammoli buyurtmalar"), KeyboardButton(text="📊 Buyurtmalar hisoboti")],
+            [KeyboardButton(text="🏠 Bosh menyu")]
         ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="🆕 Новые заказы"), KeyboardButton(text="⏳ Ожидающие")],
+            [KeyboardButton(text="🔴 Проблемные заказы"), KeyboardButton(text="📊 Отчет по заказам")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def technicians_menu(lang='uz'):
+    """Texniklar menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="📋 Texniklar ro'yxati"), KeyboardButton(text="📊 Texniklar samaradorligi")],
+            [KeyboardButton(text="🎯 Vazifa tayinlash"), KeyboardButton(text="📈 Texniklar hisoboti")],
+            [KeyboardButton(text="🏠 Bosh menyu")]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="📋 Список техников"), KeyboardButton(text="📊 Эффективность техников")],
+            [KeyboardButton(text="🎯 Назначение задач"), KeyboardButton(text="📈 Отчет по техникам")],
+            [KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def quality_control_menu(lang='uz'):
+    """Sifat nazorati menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="💬 Mijoz fikrlari"), KeyboardButton(text="⚠️ Muammoli holatlar")],
+            [KeyboardButton(text="📊 Sifat baholash"), KeyboardButton(text="📈 Sifat tendensiyalari")],
+            [KeyboardButton(text="📋 Sifat hisoboti"), KeyboardButton(text="🏠 Bosh menyu")]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="💬 Отзывы клиентов"), KeyboardButton(text="⚠️ Проблемные ситуации")],
+            [KeyboardButton(text="📊 Оценка качества"), KeyboardButton(text="📈 Тенденции качества")],
+            [KeyboardButton(text="📋 Отчет по качеству"), KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def reports_menu(lang='uz'):
+    """Hisobotlar menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="📈 Tizim hisoboti"), KeyboardButton(text="👨‍🔧 Texniklar hisoboti")],
+            [KeyboardButton(text="⭐ Sifat hisoboti"), KeyboardButton(text="📅 Kunlik hisobot")],
+            [KeyboardButton(text="📊 Haftalik hisobot"), KeyboardButton(text="🏠 Bosh menyu")]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="📈 Системный отчет"), KeyboardButton(text="👨‍🔧 Отчет по техникам")],
+            [KeyboardButton(text="⭐ Отчет по качеству"), KeyboardButton(text="📅 Ежедневный отчет")],
+            [KeyboardButton(text="📊 Еженедельный отчет"), KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def language_keyboard():
+    """Til tanlash klaviaturasi"""
+    keyboard = [
+        [KeyboardButton(text="🇺🇿 O'zbek tili"), KeyboardButton(text="🇷🇺 Русский язык")],
+        [KeyboardButton(text="◀️ Orqaga")]
     ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def order_priority_keyboard(lang='uz'):
+    """Buyurtma ustuvorligi klaviaturasi"""
+    if lang == 'uz':
+        keyboard = [
+            [InlineKeyboardButton(text="🔴 Yuqori", callback_data="set_priority_high")],
+            [InlineKeyboardButton(text="🟡 O'rta", callback_data="set_priority_medium")],
+            [InlineKeyboardButton(text="🟢 Past", callback_data="set_priority_low")],
+            [InlineKeyboardButton(text="◀️ Orqaga", callback_data="controllers_back")]
+        ]
+    else:
+        keyboard = [
+            [InlineKeyboardButton(text="🔴 Высокий", callback_data="set_priority_high")],
+            [InlineKeyboardButton(text="🟡 Средний", callback_data="set_priority_medium")],
+            [InlineKeyboardButton(text="🟢 Низкий", callback_data="set_priority_low")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="controllers_back")]
+        ]
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def technicians_menu(language: str) -> InlineKeyboardMarkup:
-    """Technicians control menu"""
-    performance_report_text = "📊 Samaradorlik hisoboti" if language == "uz" else "📊 Отчет о производительности"
-    workload_balance_text = "⚖️ Ish yukini taqsimlash" if language == "uz" else "⚖️ Балансировка нагрузки"
-    technician_ratings_text = "⭐ Texniklar reytingi" if language == "uz" else "⭐ Рейтинг техников"
-    schedule_management_text = "📅 Jadval boshqaruvi" if language == "uz" else "📅 Управление расписанием"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=performance_report_text,
-                callback_data="performance_report"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=workload_balance_text,
-                callback_data="workload_balance"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=technician_ratings_text,
-                callback_data="technician_ratings"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=schedule_management_text,
-                callback_data="schedule_management"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="controllers_back"
-            )
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def reports_menu(language: str) -> InlineKeyboardMarkup:
-    """Reports menu"""
-    daily_report_text = "📅 Kunlik hisobot" if language == "uz" else "📅 Ежедневный отчет"
-    weekly_report_text = "📅 Haftalik hisobot" if language == "uz" else "📅 Еженедельный отчет"
-    monthly_report_text = "📅 Oylik hisobot" if language == "uz" else "📅 Ежемесячный отчет"
-    custom_report_text = "📊 Maxsus hisobot" if language == "uz" else "📊 Специальный отчет"
-    export_data_text = "📤 Ma'lumotlarni eksport qilish" if language == "uz" else "📤 Экспорт данных"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=daily_report_text,
-                callback_data="daily_report"
-            ),
-            InlineKeyboardButton(
-                text=weekly_report_text,
-                callback_data="weekly_report"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=monthly_report_text,
-                callback_data="monthly_report"
-            ),
-            InlineKeyboardButton(
-                text=custom_report_text,
-                callback_data="custom_report"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=export_data_text,
-                callback_data="export_data"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="controllers_back"
-            )
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def order_priority_keyboard(language: str) -> InlineKeyboardMarkup:
-    """Order priority selection keyboard"""
-    high_priority_text = "Yuqori ustuvorlik" if language == "uz" else "Высокий приоритет"
-    medium_priority_text = "O'rtacha ustuvorlik" if language == "uz" else "Средний приоритет"
-    normal_priority_text = "Oddiy ustuvorlik" if language == "uz" else "Обычный приоритет"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=f"🔴 {high_priority_text}",
-                callback_data="set_priority_high"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=f"🟡 {medium_priority_text}",
-                callback_data="set_priority_medium"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=f"🟢 {normal_priority_text}",
-                callback_data="set_priority_normal"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="orders_control"
-            )
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def technician_assignment_keyboard(language: str, technicians: list) -> InlineKeyboardMarkup:
-    """Technician assignment keyboard"""
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    orders_word = "buyurtma" if language == "uz" else "заказов"
-    
+def technician_assignment_keyboard(lang='uz', technicians=None):
+    """Texnik tayinlash klaviaturasi"""
     keyboard = []
     
-    for tech in technicians:
-        keyboard.append([
-            InlineKeyboardButton(
-                text=f"👨‍🔧 {tech['full_name']} ({tech['active_orders']} {orders_word})",
+    if technicians:
+        for tech in technicians[:10]:  # Maksimal 10 ta texnik
+            button_text = f"👨‍🔧 {tech['full_name']} ({tech.get('active_tasks', 0)})"
+            keyboard.append([InlineKeyboardButton(
+                text=button_text, 
                 callback_data=f"assign_tech_{tech['id']}"
-            )
-        ])
+            )])
     
-    keyboard.append([
-        InlineKeyboardButton(
-            text=back_text,
-            callback_data="assign_technicians"
-        )
-    ])
+    back_text = "◀️ Orqaga" if lang == 'uz' else "◀️ Назад"
+    keyboard.append([InlineKeyboardButton(text=back_text, callback_data="controllers_back")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def quality_control_menu(language: str) -> InlineKeyboardMarkup:
-    """Quality control menu"""
-    customer_feedback_text = "💬 Mijoz fikrlari" if language == "uz" else "💬 Отзывы клиентов"
-    unresolved_issues_text = "⚠️ Hal etilmagan muammolar" if language == "uz" else "⚠️ Нерешенные проблемы"
-    service_quality_text = "⭐ Xizmat sifatini baholash" if language == "uz" else "⭐ Оценка качества услуг"
-    quality_trends_text = "📈 Sifat tendensiyalari" if language == "uz" else "📈 Тенденции качества"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=customer_feedback_text,
-                callback_data="quality_customer_feedback"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=unresolved_issues_text,
-                callback_data="quality_unresolved_issues"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=service_quality_text,
-                callback_data="quality_service_assessment"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=quality_trends_text,
-                callback_data="quality_trends"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="controllers_back"
-            )
+def back_to_controllers_menu(lang='uz'):
+    """Controllers menyusiga qaytish"""
+    if lang == 'uz':
+        keyboard = [
+            [KeyboardButton(text="🏠 Bosh menyu")]
         ]
-    ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="🏠 Главное меню")]
+        ]
+    
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def quality_control_detailed_menu(lang='uz'):
+    """Batafsil sifat nazorati menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [InlineKeyboardButton(text="💬 Mijoz fikrlari", callback_data="quality_customer_feedback")],
+            [InlineKeyboardButton(text="⚠️ Hal etilmagan muammolar", callback_data="quality_unresolved_issues")],
+            [InlineKeyboardButton(text="📊 Xizmat sifatini baholash", callback_data="quality_service_assessment")],
+            [InlineKeyboardButton(text="📈 Sifat tendensiyalari", callback_data="quality_trends")],
+            [InlineKeyboardButton(text="📋 Sifat hisoboti", callback_data="quality_reports")],
+            [InlineKeyboardButton(text="◀️ Orqaga", callback_data="controllers_back")]
+        ]
+    else:
+        keyboard = [
+            [InlineKeyboardButton(text="💬 Отзывы клиентов", callback_data="quality_customer_feedback")],
+            [InlineKeyboardButton(text="⚠️ Нерешенные проблемы", callback_data="quality_unresolved_issues")],
+            [InlineKeyboardButton(text="📊 Оценка качества услуг", callback_data="quality_service_assessment")],
+            [InlineKeyboardButton(text="📈 Тенденции качества", callback_data="quality_trends")],
+            [InlineKeyboardButton(text="📋 Отчет по качеству", callback_data="quality_reports")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="controllers_back")]
+        ]
+    
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def feedback_filter_menu(language: str) -> InlineKeyboardMarkup:
-    """Feedback filter menu"""
-    all_feedback_text = "📋 Barcha fikrlar" if language == "uz" else "📋 Все отзывы"
-    low_ratings_text = "⭐ Past baholar (1-2)" if language == "uz" else "⭐ Низкие оценки (1-2)"
-    medium_ratings_text = "⭐⭐⭐ O'rta baholar (3)" if language == "uz" else "⭐⭐⭐ Средние оценки (3)"
-    high_ratings_text = "⭐⭐⭐⭐⭐ Yuqori baholar (4-5)" if language == "uz" else "⭐⭐⭐⭐⭐ Высокие оценки (4-5)"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=all_feedback_text,
-                callback_data="feedback_filter_all"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=low_ratings_text,
-                callback_data="feedback_filter_low"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=medium_ratings_text,
-                callback_data="feedback_filter_medium"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=high_ratings_text,
-                callback_data="feedback_filter_high"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="quality_control"
-            )
+def feedback_detailed_filter_menu(lang='uz'):
+    """Fikrlarni filtrlash menyusi"""
+    if lang == 'uz':
+        keyboard = [
+            [InlineKeyboardButton(text="⭐⭐⭐⭐⭐ (5)", callback_data="feedback_filter_5")],
+            [InlineKeyboardButton(text="⭐⭐⭐⭐ (4)", callback_data="feedback_filter_4")],
+            [InlineKeyboardButton(text="⭐⭐⭐ (3)", callback_data="feedback_filter_3")],
+            [InlineKeyboardButton(text="⭐⭐ (2)", callback_data="feedback_filter_2")],
+            [InlineKeyboardButton(text="⭐ (1)", callback_data="feedback_filter_1")],
+            [InlineKeyboardButton(text="📋 Barcha fikrlar", callback_data="feedback_filter_all")],
+            [InlineKeyboardButton(text="🕒 So'nggi fikrlar", callback_data="feedback_filter_recent")],
+            [InlineKeyboardButton(text="◀️ Orqaga", callback_data="quality_control")]
         ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def quality_control_detailed_menu(language: str) -> InlineKeyboardMarkup:
-    """Detailed quality control menu"""
-    customer_feedback_text = "💬 Mijoz fikrlari" if language == "uz" else "💬 Отзывы клиентов"
-    unresolved_issues_text = "⚠️ Hal etilmagan muammolar" if language == "uz" else "⚠️ Нерешенные проблемы"
-    service_quality_text = "⭐ Xizmat sifatini baholash" if language == "uz" else "⭐ Оценка качества услуг"
-    quality_trends_text = "📈 Sifat tendensiyalari" if language == "uz" else "📈 Тенденции качества"
-    quality_reports_text = "📋 Sifat hisobotlari" if language == "uz" else "📋 Отчеты по качеству"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=customer_feedback_text,
-                callback_data="quality_customer_feedback"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=unresolved_issues_text,
-                callback_data="quality_unresolved_issues"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=service_quality_text,
-                callback_data="quality_service_assessment"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=quality_trends_text,
-                callback_data="quality_trends"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=quality_reports_text,
-                callback_data="quality_reports"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="controllers_back"
-            )
+    else:
+        keyboard = [
+            [InlineKeyboardButton(text="⭐⭐⭐⭐⭐ (5)", callback_data="feedback_filter_5")],
+            [InlineKeyboardButton(text="⭐⭐⭐⭐ (4)", callback_data="feedback_filter_4")],
+            [InlineKeyboardButton(text="⭐⭐⭐ (3)", callback_data="feedback_filter_3")],
+            [InlineKeyboardButton(text="⭐⭐ (2)", callback_data="feedback_filter_2")],
+            [InlineKeyboardButton(text="⭐ (1)", callback_data="feedback_filter_1")],
+            [InlineKeyboardButton(text="📋 Все отзывы", callback_data="feedback_filter_all")],
+            [InlineKeyboardButton(text="🕒 Последние отзывы", callback_data="feedback_filter_recent")],
+            [InlineKeyboardButton(text="◀️ Назад", callback_data="quality_control")]
         ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-def feedback_detailed_filter_menu(language: str) -> InlineKeyboardMarkup:
-    """Detailed feedback filter menu"""
-    all_feedback_text = "📋 Barcha fikrlar" if language == "uz" else "📋 Все отзывы"
-    excellent_ratings_text = "⭐⭐⭐⭐⭐ A'lo (5)" if language == "uz" else "⭐⭐⭐⭐⭐ Отлично (5)"
-    good_ratings_text = "⭐⭐⭐⭐ Yaxshi (4)" if language == "uz" else "⭐⭐⭐⭐ Хорошо (4)"
-    average_ratings_text = "⭐⭐⭐ O'rta (3)" if language == "uz" else "⭐⭐⭐ Средне (3)"
-    poor_ratings_text = "⭐⭐ Yomon (2)" if language == "uz" else "⭐⭐ Плохо (2)"
-    terrible_ratings_text = "⭐ Juda yomon (1)" if language == "uz" else "⭐ Ужасно (1)"
-    recent_feedback_text = "🕐 So'nggi fikrlar" if language == "uz" else "🕐 Последние отзывы"
-    back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
     
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=all_feedback_text,
-                callback_data="feedback_filter_all"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=excellent_ratings_text,
-                callback_data="feedback_filter_5"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=good_ratings_text,
-                callback_data="feedback_filter_4"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=average_ratings_text,
-                callback_data="feedback_filter_3"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=poor_ratings_text,
-                callback_data="feedback_filter_2"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=terrible_ratings_text,
-                callback_data="feedback_filter_1"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=recent_feedback_text,
-                callback_data="feedback_filter_recent"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="quality_control"
-            )
-        ]
-    ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

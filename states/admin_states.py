@@ -103,3 +103,8 @@ class AdminStates(StatesGroup):
     waiting_for_user_id_or_username = State()
     waiting_for_telegram_id = State()
     waiting_for_phone = State()
+    waiting_for_role_selection = State()
+    waiting_for_search_value = State()
+    waiting_for_order_id = State()
+    editing_setting = State()
+    waiting_for_setting_value = State()

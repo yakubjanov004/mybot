@@ -341,6 +341,77 @@ def confirmation_keyboard(lang="uz"):
     ])
     return keyboard
 
+def get_reports_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Reports menu keyboard for manager"""
+    daily_text = "📅 Kunninglik" if lang == "uz" else "📅 Ежедневный"
+    monthly_text = "📅 Oylik" if lang == "uz" else "📅 Ежемесячный"
+    custom_text = "📊 Maxsus" if lang == "uz" else "📊 Специальный"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=daily_text,
+                callback_data="daily_report"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=monthly_text,
+                callback_data="monthly_report"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=custom_text,
+                callback_data="custom_report"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="manager_back_to_main"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_notifications_keyboard(lang: str):
+    """Notifications menu keyboard for manager"""
+    builder = InlineKeyboardBuilder()
+    
+    # Add notification type buttons
+    builder.add(
+        InlineKeyboardButton(
+            text="🔔 Yangi bildirishnomalar" if lang == "uz" else "🔔 Новые уведомления",
+            callback_data="notifications_new"
+        ),
+        InlineKeyboardButton(
+            text="✅ O'qilgan bildirishnomalar" if lang == "uz" else "✅ Прочитанные уведомления",
+            callback_data="notifications_read"
+        ),
+        InlineKeyboardButton(
+            text="🗑️ O'chirilgan bildirishnomalar" if lang == "uz" else "🗑️ Удаленные уведомления",
+            callback_data="notifications_deleted"
+        ),
+        InlineKeyboardButton(
+            text="⚙️ Sozlamalar" if lang == "uz" else "⚙️ Настройки",
+            callback_data="notifications_settings"
+        )
+    )
+    
+    # Add back button
+    builder.add(
+        InlineKeyboardButton(
+            text="🔙 Orqaga" if lang == "uz" else "🔙 Назад",
+            callback_data="back_to_notifications_menu"
+        )
+    )
+    
+    # Adjust button layout
+    builder.adjust(2, 2, 1)  # 2 buttons in first row, 2 in second, 1 in last
+    return builder.as_markup()
+
 def get_staff_activity_menu(lang='uz'):
     """Staff activity monitoring menu"""
     technician_performance_text = "👨‍🔧 Texniklar samaradorligi" if lang == "uz" else "👨‍🔧 Производительность техников"
@@ -348,7 +419,6 @@ def get_staff_activity_menu(lang='uz'):
     weekly_summary_text = "📊 Haftalik xulosalar" if lang == "uz" else "📊 Недельная сводка"
     individual_reports_text = "👤 Shaxsiy hisobotlar" if lang == "uz" else "👤 Индивидуальные отчеты"
     team_comparison_text = "⚖️ Jamoa taqqoslash" if lang == "uz" else "⚖️ Сравнение команды"
-    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
     
     keyboard = [
         [
@@ -379,12 +449,6 @@ def get_staff_activity_menu(lang='uz'):
             InlineKeyboardButton(
                 text=team_comparison_text,
                 callback_data="staff_team_comparison"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="manager_back_main"
             )
         ]
     ]

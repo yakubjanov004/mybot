@@ -1,256 +1,111 @@
-import time
-import json
-from typing import Any, Dict, Optional, Union, List
-from collections import OrderedDict
 import asyncio
-from utils.logger import logger
+import json
+import time
+from typing import Any, Dict, Optional, Set
+from datetime import datetime, timedelta
+import weakref
+from utils.logger import setup_module_logger
 
-class CacheManager:
-    """In-memory cache manager with TTL support"""
+logger = setup_module_logger("cache_manager")
+
+class MemoryCache:
+    """Simple in-memory cache with TTL support"""
     
-    def __init__(self, max_size: int = 1000, default_ttl: int = 300):
-        self.cache: OrderedDict = OrderedDict()
-        self.ttl_data: Dict[str, float] = {}
-        self.max_size = max_size
-        self.default_ttl = default_ttl
-        self.stats = {
-            'hits': 0,
-            'misses': 0,
-            'sets': 0,
-            'deletes': 0,
-            'evictions': 0
-        }
+    def __init__(self, default_ttl: int = 300):  # 5 minutes default
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._default_ttl = default_ttl
+        self._access_times: Dict[str, float] = {}
+        self._lock = asyncio.Lock()
     
-    def _is_expired(self, key: str) -> bool:
-        """Check if cache entry is expired"""
-        if key not in self.ttl_data:
-            return True
-        return time.time() > self.ttl_data[key]
-    
-    def _evict_expired(self):
-        """Remove expired entries"""
-        current_time = time.time()
-        expired_keys = [
-            key for key, expiry_time in self.ttl_data.items()
-            if current_time > expiry_time
-        ]
-        
-        for key in expired_keys:
-            self._delete_key(key)
-    
-    def _delete_key(self, key: str):
-        """Delete a key from cache"""
-        if key in self.cache:
-            del self.cache[key]
-        if key in self.ttl_data:
-            del self.ttl_data[key]
-    
-    def _evict_lru(self):
-        """Evict least recently used items"""
-        while len(self.cache) >= self.max_size:
-            oldest_key = next(iter(self.cache))
-            self._delete_key(oldest_key)
-            self.stats['evictions'] += 1
-    
-    def get(self, key: str, default: Any = None) -> Any:
+    async def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
-        self._evict_expired()
-        
-        if key not in self.cache or self._is_expired(key):
-            self.stats['misses'] += 1
-            return default
-        
-        # Move to end (mark as recently used)
-        self.cache.move_to_end(key)
-        self.stats['hits'] += 1
-        return self.cache[key]
+        async with self._lock:
+            if key not in self._cache:
+                return None
+            
+            entry = self._cache[key]
+            
+            # Check if expired
+            if entry['expires_at'] < time.time():
+                await self._delete(key)
+                return None
+            
+            # Update access time
+            self._access_times[key] = time.time()
+            logger.debug(f"Cache hit: {key}")
+            return entry['value']
     
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
         """Set value in cache"""
-        try:
-            self._evict_expired()
-            self._evict_lru()
+        async with self._lock:
+            ttl = ttl or self._default_ttl
+            expires_at = time.time() + ttl
             
-            # Set TTL
-            if ttl is None:
-                ttl = self.default_ttl
-            
-            self.ttl_data[key] = time.time() + ttl
-            self.cache[key] = value
-            
-            # Move to end
-            self.cache.move_to_end(key)
-            
-            self.stats['sets'] += 1
-            return True
-        except Exception as e:
-            logger.error(f"Cache set error: {str(e)}")
-            return False
+            self._cache[key] = {
+                'value': value,
+                'expires_at': expires_at,
+                'created_at': time.time()
+            }
+            self._access_times[key] = time.time()
+            logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
     
-    def delete(self, key: str) -> bool:
+    async def delete(self, key: str) -> bool:
         """Delete key from cache"""
-        if key in self.cache:
-            self._delete_key(key)
-            self.stats['deletes'] += 1
+        async with self._lock:
+            return await self._delete(key)
+    
+    async def _delete(self, key: str) -> bool:
+        """Internal delete method"""
+        if key in self._cache:
+            del self._cache[key]
+            self._access_times.pop(key, None)
+            logger.debug(f"Cache delete: {key}")
             return True
         return False
     
-    def exists(self, key: str) -> bool:
-        """Check if key exists and is not expired"""
-        self._evict_expired()
-        return key in self.cache and not self._is_expired(key)
-    
-    def clear(self):
+    async def clear(self) -> None:
         """Clear all cache"""
-        self.cache.clear()
-        self.ttl_data.clear()
-        logger.info("Cache cleared")
+        async with self._lock:
+            self._cache.clear()
+            self._access_times.clear()
+            logger.info("Cache cleared")
     
-    def get_stats(self) -> Dict[str, Any]:
+    async def cleanup_expired(self) -> int:
+        """Remove expired entries"""
+        async with self._lock:
+            current_time = time.time()
+            expired_keys = [
+                key for key, entry in self._cache.items()
+                if entry['expires_at'] < current_time
+            ]
+            
+            for key in expired_keys:
+                await self._delete(key)
+            
+            if expired_keys:
+                logger.info(f"Cleaned up {len(expired_keys)} expired cache entries")
+            
+            return len(expired_keys)
+    
+    async def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics"""
-        self._evict_expired()
-        
-        total_requests = self.stats['hits'] + self.stats['misses']
-        hit_rate = (self.stats['hits'] / total_requests * 100) if total_requests > 0 else 0
-        
-        return {
-            'size': len(self.cache),
-            'max_size': self.max_size,
-            'hits': self.stats['hits'],
-            'misses': self.stats['misses'],
-            'hit_rate': round(hit_rate, 2),
-            'sets': self.stats['sets'],
-            'deletes': self.stats['deletes'],
-            'evictions': self.stats['evictions']
-        }
-    
-    def get_keys(self, pattern: str = None) -> List[str]:
-        """Get all keys, optionally filtered by pattern"""
-        self._evict_expired()
-        
-        keys = list(self.cache.keys())
-        if pattern:
-            import fnmatch
-            keys = [key for key in keys if fnmatch.fnmatch(key, pattern)]
-        
-        return keys
-
-# Specialized cache managers
-class UserCache(CacheManager):
-    """Cache for user data"""
-    
-    def __init__(self):
-        super().__init__(max_size=500, default_ttl=600)  # 10 minutes
-    
-    def get_user(self, telegram_id: int) -> Optional[Dict]:
-        """Get user data from cache"""
-        return self.get(f"user:{telegram_id}")
-    
-    def set_user(self, telegram_id: int, user_data: Dict, ttl: int = None) -> bool:
-        """Set user data in cache"""
-        return self.set(f"user:{telegram_id}", user_data, ttl)
-    
-    def delete_user(self, telegram_id: int) -> bool:
-        """Delete user from cache"""
-        return self.delete(f"user:{telegram_id}")
-    
-    def get_user_role(self, telegram_id: int) -> Optional[str]:
-        """Get user role from cache"""
-        user_data = self.get_user(telegram_id)
-        return user_data.get('role') if user_data else None
-
-class ZayavkaCache(CacheManager):
-    """Cache for zayavka data"""
-    
-    def __init__(self):
-        super().__init__(max_size=1000, default_ttl=300)  # 5 minutes
-    
-    def get_zayavka(self, zayavka_id: int) -> Optional[Dict]:
-        """Get zayavka data from cache"""
-        return self.get(f"zayavka:{zayavka_id}")
-    
-    def set_zayavka(self, zayavka_id: int, zayavka_data: Dict, ttl: int = None) -> bool:
-        """Set zayavka data in cache"""
-        return self.set(f"zayavka:{zayavka_id}", zayavka_data, ttl)
-    
-    def delete_zayavka(self, zayavka_id: int) -> bool:
-        """Delete zayavka from cache"""
-        return self.delete(f"zayavka:{zayavka_id}")
-    
-    def get_user_zayavkas(self, user_id: int) -> Optional[List]:
-        """Get user's zayavkas from cache"""
-        return self.get(f"user_zayavkas:{user_id}")
-    
-    def set_user_zayavkas(self, user_id: int, zayavkas: List, ttl: int = None) -> bool:
-        """Set user's zayavkas in cache"""
-        return self.set(f"user_zayavkas:{user_id}", zayavkas, ttl)
-
-class ConfigCache(CacheManager):
-    """Cache for configuration data"""
-    
-    def __init__(self):
-        super().__init__(max_size=100, default_ttl=3600)  # 1 hour
-    
-    def get_config(self, key: str) -> Any:
-        """Get configuration value"""
-        return self.get(f"config:{key}")
-    
-    def set_config(self, key: str, value: Any, ttl: int = None) -> bool:
-        """Set configuration value"""
-        return self.set(f"config:{key}", value, ttl)
-
-# Global cache instances
-user_cache = UserCache()
-zayavka_cache = ZayavkaCache()
-config_cache = ConfigCache()
-general_cache = CacheManager()
-
-# Cache decorators
-def cache_result(cache_key_func, ttl: int = 300, cache_instance: CacheManager = None):
-    """Decorator to cache function results"""
-    if cache_instance is None:
-        cache_instance = general_cache
-    
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            # Generate cache key
-            cache_key = cache_key_func(*args, **kwargs)
+        async with self._lock:
+            current_time = time.time()
+            total_entries = len(self._cache)
+            expired_entries = sum(
+                1 for entry in self._cache.values()
+                if entry['expires_at'] < current_time
+            )
             
-            # Try to get from cache
-            cached_result = cache_instance.get(cache_key)
-            if cached_result is not None:
-                logger.debug(f"Cache hit for key: {cache_key}")
-                return cached_result
-            
-            # Execute function and cache result
-            result = await func(*args, **kwargs)
-            if result is not None:
-                cache_instance.set(cache_key, result, ttl)
-                logger.debug(f"Cached result for key: {cache_key}")
-            
-            return result
-        
-        return wrapper
-    return decorator
+            return {
+                'total_entries': total_entries,
+                'active_entries': total_entries - expired_entries,
+                'expired_entries': expired_entries,
+                'memory_usage_kb': len(str(self._cache)) / 1024
+            }
 
-def invalidate_cache(cache_key_func, cache_instance: CacheManager = None):
-    """Decorator to invalidate cache after function execution"""
-    if cache_instance is None:
-        cache_instance = general_cache
-    
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            result = await func(*args, **kwargs)
-            
-            # Invalidate cache
-            cache_key = cache_key_func(*args, **kwargs)
-            cache_instance.delete(cache_key)
-            logger.debug(f"Invalidated cache for key: {cache_key}")
-            
-            return result
-        
-        return wrapper
-    return decorator
+# Global cache instance
+cache = MemoryCache()
 
 # Cache key generators
 def user_cache_key(telegram_id: int) -> str:
@@ -265,23 +120,128 @@ def user_zayavkas_cache_key(user_id: int) -> str:
     """Generate cache key for user's zayavkas"""
     return f"user_zayavkas:{user_id}"
 
-# Cache maintenance
+def technician_tasks_cache_key(technician_id: int) -> str:
+    """Generate cache key for technician tasks"""
+    return f"technician_tasks:{technician_id}"
+
+def statistics_cache_key(stat_type: str, period: str = "daily") -> str:
+    """Generate cache key for statistics"""
+    return f"stats:{stat_type}:{period}"
+
+def materials_cache_key() -> str:
+    """Generate cache key for materials list"""
+    return "materials:all"
+
+# Cache decorators
+def cached(ttl: int = 300, key_func=None):
+    """Decorator for caching function results"""
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            # Generate cache key
+            if key_func:
+                cache_key = key_func(*args, **kwargs)
+            else:
+                cache_key = f"{func.__name__}:{hash(str(args) + str(kwargs))}"
+            
+            # Try to get from cache
+            result = await cache.get(cache_key)
+            if result is not None:
+                return result
+            
+            # Execute function and cache result
+            result = await func(*args, **kwargs)
+            await cache.set(cache_key, result, ttl)
+            return result
+        
+        return wrapper
+    return decorator
+
+# Cache invalidation helpers
+async def invalidate_user_cache(telegram_id: int):
+    """Invalidate all cache entries for a user"""
+    keys_to_delete = [
+        user_cache_key(telegram_id),
+        user_zayavkas_cache_key(telegram_id),
+    ]
+    
+    for key in keys_to_delete:
+        await cache.delete(key)
+    
+    logger.info(f"Invalidated cache for user {telegram_id}")
+
+async def invalidate_zayavka_cache(zayavka_id: int, user_id: int = None):
+    """Invalidate cache entries for a zayavka"""
+    keys_to_delete = [zayavka_cache_key(zayavka_id)]
+    
+    if user_id:
+        keys_to_delete.append(user_zayavkas_cache_key(user_id))
+    
+    for key in keys_to_delete:
+        await cache.delete(key)
+    
+    logger.info(f"Invalidated cache for zayavka {zayavka_id}")
+
+async def invalidate_statistics_cache():
+    """Invalidate all statistics cache"""
+    # This is a simple approach - in production you might want to track stat keys
+    await cache.clear()
+    logger.info("Invalidated statistics cache")
+
+# Cache maintenance task
 async def cache_maintenance():
-    """Periodic cache maintenance task"""
+    """Background task for cache maintenance"""
     while True:
         try:
-            # Clean expired entries
-            user_cache._evict_expired()
-            zayavka_cache._evict_expired()
-            config_cache._evict_expired()
-            general_cache._evict_expired()
+            await asyncio.sleep(300)  # Run every 5 minutes
+            cleaned = await cache.cleanup_expired()
             
-            # Log cache stats
-            logger.info(f"Cache stats - Users: {user_cache.get_stats()}")
-            logger.info(f"Cache stats - Zayavkas: {zayavka_cache.get_stats()}")
+            # Log stats periodically
+            stats = await cache.get_stats()
+            if stats['total_entries'] > 0:
+                logger.debug(f"Cache stats: {stats}")
             
-            # Wait 5 minutes
-            await asyncio.sleep(300)
         except Exception as e:
             logger.error(f"Cache maintenance error: {str(e)}")
-            await asyncio.sleep(60)  # Wait 1 minute on error
+
+# Context manager for cache operations
+class CacheContext:
+    """Context manager for cache operations with automatic cleanup"""
+    
+    def __init__(self, keys_to_invalidate: list = None):
+        self.keys_to_invalidate = keys_to_invalidate or []
+    
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:  # Only invalidate on success
+            for key in self.keys_to_invalidate:
+                await cache.delete(key)
+
+# Utility functions
+async def warm_cache():
+    """Warm up cache with frequently accessed data"""
+    try:
+        from database.base_queries import get_user_statistics, get_zayavka_statistics
+        
+        # Cache statistics
+        user_stats = await get_user_statistics()
+        await cache.set(statistics_cache_key("users"), user_stats, 600)
+        
+        zayavka_stats = await get_zayavka_statistics()
+        await cache.set(statistics_cache_key("zayavkas"), zayavka_stats, 600)
+        
+        logger.info("Cache warmed up successfully")
+        
+    except Exception as e:
+        logger.error(f"Cache warm-up failed: {str(e)}")
+
+async def get_cache_info() -> Dict[str, Any]:
+    """Get comprehensive cache information"""
+    stats = await cache.get_stats()
+    
+    return {
+        'cache_stats': stats,
+        'default_ttl': cache._default_ttl,
+        'maintenance_running': True  # Simplified check
+    }

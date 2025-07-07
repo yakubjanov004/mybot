@@ -142,30 +142,29 @@ def confirmation_keyboard(lang="uz"):
 
 def get_client_profile_menu(lang="uz"):
     """Client profile menu"""
-    update_contact_text = "📱 Kontaktni yangilash" if lang == "uz" else "📱 Обновить контакт"
-    update_address_text = "📍 Manzilni yangilash" if lang == "uz" else "📍 Обновить адрес"
     view_info_text = "👁️ Ma'lumotlarni ko'rish" if lang == "uz" else "👁️ Просмотр информации"
+    view_orders_text = "🔄 Mening arizalarim" if lang == "uz" else "🔄 Мои заявки"
     
     keyboard = [
         [
             InlineKeyboardButton(
-                text=update_contact_text,
-                callback_data="client_update_contact"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=update_address_text,
-                callback_data="client_update_address"
-            )
-        ],
-        [
-            InlineKeyboardButton(
                 text=view_info_text,
                 callback_data="client_view_info"
+            ),
+            InlineKeyboardButton(
+                text=view_orders_text,
+                callback_data="client_order_stats"
             )
         ]
     ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_back_to_profile_menu(lang="uz"):
+    """Back button for profile menu"""
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=back_text, callback_data="client_profile_back")]]
+    )
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_client_help_menu(lang="uz"):

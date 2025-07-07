@@ -9,12 +9,20 @@ import asyncpg
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+from config import config
+
+parsed = urlparse(config.DATABASE_URL)
+DB_HOST = parsed.hostname
+DB_PORT = parsed.port
+DB_NAME = parsed.path.lstrip('/')
+DB_USER = parsed.username
+DB_PASSWORD = parsed.password
 
 DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
@@ -68,4 +76,4 @@ async def fix_roles():
         raise
 
 if __name__ == "__main__":
-    asyncio.run(fix_roles()) 
+    asyncio.run(fix_roles())
