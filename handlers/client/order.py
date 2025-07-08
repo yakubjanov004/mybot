@@ -1,4 +1,3 @@
-from aiogram import Router
 from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
@@ -18,10 +17,11 @@ from utils.logger import setup_logger
 from utils.validators import validate_address
 from utils.inline_cleanup import answer_and_cleanup
 from loader import bot, ZAYAVKA_GROUP_ID, inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_order_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @router.message(F.text.in_(["🆕 Yangi buyurtma", "🆕 Новый заказ"]))
     async def new_order(message: Message, state: FSMContext):

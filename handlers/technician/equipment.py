@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -10,11 +10,12 @@ from utils.inline_cleanup import cleanup_user_inline_messages
 from keyboards.technician_buttons import get_equipment_keyboard, get_back_technician_keyboard
 from loader import bot
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 import functools
 
 def get_technician_equipment_router():
     logger = setup_logger('bot.technician.equipment')
-    router = Router()
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)

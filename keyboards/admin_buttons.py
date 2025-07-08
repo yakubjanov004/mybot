@@ -1,8 +1,175 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 
+# Zayavkalar bo'yicha asosiy reply menyu
+def get_zayavka_main_keyboard(lang: str = "uz"):
+    """Zayavkalar bo'yicha asosiy reply menyu - 2 tilda"""
+    status_text = "📂 Holat bo'yicha" if lang == "uz" else "📂 По статусу"
+    search_text = "🔍 Qidirish / Filtrlash" if lang == "uz" else "🔍 Поиск / Фильтр"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=status_text)
+            ],
+            [
+                KeyboardButton(text=search_text)
+            ],
+            [
+                KeyboardButton(text=back_text)
+            ]
+        ],
+        resize_keyboard=True
+    )
+
+def get_zayavka_section_keyboard(lang: str = "uz"):
+    """Zayavkalar bo'yicha section reply menyu - 2 tilda"""
+    status_text = "📂 Holat bo'yicha" if lang == "uz" else "📂 По статусу"
+    search_text = "🔍 Qidirish / Filtrlash" if lang == "uz" else "🔍 Поиск / Фильтр"
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=search_text)
+            ],
+            [
+                KeyboardButton(text=status_text)
+            ],
+            [
+                KeyboardButton(text=back_text)
+            ]
+        ],
+        resize_keyboard=True
+    )
+
+# Holat bo'yicha filtr tanlash menyusi
+def get_zayavka_status_filter_keyboard(lang: str = "uz", page: int = 1, total_pages: int = 1):
+    """Holat bo'yicha filtr tanlash menyusi - 2 tilda, chiroyli va qulay dizayn"""
+    new_text = "🆕 Yangi" if lang == "uz" else "🆕 Новые"
+    in_progress_text = "🔄 Jarayonda" if lang == "uz" else "🔄 В процессе"
+    done_text = "✅ Yakunlangan" if lang == "uz" else "✅ Выполненные"
+    rejected_text = "❌ Bekor qilingan" if lang == "uz" else "❌ Отменённые"
+    prev_text = "Avvalgisi" if lang == "uz" else "Предыдущий"
+    next_text = "Keyingisi" if lang == "uz" else "Следующий"
+    
+    statuses = [
+        (new_text, "new"),
+        (in_progress_text, "in_progress"),
+        (done_text, "done"),
+        (rejected_text, "rejected")
+    ]
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+    
+    # Add status buttons in 2 columns
+    for i in range(0, len(statuses), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(statuses):
+                status_text, status_code = statuses[i + j]
+                row.append(
+                    InlineKeyboardButton(
+                        text=status_text,
+                        callback_data=f"zayavka:status:{status_code}:{page}"
+                    )
+                )
+        keyboard.inline_keyboard.append(row)
+    
+    # Add navigation buttons
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton(
+            text=prev_text,
+            callback_data=f"zayavka:status:prev:{page}"
+        ))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton(
+            text=next_text,
+            callback_data=f"zayavka:status:next:{page}"
+        ))
+    if nav_row:
+        keyboard.inline_keyboard.append(nav_row)
+    
+    return keyboard
+
+# Qidirish / Filtrlash menyusi
+def get_zayavka_filter_menu_keyboard(lang: str = "uz", page: int = 1, total_pages: int = 1, active_filter: str = None, admin: bool = False):
+    """Qidirish / Filtrlash menyusi - 2 tilda, chiroyli va qulay dizayn"""
+    username_text = "🔤 FIO / Username" if lang == "uz" else "🔤 ФИО / Username"
+    id_text = "🔢 Zayavka ID" if lang == "uz" else "🔢 ID заявки"
+    date_text = "📆 Sana oraliq" if lang == "uz" else "📆 Дата диапазон"
+    category_text = "🏷 Kategoriya" if lang == "uz" else "🏷 Категория"
+    technician_text = "👨‍🔧 Texnik" if lang == "uz" else "👨‍🔧 Техник"
+    prev_text = "Avvalgisi" if lang == "uz" else "Предыдущий"
+    next_text = "Keyingisi" if lang == "uz" else "Следующий"
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+    
+    filters = [
+        (username_text, "username"),
+        (id_text, "id"),
+        (date_text, "date"),
+        (category_text, "category"),
+        (technician_text, "technician")
+    ]
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[])
+    
+    if active_filter and active_filter in ["date", "category"]:
+        # Show only the selected filter with pagination
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton(
+                text=date_text if active_filter == "date" else category_text,
+                callback_data=f"zayavka:filter:{active_filter}:{page}"
+            )
+        ])
+        if page > 1 or page < total_pages:
+            nav_row = []
+            if page > 1:
+                nav_row.append(InlineKeyboardButton(
+                    text=prev_text,
+                    callback_data=f"zayavka:filter:prev:{page}"
+                ))
+            if page < total_pages:
+                nav_row.append(InlineKeyboardButton(
+                    text=next_text,
+                    callback_data=f"zayavka:filter:next:{page}"
+                ))
+            if nav_row:
+                keyboard.inline_keyboard.append(nav_row)
+    else:
+        # Show all filters without navigation
+        for i in range(0, len(filters), 2):
+            row = []
+            for j in range(2):
+                if i + j < len(filters):
+                    filter_text, filter_code = filters[i + j]
+                    row.append(
+                        InlineKeyboardButton(
+                            text=filter_text,
+                            callback_data=f"zayavka:filter:{filter_code}:{page}"
+                        )
+                    )
+            keyboard.inline_keyboard.append(row)
+            InlineKeyboardButton(
+                text="➡️ Keyingi" if lang == "uz" else "➡️ Следующая",
+                callback_data=f"zayavka:filter:next:{page}"
+            )
+    
+    # Add back button only if not admin
+    if not admin:
+        keyboard.inline_keyboard.append([
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="zayavka:filter:back"
+            )
+        ])
+    
+    return keyboard
+
+# Admin asosiy menyu - 2 tilda
 def get_admin_main_menu(lang="uz"):
-    """Admin asosiy menyu - 2 tilda"""
     statistics_text = "📊 Statistika" if lang == "uz" else "📊 Статистика"
     users_text = "👥 Foydalanuvchilar" if lang == "uz" else "👥 Пользователи"
     orders_text = "📝 Zayavkalar" if lang == "uz" else "📝 Заявки"
@@ -25,13 +192,12 @@ def get_admin_main_menu(lang="uz"):
 # Default admin menu (o'zbek tilida)
 admin_main_menu = get_admin_main_menu("uz")
 
-# Zayavka management keyboard
 def get_zayavka_management_keyboard(lang="uz"):
-    """Zayavka boshqaruv klaviaturasi - 2 tilda"""
+    """Zayavkalar boshqaruv uchun reply keyboard - 2 tilda"""
     new_text = "🆕 Yangi zayavkalar" if lang == "uz" else "🆕 Новые заявки"
-    progress_text = "⏳ Jarayonda" if lang == "uz" else "⏳ В процессе"
-    completed_text = "✅ Bajarilgan" if lang == "uz" else "✅ Выполненные"
-    cancelled_text = "❌ Bekor qilingan" if lang == "uz" else "❌ Отмененные"
+    progress_text = "⏳ Kutilayotgan zayavkalar" if lang == "uz" else "⏳ Ожидающие заявки"
+    completed_text = "✅ Bajarilgan zayavkalar" if lang == "uz" else "✅ Выполненные заявки"
+    cancelled_text = "❌ Bekor qilingan zayavkalar" if lang == "uz" else "❌ Отменённые заявки"
     search_text = "🔍 Qidirish" if lang == "uz" else "🔍 Поиск"
     stats_text = "📊 Zayavka statistikasi" if lang == "uz" else "📊 Статистика заявок"
     back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
@@ -65,7 +231,7 @@ def get_user_management_keyboard(lang="uz"):
     all_users_text = "👥 Barcha foydalanuvchilar" if lang == "uz" else "👥 Все пользователи"
     staff_text = "👤 Xodimlar" if lang == "uz" else "👤 Сотрудники"
     block_text = "🔒 Bloklash/Blokdan chiqarish" if lang == "uz" else "🔒 Блокировка/Разблокировка"
-    role_text = "🔄 Rol o'zgartirish" if lang == "uz" else "🔄 Изменить роль"
+    role_text = "🔄 Rolni o'zgartirish" if lang == "uz" else "🔄 Изменить роль"
     back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
     
     return ReplyKeyboardMarkup(
@@ -144,19 +310,15 @@ def get_settings_keyboard(lang="uz"):
 settings_keyboard = get_settings_keyboard("uz")
 
 # Language selection keyboard
-def language_keyboard(lang="uz"):
-    """Til tanlash klaviaturasi - 2 tilda"""
-    uz_text = "🇺🇿 O'zbek tili" if lang == "uz" else "🇺🇿 Узбекский"
-    ru_text = "🇷🇺 Русский язык" if lang == "uz" else "🇷🇺 Русский"
-    
-    return ReplyKeyboardMarkup(
-        keyboard=[
+def language_keyboard():
+    """Til tanlash uchun inline klaviatura"""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
-                KeyboardButton(text=uz_text),
-                KeyboardButton(text=ru_text)
+                InlineKeyboardButton(text="🇺🇿 O'zbek tili", callback_data="lang_uz"),
+                InlineKeyboardButton(text="🇷🇺 Русский язык", callback_data="lang_ru")
             ]
-        ],
-        resize_keyboard=True
+        ]
     )
 
 # Inline keyboards
@@ -298,7 +460,7 @@ def get_users_reply_keyboard(lang="uz"):
     all_users_text = "👥 Barcha foydalanuvchilar" if lang == "uz" else "👥 Все пользователи"
     staff_text = "👤 Xodimlar" if lang == "uz" else "👤 Сотрудники"
     block_text = "🔒 Bloklash/Blokdan chiqarish" if lang == "uz" else "🔒 Блокировка/Разблокировка"
-    role_text = "🔄 Rol o'zgartirish" if lang == "uz" else "🔄 Изменить роль"
+    role_text = "🔄 Rolni o'zgartirish" if lang == "uz" else "🔄 Изменить роль"
     back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
 
     return ReplyKeyboardMarkup(

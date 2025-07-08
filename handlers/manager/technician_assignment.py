@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -11,10 +11,11 @@ from database.base_queries import get_user_by_telegram_id, get_zayavka_by_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
 from database.technician_queries import assign_technician_to_zayavka, get_available_technicians
+from utils.role_router import get_role_router
 
 def get_manager_technician_assignment_router():
     logger = setup_logger('bot.manager.assignment')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(['👨‍🔧 Texnik tayinlash', '👨‍🔧 Назначить техника']))
     async def assign_technician_menu(message: Message, state: FSMContext):
@@ -82,7 +83,7 @@ def get_manager_technician_assignment_router():
                     f"📍 <b>Manzil:</b> {application.get('address', '-')}\n"
                     f"📝 <b>Tavsif:</b> {application.get('description', '-')}\n"
                     f"📊 <b>Status:</b> {status_emoji} {current_status}\n"
-                    f"👨‍�� <b>Joriy texnik:</b> {application.get('technician_name', 'Tayinlanmagan')}\n\n"
+                    f"👨‍🔧 <b>Joriy texnik:</b> {application.get('technician_name', 'Tayinlanmagan')}\n\n"
                     f"Texnikni tanlang:"
                 )
             else:

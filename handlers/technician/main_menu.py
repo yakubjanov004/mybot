@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
@@ -9,12 +9,12 @@ from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.get_role import get_user_role
+from utils.role_router import get_role_router
 import functools
 
-logger = setup_logger('bot.technician.main_menu')
-
 def get_technician_main_menu_router():
-    router = Router()
+    logger = setup_logger('bot.technician.main_menu')
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)

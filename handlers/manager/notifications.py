@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -9,10 +9,11 @@ from database.manager_queries import get_users_by_role
 from database.base_queries import get_user_by_telegram_id, get_user_by_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_notifications_router():
     logger = setup_logger('bot.manager.notifications')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(['🔔 Bildirishnomalar', '🔔 Уведомления']))
     async def show_notifications_menu(message: Message, state: FSMContext):
@@ -150,7 +151,7 @@ def get_manager_notifications_router():
                 f"📢 {role_name}ga xabar yuborish:\n\n"
                 f"Xabar matnini kiriting:"
                 if lang == 'uz' else
-                f"�� Отправка сообщения группе {role_name}:\n\n"
+                f"📢 Отправка сообщения группе {role_name}:\n\n"
                 f"Введите текст сообщения:"
             )
             

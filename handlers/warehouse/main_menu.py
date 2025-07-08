@@ -1,14 +1,14 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-
 from database.warehouse_queries import get_warehouse_user_by_telegram_id
 from keyboards.warehouse_buttons import warehouse_main_menu
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_warehouse_main_menu_router():
-    router = Router()
+    router = get_role_router("warehouse")
 
     @router.message(F.text.in_(["📦 Warehouse", "📦 Склад", "📦 Ombor"]))
     async def warehouse_start(message: Message, state: FSMContext):

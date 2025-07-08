@@ -120,50 +120,84 @@ def get_back_inline_keyboard(lang='uz'):
     ))
     return builder.as_markup()
 
-def get_filter_keyboard(lang='uz', show_clear=False) -> InlineKeyboardMarkup:
-    """Application filter keyboard with locale support"""
-    new_text = "🆕 Yangi" if lang == "uz" else "🆕 Новый"
-    in_progress_text = "⏳ Jarayonda" if lang == "uz" else "⏳ В процессе"
-    completed_text = "✅ Bajarilgan" if lang == "uz" else "✅ Выполнено"
-    cancelled_text = "❌ Bekor qilingan" if lang == "uz" else "❌ Отменено"
-    all_statuses_text = "📋 Barchasi" if lang == "uz" else "📋 Все"
-    today_text = "📅 Bugun" if lang == "uz" else "📅 Сегодня"
-    yesterday_text = "📅 Kecha" if lang == "uz" else "📅 Вчера"
-    this_week_text = "📅 Bu hafta" if lang == "uz" else "📅 На этой неделе"
-    this_month_text = "📅 Bu oy" if lang == "uz" else "📅 В этом месяце"
-    unassigned_text = "👨‍🔧 Biriktirilmagan" if lang == "uz" else "👨‍🔧 Не назначен"
-    assigned_text = "👨‍🔧 Biriktirilgan" if lang == "uz" else "👨‍🔧 Назначен"
-    clear_filter_text = "🔄 Filterni tozalash" if lang == "uz" else "🔄 Очистить фильтр"
-    
-    buttons = [
-        [
-            InlineKeyboardButton(text=new_text, callback_data="filter_status_new"),
-            InlineKeyboardButton(text=in_progress_text, callback_data="filter_status_in_progress"),
-            InlineKeyboardButton(text=completed_text, callback_data="filter_status_completed")
+def get_manager_filter_reply_keyboard(lang='uz'):
+    status_text = "🟢 Status bo'yicha" if lang == 'uz' else "🟢 По статусу"
+    date_text = "📅 Sana bo'yicha" if lang == 'uz' else "📅 По дате"
+    tech_text = "👨‍🔧 Texnik biriktirilganligi bo'yicha" if lang == 'uz' else "👨‍🔧 По назначению техника"
+    back_text = "◀️ Orqaga" if lang == 'uz' else "◀️ Назад"
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=status_text), KeyboardButton(text=date_text)],
+            [KeyboardButton(text=tech_text), KeyboardButton(text=back_text)]
         ],
-        [
-            InlineKeyboardButton(text=cancelled_text, callback_data="filter_status_cancelled"),
-            InlineKeyboardButton(text=all_statuses_text, callback_data="filter_status_all")
-        ],
-        [
-            InlineKeyboardButton(text=today_text, callback_data="filter_date_today"),
-            InlineKeyboardButton(text=yesterday_text, callback_data="filter_date_yesterday")
-        ],
-        [
-            InlineKeyboardButton(text=this_week_text, callback_data="filter_date_week"),
-            InlineKeyboardButton(text=this_month_text, callback_data="filter_date_month")
-        ],
-        [
-            InlineKeyboardButton(text=unassigned_text, callback_data="filter_tech_unassigned"),
-            InlineKeyboardButton(text=assigned_text, callback_data="filter_tech_assigned")
+        resize_keyboard=True
+    )
+
+def get_status_filter_inline_keyboard(lang='uz'):
+    new_text = "🆕 Yangi" if lang == 'uz' else "🆕 Новый"
+    in_progress_text = "⏳ Jarayonda" if lang == 'uz' else "⏳ В процессе"
+    completed_text = "✅ Yakunlangan" if lang == 'uz' else "✅ Завершено"
+    cancelled_text = "❌ Bekor qilingan" if lang == 'uz' else "❌ Отменено"
+    all_text = "📋 Barchasi" if lang == 'uz' else "📋 Все"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=new_text, callback_data='filter_status_new'),
+                InlineKeyboardButton(text=in_progress_text, callback_data='filter_status_in_progress')
+            ],
+            [
+                InlineKeyboardButton(text=completed_text, callback_data='filter_status_completed'),
+                InlineKeyboardButton(text=cancelled_text, callback_data='filter_status_cancelled')
+            ],
+            [
+                InlineKeyboardButton(text=all_text, callback_data='filter_status_all'),
+            ]
         ]
-    ]
-    
-    if show_clear:
-        buttons.append([
-            InlineKeyboardButton(text=clear_filter_text, callback_data="filter_clear")
-        ])
-    
+    )
+
+def get_date_filter_inline_keyboard(lang='uz'):
+    today_text = "📅 Bugun" if lang == 'uz' else "📅 Сегодня"
+    yesterday_text = "🗓️ Kecha" if lang == 'uz' else "🗓️ Вчера"
+    week_text = "📆 Bu hafta" if lang == 'uz' else "📆 На этой неделе"
+    month_text = "🗓️ Bu oy" if lang == 'uz' else "🗓️ В этом месяце"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=today_text, callback_data='filter_date_today'),
+                InlineKeyboardButton(text=yesterday_text, callback_data='filter_date_yesterday')
+            ],
+            [
+                InlineKeyboardButton(text=week_text, callback_data='filter_date_week'),
+                InlineKeyboardButton(text=month_text, callback_data='filter_date_month')
+            ]
+        ]
+    )
+
+def get_tech_filter_inline_keyboard(lang='uz'):
+    assigned_text = "👨‍🔧 Biriktirilgan" if lang == 'uz' else "👨‍🔧 Назначенные"
+    unassigned_text = "🚫 Biriktirilmagan" if lang == 'uz' else "🚫 Не назначенные"
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=assigned_text, callback_data='filter_tech_assigned'),
+                InlineKeyboardButton(text=unassigned_text, callback_data='filter_tech_unassigned')
+            ]
+        ]
+    )
+
+def get_pagination_inline_keyboard(page, total_pages, lang='uz', has_prev=True, has_next=True):
+    prev_text = "Avvalgisi" if lang == 'uz' else "Предыдущая"
+    next_text = "Keyingisi" if lang == 'uz' else "Следующая"
+    back_text = "Orqaga" if lang == 'uz' else "Назад"
+    buttons = []
+    row = []
+    if has_prev:
+        row.append(InlineKeyboardButton(text=prev_text, callback_data=f'filter_page_prev_{page-1}'))
+    if has_next:
+        row.append(InlineKeyboardButton(text=next_text, callback_data=f'filter_page_next_{page+1}'))
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton(text=back_text, callback_data='filter_back')])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 def get_filtered_applications_keyboard(applications: list, lang='uz') -> InlineKeyboardMarkup:

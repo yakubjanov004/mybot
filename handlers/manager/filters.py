@@ -1,237 +1,302 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
-from keyboards.manager_buttons import get_filter_keyboard
+from keyboards.manager_buttons import (
+    get_manager_filter_reply_keyboard,
+    get_status_filter_inline_keyboard,
+    get_date_filter_inline_keyboard,
+    get_tech_filter_inline_keyboard,
+    get_pagination_inline_keyboard
+)
 from database.manager_queries import get_filtered_applications
 from database.base_queries import get_user_by_telegram_id, get_zayavka_by_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
+from loader import bot
 
 def get_manager_filters_router():
     logger = setup_logger('bot.manager.filters')
-    router = Router()
+    router = get_role_router("manager")
 
-    @router.message(lambda m: m.text in [" Filtrlar", " Фильтры"])
+    @router.message(F.text.in_(["🔍 Filtrlar", "🔍 Фильтры"]))
     async def show_filter_menu(message: Message, state: FSMContext):
-        await safe_delete_message(message.bot, message.chat.id, message.message_id)
-        # Delete previous menu message if exists
-        data = await state.get_data()
-        last_msg_id = data.get('last_menu_msg_id')
-        if last_msg_id:
-            try:
-                await message.bot.delete_message(chat_id=message.chat.id, message_id=last_msg_id)
-            except Exception:
-                pass
+        lang = await get_user_lang(message.from_user.id)
+        await message.answer(
+            "Filtrlash uchun parametrni tanlang:" if lang == 'uz' else "Выберите параметр для фильтрации:",
+            reply_markup=get_manager_filter_reply_keyboard(lang)
+        )
+        await state.set_data({"filter_step": "main"})
+
+    @router.message(lambda m: m.text in ["🟢 Status bo'yicha", "🟢 По статусу"])
+    async def filter_by_status(message: Message, state: FSMContext):
         lang = await get_user_lang(message.from_user.id)
         try:
-            filter_text = f" {'Kerakli filtrlarni tanlang:' if lang == 'uz' else 'Выберите нужные фильтры:'}"
-            sent_msg = await message.answer(filter_text, reply_markup=get_filter_keyboard(lang))
-            await state.update_data(last_menu_msg_id=sent_msg.message_id)
-        except Exception as e:
-            logger.error(f"Filter menu error: {str(e)}", exc_info=True)
-            await message.answer(f"{'Xatolik yuz berdi' if lang == 'uz' else 'Произошла ошибка'}")
-
-    @router.callback_query(F.data.startswith("filter_"))
-    async def process_filter(callback: CallbackQuery, state: FSMContext):
-        await answer_and_cleanup(callback, cleanup_after=True)
-        try:
-            await callback.message.edit_reply_markup(reply_markup=None)
+            await message.delete()
         except Exception:
             pass
-        lang = await get_user_lang(callback.from_user.id)
+        await message.answer(
+            "Statusni tanlang:" if lang == 'uz' else "Выберите статус:",
+            reply_markup=None
+        )
+        msg = await message.answer(
+            "⬇️", reply_markup=get_status_filter_inline_keyboard(lang)
+        )
+        await state.set_data({"filter_step": "status", "last_result_message_id": msg.message_id})
+
+    @router.message(lambda m: m.text in ["📅 Sana bo'yicha", "📅 По дате"])
+    async def filter_by_date(message: Message, state: FSMContext):
+        lang = await get_user_lang(message.from_user.id)
         try:
-            parts = callback.data.split('_')
-            filter_type = parts[1]
-            page = 1
-            if len(parts) > 2 and parts[-1].isdigit():
-                page = int(parts[-1])
-            result = None
-            filter_kwargs = {'page': page, 'limit': 5}
-            # --- Filter label logic ---
-            filter_label = ""
-            if filter_type == 'status':
-                status = '_'.join(parts[2:-1]) if parts[-1].isdigit() else '_'.join(parts[2:])
-                if status == 'all':
-                    filter_label = f" {'Barcha statuslar' if lang == 'uz' else 'Все статусы'}"
-                    result = await get_filtered_applications(**filter_kwargs)
-                else:
-                    status_emoji = {
-                        'new': '',
-                        'in_progress': '',
-                        'completed': '',
-                        'cancelled': ''
-                    }.get(status, '')
-                    status_label = {
-                        'new': 'Yangi' if lang == 'uz' else 'Новый',
-                        'in_progress': 'Jarayonda' if lang == 'uz' else 'В процессе',
-                        'completed': 'Yakunlandi' if lang == 'uz' else 'Завершено',
-                        'cancelled': 'Bekor qilindi' if lang == 'uz' else 'Отменено'
-                    }.get(status, status)
-                    filter_label = f"{status_emoji} {'Status:' if lang == 'uz' else 'Статус:'} {status_label}"
-                    result = await get_filtered_applications(statuses=[status], **filter_kwargs)
-            elif filter_type == 'date':
-                date_type = parts[2]
-                today = date.today()
-                # 2ta tilda (uz va ru) date_labels lug'ati va ishlatishda to'g'ri tilni tanlash
-                date_labels = {
-                    'today': {
-                        'uz': " Bugun",
-                        'ru': " Сегодня"
-                    },
-                    'yesterday': {
-                        'uz': " Kecha",
-                        'ru': " Вчера"
-                    },
-                    'week': {
-                        'uz': " Bu hafta",
-                        'ru': " На этой неделе"
-                    },
-                    'month': {
-                        'uz': " Bu oy",
-                        'ru': " В этом месяце"
-                    }
-                }
-                filter_label = date_labels.get(date_type, {}).get(lang, f" {date_type}")
-                if date_type == 'today':
-                    date_from = date_to = today
-                elif date_type == 'yesterday':
-                    date_from = date_to = today - timedelta(days=1)
-                elif date_type == 'week':
-                    date_from = today - timedelta(days=today.weekday())
-                    date_to = today
-                elif date_type == 'month':
-                    date_from = today.replace(day=1)
-                    date_to = today
-                else:
-                    date_from = date_to = today
-                result = await get_filtered_applications(date_from=date_from, date_to=date_to, **filter_kwargs)
-            elif filter_type == 'tech':
-                tech_type = parts[2]
-                if tech_type == 'assigned':
-                    filter_label = f" {'Biriktirilgan' if lang == 'uz' else 'Назначенные'}"
-                    result = await get_filtered_applications(assigned_only=True, **filter_kwargs)
-                elif tech_type == 'unassigned':
-                    filter_label = f" {'Biriktirilmagan' if lang == 'uz' else 'Не назначенные'}"
-                    result = await get_filtered_applications(technician_id=0, **filter_kwargs)
-            elif filter_type == 'clear':
-                filter_text = f" {'Kerakli filtrlarni tanlang:' if lang == 'uz' else 'Выберите нужные фильтры:'}"
-                try:
-                    await callback.message.edit_text(
-                        filter_text,
-                        reply_markup=get_filter_keyboard(lang)
-                    )
-                except Exception as e:
-                    logger.error(f"Edit text error (clear): {str(e)}", exc_info=True)
-                    await callback.answer(f"{'Xatolik yuz berdi' if lang == 'uz' else 'Произошла ошибка'}", show_alert=True)
-                    return
-                await callback.answer()
-                return
-            applications = result['applications'] if result and result.get('applications') else []
-            total_pages = result.get('total_pages', 1) if result else 1
-            current_page = result.get('page', 1) if result else 1
-            status_emojis = {
-                'new': '',
-                'in_progress': '',
-                'completed': '',
-                'cancelled': ''
-            }
-            # 2ta tilda, emojilar bilan
-            labels_uz = {
-                'status': " Status:",
-                'client': " Mijoz:",
-                'address': " Manzil:",
-                'description': " Izoh:",
-                'technician': " Texnik:",
-                'created': " Yaratilgan:",
-                'no_technician': " Texnik biriktirilmagan",
-                'no_address': " Manzil ko'rsatilmagan",
-                'filtered': " Filtrlangan arizalar",
-                'no_applications': " Arizalar topilmadi",
-                'clear_filter': " Filterni tozalash",
-            }
-            labels_ru = {
-                'status': " Статус:",
-                'client': " Клиент:",
-                'address': " Адрес:",
-                'description': " Описание:",
-                'technician': " Техник:",
-                'created': " Создано:",
-                'no_technician': " Не назначен",
-                'no_address': " Адрес не указан",
-                'filtered': " Отфильтрованные заявки",
-                'no_applications': " Заявки не найдены",
-                'clear_filter': " Сбросить фильтр",
-            }
-            labels = labels_uz if lang == 'uz' else labels_ru
-            applications_text = f"{filter_label} ({current_page}/{total_pages}):\n\n"
-            if applications:
-                for app in applications:
-                    status = app.get('status', 'new')
-                    status_emoji = status_emojis.get(status, '')
-                    # 2 tilda, emoji bilan chiroyli formatda chiqaramiz
-                    if lang == 'uz':
-                        applications_text += (
-                            f"{status_emoji} <b>Status:</b> <i>{status_label if 'status_label' in locals() else status}</i>\n"
-                            f" <b>Mijoz:</b> <i>{app.get('user_name',)}</i> |  <b>Tel:</b> <i>{app.get('client_phone', '-')}</i>\n"
-                            f" <b>Manzil:</b> <i>{app.get('address') or labels['no_address']}</i>\n"
-                            f" <b>Izoh:</b> <i>{app.get('description', '')[:100]}</i>\n"
-                            f" <b>Texnik:</b> <i>{app.get('technician_name', labels['no_technician'])}</i> |  <i>{app.get('technician_phone', '-')}</i>\n"
-                            f" <b>Yaratilgan:</b> <i>{app.get('created_at', '')}</i>\n"
-                            f" <b>ID:</b> <code>{app.get('id', '-')}</code>\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                        )
-                    else:
-                        applications_text += (
-                            f"{status_emoji} <b>Статус:</b> <i>{status_label if 'status_label' in locals() else status}</i>\n"
-                            f" <b>Клиент:</b> <i>{app.get('user_name')}</i> |  <b>Тел:</b> <i>{app.get('client_phone', '-')}</i>\n"
-                            f" <b>Адрес:</b> <i>{app.get('address') or labels['no_address']}</i>\n"
-                            f" <b>Описание:</b> <i>{app.get('description', '')[:100]}</i>\n"
-                            f" <b>Техник:</b> <i>{app.get('technician_name', labels['no_technician'])}</i> |  <i>{app.get('technician_phone', '-')}</i>\n"
-                            f" <b>Создано:</b> <i>{app.get('created_at', '')}</i>\n"
-                            f" <b>ID:</b> <code>{app.get('id', '-')}</code>\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                        )
-            else:
-                applications_text += f"{labels['no_applications']}\n\n"
-            # Pagination buttons
-            inline_keyboard = []
-            if total_pages > 1:
-                nav_buttons = []
-                if current_page > 1:
-                    nav_buttons.append(InlineKeyboardButton(
-                        text="", callback_data=f"filter_{filter_type}_{'_'.join(parts[2:-1]) if parts[-1].isdigit() else '_'.join(parts[2:])}_{current_page-1}"
-                    ))
-                nav_buttons.append(InlineKeyboardButton(
-                    text=f"{current_page}/{total_pages}", callback_data="noop"
-                ))
-                if current_page < total_pages:
-                    nav_buttons.append(InlineKeyboardButton(
-                        text="", callback_data=f"filter_{filter_type}_{'_'.join(parts[2:-1]) if parts[-1].isdigit() else '_'.join(parts[2:])}_{current_page+1}"
-                    ))
-                inline_keyboard.append(nav_buttons)
-            # Always show clear button
-            inline_keyboard.append([
-                InlineKeyboardButton(
-                    text=f" {labels['clear_filter']}",
-                    callback_data="filter_clear"
-                )
-            ])
-            keyboard = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
-            try:
-                await callback.message.edit_text(applications_text, reply_markup=keyboard)
-            except Exception as e:
-                logger.error(f"Edit text error: {str(e)}", exc_info=True)
-                await callback.answer(f"{'Xatolik yuz berdi' if lang == 'uz' else 'Произошла ошибка'}", show_alert=True)
-                return
-            await callback.answer()
-        except Exception as e:
-            logger.error(f"Error processing filter: {str(e)}", exc_info=True)
-            await callback.answer(
-                f"{'Xatolik yuz berdi' if lang == 'uz' else 'Произошла ошибка'}",
-                show_alert=True
+            await message.delete()
+        except Exception:
+            pass
+        await message.answer(
+            "Sanani tanlang:" if lang == 'uz' else "Выберите дату:",
+            reply_markup=None
+        )
+        msg = await message.answer(
+            "⬇️", reply_markup=get_date_filter_inline_keyboard(lang)
+        )
+        await state.set_data({"filter_step": "date", "last_result_message_id": msg.message_id})
+
+    @router.message(lambda m: m.text in ["👨‍🔧 Texnik biriktirilganligi bo'yicha", "👨‍🔧 По назначению техника"])
+    async def filter_by_tech(message: Message, state: FSMContext):
+        lang = await get_user_lang(message.from_user.id)
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        await message.answer(
+            "Texnik biriktirilganlikni tanlang:" if lang == 'uz' else "Выберите назначение техника:",
+            reply_markup=None
+        )
+        msg = await message.answer(
+            "⬇️", reply_markup=get_tech_filter_inline_keyboard(lang)
+        )
+        await state.set_data({"filter_step": "tech", "last_result_message_id": msg.message_id})
+
+    @router.message(lambda m: m.text in ["◀️ Orqaga", "◀️ Назад"])
+    async def filter_back_to_main(message: Message, state: FSMContext):
+        lang = await get_user_lang(message.from_user.id)
+        chat_id = message.chat.id
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        await bot.send_message(
+            chat_id,
+            "Filtr menyusiga qaytdingiz." if lang == 'uz' else "Вы вернулись в меню фильтров.",
+            reply_markup=get_manager_filter_reply_keyboard(lang)
+        )
+        await state.set_data({"filter_step": "main"})
+
+    @router.callback_query(F.data.startswith("filter_status_"))
+    async def filter_status_callback(callback: CallbackQuery, state: FSMContext):
+        lang = await get_user_lang(callback.from_user.id)
+        status = callback.data.split('_')[-1]
+        page = 1
+        result = await get_filtered_applications(
+            pool=bot.db,
+            statuses=[status] if status != 'all' else None,
+            page=page,
+            limit=5
+        )
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        text = f"🟢 Status: {status.capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({"filter_step": "status_result", "status": status, "page": current_page})
+
+    @router.callback_query(F.data.startswith("filter_date_"))
+    async def filter_date_callback(callback: CallbackQuery, state: FSMContext):
+        lang = await get_user_lang(callback.from_user.id)
+        date_type = callback.data.split('_')[-1]
+        today = date.today()
+        if date_type == 'today':
+            date_from = date_to = today
+        elif date_type == 'yesterday':
+            date_from = date_to = today - timedelta(days=1)
+        elif date_type == 'week':
+            date_from = today - timedelta(days=today.weekday())
+            date_to = today
+        elif date_type == 'month':
+            date_from = today.replace(day=1)
+            date_to = today
+        else:
+            date_from = date_to = today
+
+        await state.update_data(date_from=date_from, date_to=date_to)
+
+        result = await get_filtered_applications(
+            pool=bot.db,
+            date_from=date_from,
+            date_to=date_to,
+            page=1,
+            limit=5
+        )
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        text = f"📅 Sana: {date_type.capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({"filter_step": "date_result", "date_type": date_type, "date_from": str(date_from), "date_to": str(date_to), "page": current_page})
+
+    @router.callback_query(F.data.startswith("filter_page_prev_"))
+    async def filter_page_prev_callback(callback: CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        step = data.get("filter_step")
+        lang = await get_user_lang(callback.from_user.id)
+        page = int(callback.data.split('_')[-1])
+        if step == "status_result":
+            status = data.get("status")
+            result = await get_filtered_applications(
+                pool=bot.db,
+                statuses=[status] if status != 'all' else None,
+                page=page,
+                limit=5
             )
+        elif step == "date_result":
+            date_from = data.get("date_from")
+            date_to = data.get("date_to")
+            date_type = data.get("date_type")
+            result = await get_filtered_applications(
+                pool=bot.db,
+                date_from=date_from,
+                date_to=date_to,
+                page=page,
+                limit=5
+            )
+        else:
+            return
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        if step == "status_result":
+            text = f"🟢 Status: {data.get('status').capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        elif step == "date_result":
+            text = f"📅 Sana: {data.get('date_type').capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        else:
+            text = ""
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({**data, "page": current_page})
+
+    @router.callback_query(F.data.startswith("filter_page_next_"))
+    async def filter_page_next_callback(callback: CallbackQuery, state: FSMContext):
+        data = await state.get_data()
+        step = data.get("filter_step")
+        lang = await get_user_lang(callback.from_user.id)
+        page = int(callback.data.split('_')[-1])
+        if step == "status_result":
+            status = data.get("status")
+            result = await get_filtered_applications(
+                pool=bot.db,
+                statuses=[status] if status != 'all' else None,
+                page=page,
+                limit=5
+            )
+        elif step == "date_result":
+            date_from = data.get("date_from")
+            date_to = data.get("date_to")
+            date_type = data.get("date_type")
+            result = await get_filtered_applications(
+                pool=bot.db,
+                date_from=date_from,
+                date_to=date_to,
+                page=page,
+                limit=5
+            )
+        else:
+            return
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        if step == "status_result":
+            text = f"🟢 Status: {data.get('status').capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        elif step == "date_result":
+            text = f"📅 Sana: {data.get('date_type').capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        else:
+            text = ""
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({**data, "page": current_page})
+
+    @router.callback_query(F.data == "filter_back")
+    async def filter_back_inline_callback(callback: CallbackQuery, state: FSMContext):
+        lang = await get_user_lang(callback.from_user.id)
+        data = await state.get_data()
+        step = data.get("filter_step")
+        # Status bo'yicha inlinega qaytish
+        if step == "status_result":
+            await callback.message.edit_text(
+                "Statusni tanlang:" if lang == 'uz' else "Выберите статус:",
+                reply_markup=get_status_filter_inline_keyboard(lang)
+            )
+            await state.set_data({"filter_step": "status"})
+        # Sana bo'yicha inlinega qaytish
+        elif step == "date_result":
+            await callback.message.edit_text(
+                "Sanani tanlang:" if lang == 'uz' else "Выберите дату:",
+                reply_markup=get_date_filter_inline_keyboard(lang)
+            )
+            await state.set_data({"filter_step": "date"})
+        # Texnik bo'yicha inlinega qaytish
+        elif step == "tech_result":
+            await callback.message.edit_text(
+                "Texnik biriktirilganligini tanlang:" if lang == 'uz' else "Выберите назначение техника:",
+                reply_markup=get_tech_filter_inline_keyboard(lang)
+            )
+            await state.set_data({"filter_step": "tech"})
+        # Aks holda, faqat Filtrlar replyga qaytadi
+        else:
+            await callback.message.delete()
+            await callback.message.answer(
+                "Filtrlash uchun parametrni tanlang:" if lang == 'uz' else "Выберите параметр для фильтрации:",
+                reply_markup=get_manager_filter_reply_keyboard(lang)
+            )
+            await state.clear()
 
     @router.callback_query(F.data.startswith("view_application_"))
     async def view_filtered_application(callback: CallbackQuery):
@@ -301,5 +366,69 @@ def get_manager_filters_router():
             await callback.answer(f"{'Xatolik yuz berdi' if lang == 'uz' else 'Произошла ошибка'}", show_alert=True)
         
         await callback.answer()
+
+    @router.callback_query(F.data.startswith("date_result_page_"))
+    async def date_result_pagination_callback(callback: CallbackQuery, state: FSMContext):
+        lang = await get_user_lang(callback.from_user.id)
+        data = await state.get_data()
+        page = int(callback.data.split('_')[-1])
+        date_from = data.get('date_from')
+        date_to = data.get('date_to')
+        if isinstance(date_from, str):
+            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        if isinstance(date_to, str):
+            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        result = await get_filtered_applications(
+            pool=bot.db,
+            date_from=date_from,
+            date_to=date_to,
+            page=page,
+            limit=5
+        )
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        text = f"📅 Sana: {data.get('date_type').capitalize()}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({**data, "page": current_page})
+
+    @router.callback_query(F.data.in_(["filter_tech_assigned", "filter_tech_unassigned"]))
+    async def filter_tech_callback(callback: CallbackQuery, state: FSMContext):
+        lang = await get_user_lang(callback.from_user.id)
+        tech_type = callback.data.split('_')[-1]  # 'assigned' yoki 'unassigned'
+        assigned_only = True if tech_type == 'assigned' else False
+        page = 1
+        result = await get_filtered_applications(
+            pool=bot.db,
+            assigned_only=assigned_only,
+            page=page,
+            limit=5
+        )
+        applications = result.get('applications', [])
+        total = result.get('total', 0)
+        total_pages = result.get('total_pages', 1)
+        current_page = result.get('page', 1)
+        start = (current_page - 1) * 5 + 1
+        end = start + len(applications) - 1
+        text = f"👨‍🔧 Texnik: {'Biriktirilgan' if assigned_only else 'Biriktirilmagan'}\nKo'rsatilmoqda: {start}-{end} / {total} (Jami: {total})\n\n"
+        for app in applications:
+            text += f"ID: {app['id']} | Mijoz: {app['user_name']} | Tel: {app['client_phone']}\nManzil: {app['address']}\nIzoh: {app['description']}\nTexnik: {app.get('technician_name', 'Biriktirilmagan')}\nYaratilgan: {app['created_at']}\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        has_prev = current_page > 1
+        has_next = current_page < total_pages
+        await callback.message.edit_text(
+            text,
+            reply_markup=get_pagination_inline_keyboard(current_page, total_pages, lang, has_prev, has_next)
+        )
+        await state.set_data({"filter_step": "tech_result", "tech_type": tech_type, "page": current_page})
 
     return router

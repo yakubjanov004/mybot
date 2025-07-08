@@ -1,8 +1,7 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
-
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import (
     search_clients, get_client_history, update_client_info
@@ -10,11 +9,12 @@ from database.call_center_queries import (
 from keyboards.call_center_buttons import client_search_menu
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_call_center_clients_router():
-    router = Router()
+    router = get_role_router("call_center")
 
-    @router.message(F.text.in_(["🔍 Mijoz qidirish", "�� Поиск клиента"]))
+    @router.message(F.text.in_(["�� Mijoz qidirish", " Поиск клиента"]))
     async def reply_client_search(message: Message, state: FSMContext):
         """Client search from reply keyboard"""
         user = await get_user_by_telegram_id(message.from_user.id)

@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -15,9 +15,10 @@ from keyboards.support_chat_buttons import (
 )
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_call_center_chat_router():
-    router = Router()
+    router = get_role_router("call_center")
 
     @router.message(F.text.in_(["💬 Chat", "💬 Чат"]))
     async def reply_chat(message: Message, state: FSMContext):
@@ -228,7 +229,7 @@ def get_call_center_chat_router():
         lang = user.get('language', 'uz')
         data = await state.get_data()
         
-        text = "�� Chat davom etmoqda" if lang == 'uz' else "💬 Чат продолжается"
+        text = "💬 Chat davom etmoqda" if lang == 'uz' else "💬 Чат продолжается"
         await callback.message.edit_text(
             text,
             reply_markup=get_chat_actions_keyboard(str(data.get('chat_id', '')), str(data.get('client_id', '')))

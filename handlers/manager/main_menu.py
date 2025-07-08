@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from keyboards.manager_buttons import get_manager_main_keyboard
@@ -7,10 +7,11 @@ from database.base_queries import get_user_by_telegram_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages
+from utils.role_router import get_role_router
 
 def get_manager_main_menu_router():
     logger = setup_logger('bot.manager.main_menu')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(["👨‍💼 Manager", "👨‍💼 Менеджер", "👨‍💼 Menejer"]))
     async def manager_start(message: Message, state: FSMContext):
@@ -65,25 +66,5 @@ def get_manager_main_menu_router():
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
-
-    @router.message()
-    async def handle_manager_unknown_message(message: Message, state: FSMContext):
-        """Handle unknown messages for managers"""
-        try:
-            await cleanup_user_inline_messages(message.from_user.id)
-            user = await get_user_by_telegram_id(message.from_user.id)
-            if not user or user['role'] != 'manager':
-                return
-            
-            lang = user.get('language', 'uz')
-            unknown_text = "Noma'lum buyruq. Menyudan tanlang." if lang == 'uz' else "Неизвестная команда. Выберите из меню."
-            
-            await message.answer(
-                unknown_text,
-                reply_markup=get_manager_main_keyboard(lang)
-            )
-            
-        except Exception as e:
-            logger.error(f"Error in handle_manager_unknown_message: {str(e)}", exc_info=True)
 
     return router

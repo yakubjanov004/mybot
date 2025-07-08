@@ -1,12 +1,14 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
+from filters.role_filter import RoleFilter
+from utils.role_router import get_role_router
 from keyboards.controller_buttons import get_technicians_keyboard, get_technician_details_keyboard
 from database.base_queries import get_user_by_telegram_id, get_all_technicians, get_technician_details, update_technician_status
 from utils.logger import logger
 
 def get_controller_technicians_router():
-    router = Router()
+    router = get_role_router("controller")
 
     @router.message(F.text.in_(['👨‍🔧 Tekniklar', '👨‍🔧 Техники']))
     async def show_technicians_menu(message: Message, state: FSMContext):

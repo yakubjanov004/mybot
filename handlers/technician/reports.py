@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
@@ -8,12 +8,12 @@ from database.technician_queries import get_technician_stats, get_zayavki_by_ass
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 import functools
 
-logger = setup_logger('bot.technician.reports')
-
 def get_technician_reports_router():
-    router = Router()
+    logger = setup_logger('bot.technician.reports')
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)
@@ -125,7 +125,7 @@ def get_technician_reports_router():
                         f"📝 Детали задачи #{t['id']}\n"
                         f"👤 Пользователь: {t.get('user_name', '-')}\n"
                         f"📞 Статус заказа: {t.get('client_phone', '-')}\n"
-                        f"�� Описание задачи: {t.get('description', '-')}\n"
+                        f"📝 Описание задачи: {t.get('description', '-')}\n"
                         f"📍 Адрес: {t.get('address', '-')}\n"
                         f"📅 Дата задачи: {created_str}\n"
                         f"📊 Статус задачи: Завершено\n"

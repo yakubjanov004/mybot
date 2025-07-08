@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -8,10 +8,11 @@ from states.manager_states import ManagerStates
 from database.base_queries import get_user_by_telegram_id, update_zayavka_status
 from database.base_queries import get_user_lang, get_zayavka_by_id
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_status_management_router():
     logger = setup_logger('bot.manager.status')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(['🔄 Status o\'zgartirish', '🔄 Изменить статус']))
     async def change_status_menu(message: Message, state: FSMContext):

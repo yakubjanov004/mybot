@@ -92,40 +92,112 @@ async def get_user_management_stats() -> Dict:
         finally:
             pass
 
-async def search_users_by_criteria(search_type: str, search_value: str) -> List[Dict]:
+async def search_users_by_criteria(search_type: str, search_value: Union[str, int]) -> List[Dict]:
     """Search users by different criteria"""
     async with bot.db.acquire() as conn:
         try:
             if search_type == 'telegram_id':
+                # Convert to int if it's a string
+                if isinstance(search_value, str):
+                    try:
+                        search_value = int(search_value)
+                    except ValueError:
+                        return []
+                
                 query = """
-                SELECT * FROM users 
+                SELECT *
+                FROM users
                 WHERE telegram_id = $1
+                AND is_active = true
+                ORDER BY created_at DESC
                 """
-                results = await conn.fetch(query, str(search_value))
-            elif search_type == 'phone':
-                phone = search_value if search_value.startswith('+') else '+' + search_value
-                query = """
-                SELECT * FROM users 
-                WHERE phone_number = $1
-                """
-                results = await conn.fetch(query, phone)
+                results = await conn.fetch(query, search_value)
             elif search_type == 'full_name':
                 query = """
-                SELECT * FROM users 
+                SELECT *
+                FROM users
                 WHERE full_name ILIKE $1
+                AND is_active = true
+                ORDER BY created_at DESC
                 """
                 results = await conn.fetch(query, f"%{search_value}%")
-            elif search_type == 'email':
+            elif search_type == 'phone_number':
                 query = """
-                SELECT * FROM users 
-                WHERE email ILIKE $1
+                SELECT *
+                FROM users
+                WHERE phone_number ILIKE $1
+                AND is_active = true
+                ORDER BY created_at DESC
                 """
                 results = await conn.fetch(query, f"%{search_value}%")
+            elif search_type == 'role':
+                query = """
+                SELECT *
+                FROM users
+                WHERE role = $1
+                AND is_active = true
+                ORDER BY created_at DESC
+                """
+                results = await conn.fetch(query, search_value)
             else:
                 raise ValueError(f"Invalid search type: {search_type}")
+            
             return [dict(row) for row in results]
         except Exception as e:
             logger.error(f"Error searching users: {e}")
+            return []
+        finally:
+            pass
+
+async def search_all_users_by_criteria(search_type: str, search_value: Union[str, int]) -> List[Dict]:
+    """Search users by different criteria without is_active restriction"""
+    async with bot.db.acquire() as conn:
+        try:
+            if search_type == 'telegram_id':
+                # Convert to int if it's a string
+                if isinstance(search_value, str):
+                    try:
+                        search_value = int(search_value)
+                    except ValueError:
+                        return []
+                
+                query = """
+                SELECT *
+                FROM users
+                WHERE telegram_id = $1
+                ORDER BY created_at DESC
+                """
+                results = await conn.fetch(query, search_value)
+            elif search_type == 'full_name':
+                query = """
+                SELECT *
+                FROM users
+                WHERE full_name ILIKE $1
+                ORDER BY created_at DESC
+                """
+                results = await conn.fetch(query, f"%{search_value}%")
+            elif search_type == 'phone_number':
+                query = """
+                SELECT *
+                FROM users
+                WHERE phone_number ILIKE $1
+                ORDER BY created_at DESC
+                """
+                results = await conn.fetch(query, f"%{search_value}%")
+            elif search_type == 'role':
+                query = """
+                SELECT *
+                FROM users
+                WHERE role = $1
+                ORDER BY created_at DESC
+                """
+                results = await conn.fetch(query, search_value)
+            else:
+                raise ValueError(f"Invalid search type: {search_type}")
+            
+            return [dict(row) for row in results]
+        except Exception as e:
+            logger.error(f"Error searching all users: {e}")
             return []
         finally:
             pass
@@ -137,7 +209,7 @@ async def update_user_role(telegram_id: int, new_role: str, updated_by: int) -> 
             # Get current role
             current_user = await conn.fetchrow(
                 'SELECT role FROM users WHERE telegram_id = $1',
-                str(telegram_id)
+                telegram_id
             )
             
             if not current_user:
@@ -150,7 +222,7 @@ async def update_user_role(telegram_id: int, new_role: str, updated_by: int) -> 
                 admin_count = await conn.fetchval(
                     'SELECT COUNT(*) FROM users WHERE role = $1 AND telegram_id != $2',
                     'admin',
-                    str(telegram_id)
+                    telegram_id
                 )
                 if admin_count < 1:
                     return False
@@ -159,7 +231,7 @@ async def update_user_role(telegram_id: int, new_role: str, updated_by: int) -> 
             await conn.execute(
                 'UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
                 new_role,
-                str(telegram_id)
+                telegram_id
             )
             
             # Log role change
@@ -168,7 +240,7 @@ async def update_user_role(telegram_id: int, new_role: str, updated_by: int) -> 
                 INSERT INTO role_change_logs (user_telegram_id, old_role, new_role, changed_by, changed_at)
                 VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
                 """,
-                str(telegram_id), old_role, new_role, updated_by
+                telegram_id, old_role, new_role, updated_by
             )
             
             return True
@@ -182,16 +254,29 @@ async def block_unblock_user(telegram_id: int, action: str, admin_id: int) -> bo
     """Block or unblock user"""
     async with bot.db.acquire() as conn:
         try:
-            if action == 'block':
-                new_role = 'blocked'
-            else:  # unblock
-                new_role = 'client'  # Default role when unblocking
-            
-            await conn.execute(
-                'UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $2',
-                new_role,
-                str(telegram_id)
+            # Get current user info
+            user = await conn.fetchrow(
+                'SELECT role, is_active FROM users WHERE telegram_id = $1',
+                telegram_id
             )
+            
+            if not user:
+                return False
+            
+            # For blocking
+            if action == 'block':
+                await conn.execute(
+                    'UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $1',
+                    telegram_id
+                )
+                status = 'blocked'
+            else:  # unblock
+                # Restore previous role when unblocking
+                await conn.execute(
+                    'UPDATE users SET is_active = true, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = $1',
+                    telegram_id
+                )
+                status = 'unblocked'
             
             # Log action
             await conn.execute(
@@ -199,7 +284,7 @@ async def block_unblock_user(telegram_id: int, action: str, admin_id: int) -> bo
                 INSERT INTO user_action_logs (user_telegram_id, action, performed_by, performed_at)
                 VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
                 """,
-                str(telegram_id), action, admin_id
+                telegram_id, status, admin_id
             )
             
             return True

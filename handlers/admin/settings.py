@@ -1,5 +1,5 @@
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import F
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from functools import wraps
 import logging
@@ -13,6 +13,7 @@ from states.admin_states import AdminStates
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import safe_delete_message, answer_and_cleanup
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 from utils.role_checks import admin_only
 from loader import inline_message_manager
 from aiogram.filters import StateFilter
@@ -21,7 +22,7 @@ from aiogram.filters import StateFilter
 logger = setup_logger('bot.admin.settings')
 
 def get_admin_settings_router():
-    router = Router()
+    router = get_role_router("admin")
 
     @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
     @admin_only

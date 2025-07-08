@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
@@ -8,11 +8,12 @@ from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages
 from loader import bot
+from utils.role_router import get_role_router
 import functools
 
 def get_technician_communication_router():
     logger = setup_logger('bot.technician.communication')
-    router = Router()
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)
@@ -75,7 +76,7 @@ def get_technician_communication_router():
                     if manager_lang == 'uz':
                         location_text = (
                             f"📍 Texnik geolokatsiyasi\n\n"
-                            f"��‍🔧 Texnik: {user['full_name']}\n"
+                            f"👨‍🔧 Texnik: {user['full_name']}\n"
                             f"📞 Telefon: {user.get('phone_number', 'Noma\'lum')}\n"
                             f"⏰ Vaqt: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
                         )

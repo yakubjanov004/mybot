@@ -1,7 +1,6 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-
 from database.warehouse_queries import (
     get_warehouse_user_by_telegram_id, get_warehouse_daily_statistics,
     get_warehouse_weekly_statistics, get_warehouse_monthly_statistics,
@@ -10,9 +9,10 @@ from database.warehouse_queries import (
 from keyboards.warehouse_buttons import statistics_menu
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_warehouse_statistics_router():
-    router = Router()
+    router = get_role_router("warehouse")
 
     @router.message(F.text.in_(["📊 Statistika va hisobotlar", "📊 Статистика и отчеты"]))
     async def statistics_handler(message: Message, state: FSMContext):
@@ -120,7 +120,7 @@ def get_warehouse_statistics_router():
             stats = await get_warehouse_monthly_statistics()
             
             if stats:
-                monthly_text = "📊 Oylik statistika:" if lang == 'uz' else "�� Статистика за месяц:"
+                monthly_text = "📊 Oylik statistika:" if lang == 'uz' else "📊 Статистика за месяц:"
                 text = f"{monthly_text}\n\n"
                 text += f"📦 Qo'shilgan mahsulotlar: {stats.get('items_added', 0)}\n"
                 text += f"📤 Chiqarilgan mahsulotlar: {stats.get('items_issued', 0)}\n"

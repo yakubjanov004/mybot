@@ -1,8 +1,8 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
-
+from filters.role_filter import RoleFilter
+from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, get_all_orders, get_orders_by_status, get_order_details, update_order_priority, get_unresolved_issues
 from keyboards.controllers_buttons import (
     orders_control_menu, order_priority_keyboard, back_to_controllers_menu
@@ -11,50 +11,43 @@ from states.controllers_states import ControllersStates
 from utils.logger import logger
 
 def get_controller_orders_router():
-    router = Router()
+    router = get_role_router("controller")
 
     @router.message(F.text.in_(["📋 Buyurtmalar nazorati", "📋 Контроль заказов"]))
-    async def orders_control_menu(message: Message, state: FSMContext):
+    async def orders_control_menu_handler(message: Message, state: FSMContext):
         """Buyurtmalar nazorati menyusi"""
         user = await get_user_by_telegram_id(message.from_user.id)
         if not user or user['role'] != 'controller':
             return
-        
         lang = user.get('language', 'uz')
         await state.set_state(ControllersStates.orders_control)
-        
-        # Buyurtmalar statistikasini olish
         orders = await get_all_orders(limit=50)
-        
-        # Status bo'yicha guruhlash
         status_counts = {}
         for order in orders:
             status = order['status']
             status_counts[status] = status_counts.get(status, 0) + 1
-        
         if lang == 'uz':
-            text = f"""📋 <b>Buyurtmalar nazorati</b>
-
-📊 <b>Holat bo'yicha:</b>
-• Yangi: {status_counts.get('new', 0)}
-• Tayinlangan: {status_counts.get('assigned', 0)}
-• Jarayonda: {status_counts.get('in_progress', 0)}
-• Bajarilgan: {status_counts.get('completed', 0)}
-• Bekor qilingan: {status_counts.get('cancelled', 0)}
-
-Kerakli amalni tanlang:"""
+            text = (
+                "📋 <b>Buyurtmalar nazorati</b>\n\n"
+                "📊 <b>Holat bo'yicha:</b>\n"
+                f"• Yangi: {status_counts.get('new', 0)}\n"
+                f"• Tayinlangan: {status_counts.get('assigned', 0)}\n"
+                f"• Jarayonda: {status_counts.get('in_progress', 0)}\n"
+                f"• Bajarilgan: {status_counts.get('completed', 0)}\n"
+                f"• Bekor qilingan: {status_counts.get('cancelled', 0)}\n\n"
+                "Kerakli amalni tanlang:"
+            )
         else:
-            text = f"""📋 <b>Контроль заказов</b>
-
-📊 <b>По статусам:</b>
-• Новые: {status_counts.get('new', 0)}
-• Назначенные: {status_counts.get('assigned', 0)}
-• В работе: {status_counts.get('in_progress', 0)}
-• Завершенные: {status_counts.get('completed', 0)}
-• Отмененные: {status_counts.get('cancelled', 0)}
-
-Выберите нужное действие:"""
-        
+            text = (
+                "📋 <b>Контроль заказов</b>\n\n"
+                "📊 <b>По статусам:</b>\n"
+                f"• Новые: {status_counts.get('new', 0)}\n"
+                f"• Назначенные: {status_counts.get('assigned', 0)}\n"
+                f"• В работе: {status_counts.get('in_progress', 0)}\n"
+                f"• Завершенные: {status_counts.get('completed', 0)}\n"
+                f"• Отмененные: {status_counts.get('cancelled', 0)}\n\n"
+                "Выберите нужное действие:"
+            )
         await message.answer(
             text,
             reply_markup=orders_control_menu(lang),

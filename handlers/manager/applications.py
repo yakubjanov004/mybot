@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -12,10 +12,11 @@ from database.base_queries import get_user_by_telegram_id
 from states.manager_states import ManagerStates
 from database.base_queries import get_user_lang, create_zayavka
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_applications_router():
     logger = setup_logger('bot.manager.applications')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(["📝 Ariza yaratish", "📝 Создать заявку"]))
     async def create_application(message: Message, state: FSMContext):

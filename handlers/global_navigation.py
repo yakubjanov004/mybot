@@ -28,6 +28,14 @@ def get_global_navigation_router():
         if not user:
             await message.answer("Siz ro'yxatdan o'tmagansiz. Iltimos, admin bilan bog'laning.")
             return
+        if user.get('role') == 'blocked' or not user.get('is_active', True):
+            lang = user.get('language', 'uz')
+            blocked_text = (
+                "❌ Sizning hisobingiz bloklangan." if lang == 'uz' else
+                "❌ Ваш аккаунт заблокирован."
+            )
+            await message.answer(blocked_text)
+            return
         role = user.get('role', 'client')
         lang = user.get('language', 'uz')
         # Show correct menu and set FSM state

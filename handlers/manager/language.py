@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
@@ -7,12 +7,13 @@ from database.base_queries import update_user_language
 from database.base_queries import get_user_by_telegram_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_language_router():
     logger = setup_logger('bot.manager.language')
-    router = Router()
+    router = get_role_router("manager")
 
-    @router.message(F.text.in_(['🌐 Tilni o\'zgartirish', '�� Изменить язык']))
+    @router.message(F.text.in_(['🌐 Tilni o\'zgartirish', '🌐 Изменить язык']))
     async def change_manager_language(message: Message, state: FSMContext):
         """Change manager language"""
         try:
@@ -29,7 +30,7 @@ def get_manager_language_router():
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [
                     InlineKeyboardButton(
-                        text="��🇿 O'zbekcha" + (" ✅" if current_lang == 'uz' else ""),
+                        text="🇺🇿 O'zbekcha" + (" ✅" if current_lang == 'uz' else ""),
                         callback_data="manager_lang_uz"
                     )
                 ],
@@ -86,7 +87,7 @@ def get_manager_language_router():
                 else:
                     success_text = (
                         "✅ Язык успешно изменен!\n\n"
-                        "��🇺 Текущий язык: Русский"
+                        "🇷🇺 Текущий язык: Русский"
                     )
                     await callback.message.edit_text(success_text)
                     

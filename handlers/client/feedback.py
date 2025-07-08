@@ -1,4 +1,3 @@
-from aiogram import Router
 from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
@@ -8,10 +7,11 @@ from database.base_queries import create_feedback
 from states.user_states import UserStates
 from utils.logger import setup_logger
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_feedback_router():
     logger = setup_logger('bot.client.feedback')
-    router = Router()
+    router = get_role_router("client")
 
     # Step 1: Ask for rating (1-5) via inline keyboard
     def get_rating_keyboard(lang):

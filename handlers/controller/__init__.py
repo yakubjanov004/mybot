@@ -5,6 +5,7 @@ from .orders import get_controller_orders_router
 from .quality import get_controller_quality_router
 from .reports import get_controller_reports_router
 from .technicians import get_controller_technicians_router
+from .technician import get_controller_technician_router
 from aiogram.types import Message
 
 controller_router = get_role_router("controller")
@@ -13,6 +14,7 @@ controller_router.include_router(get_controller_orders_router())
 controller_router.include_router(get_controller_quality_router())
 controller_router.include_router(get_controller_reports_router())
 controller_router.include_router(get_controller_technicians_router())
+controller_router.include_router(get_controller_technician_router())
 controller_router.include_router(get_controller_language_router())
 
 def get_controller_router():

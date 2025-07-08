@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from functools import wraps
@@ -6,16 +6,17 @@ import logging
 
 from database.admin_queries import is_admin, log_admin_action
 from database.base_queries import update_user_language, get_user_by_telegram_id, get_user_lang
-from keyboards.admin_buttons import language_keyboard
+from keyboards.admin_buttons import language_keyboard, get_admin_main_menu
 from utils.inline_cleanup import safe_delete_message, answer_and_cleanup
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 from utils.role_checks import admin_only
 
 # Setup logger
 logger = setup_logger('bot.admin.language')
 
 def get_admin_language_router():
-    router = Router()
+    router = get_role_router("admin")
 
     @router.message(F.text.in_(["🌐 Til sozlamalari", "🌐 Языковые настройки"]))
     @admin_only
@@ -57,17 +58,13 @@ def get_admin_language_router():
         """Change admin language"""
         try:
             await answer_and_cleanup(call, cleanup_after=True)
-            
             new_lang = call.data.split("_")[1]  # uz or ru
             user_id = call.from_user.id
-            
             # Update user language
             success = await update_user_language(user_id, new_lang)
-            
             if success:
                 # Log admin action
                 await log_admin_action(user_id, "change_language", {"new_language": new_lang})
-                
                 if new_lang == 'uz':
                     text = (
                         f"✅ <b>Til muvaffaqiyatli o'zgartirildi!</b>\n\n"
@@ -82,19 +79,22 @@ def get_admin_language_router():
                         f"Все меню и сообщения будут отображаться\n"
                         f"на русском языке."
                     )
-                
                 await call.message.edit_text(text)
+                # Send new reply keyboard in the new language
+                await call.message.answer(
+                    "Asosiy menyu yangilandi." if new_lang == 'uz' else "Главное меню обновлено.",
+                    reply_markup=get_admin_main_menu(new_lang)
+                )
                 await call.answer("Til o'zgartirildi!" if new_lang == 'uz' else "Язык изменен!")
             else:
                 current_lang = await get_user_lang(user_id)
                 error_text = "Tilni o'zgartirishda xatolik yuz berdi." if current_lang == 'uz' else "Ошибка при изменении языка."
                 await call.message.edit_text(error_text)
                 await call.answer("Xatolik!" if current_lang == 'uz' else "Ошибка!")
-            
         except Exception as e:
             logger.error(f"Error changing admin language: {e}")
             current_lang = await get_user_lang(call.from_user.id)
-            await call.answer("Xatolik yuz berdi!" if current_lang == 'uz' else "Произошла ошибка!")
+            await call.answer("Xatolik yuz berdi." if current_lang == 'uz' else "Произошла ошибка!")
 
     @router.message(F.text.in_(["🔄 Tilni qayta tiklash", "🔄 Сбросить язык"]))
     @admin_only

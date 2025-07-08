@@ -1,290 +1,304 @@
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import F
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from functools import wraps
 import logging
 from datetime import datetime, timedelta
 
 from database.admin_queries import (
-    is_admin, get_orders_management_stats, get_filtered_orders,
-    bulk_assign_orders, log_admin_action
+    get_orders_management_stats, get_filtered_orders, bulk_assign_orders, log_admin_action
 )
 from database.base_queries import (
-    get_zayavka_by_id, update_zayavka_status,
-    assign_zayavka_to_technician,
+    get_zayavka_by_id, update_zayavka_status, assign_zayavka_to_technician,
     get_user_by_telegram_id, get_user_lang
 )
 from database.technician_queries import get_available_technicians
-from keyboards.admin_buttons import get_orders_management_keyboard
+from keyboards.admin_buttons import (
+    get_zayavka_main_keyboard,
+    get_zayavka_status_filter_keyboard,
+    get_zayavka_filter_menu_keyboard,
+    get_zayavka_section_keyboard
+)
 from states.admin_states import AdminStates
 from utils.inline_cleanup import (
     answer_and_cleanup, safe_delete_message, cleanup_user_inline_messages
 )
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 from utils.role_checks import admin_only
 from loader import inline_message_manager
 from aiogram.filters import StateFilter
+
+def format_order(order: dict, lang: str) -> str:
+    """Format order details in both Uzbek and Russian"""
+    return (
+        f"🆔 #{order['id']}\n"
+        f"👤 {order.get('client_name', 'N/A')}\n"
+        f"📱 {order.get('client_phone', 'N/A')}\n"
+        f"📍 {order.get('address', 'N/A')}\n"
+        f"📝 {order.get('title', 'N/A')}\n"
+        f"📅 {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n\n"
+        f"{"Holat: " if lang == 'uz' else "Статус: "}"
+        f"{order.get('status', 'N/A')}\n\n"
+        f"{"Texnik: " if lang == 'uz' else "Техник: "}"
+        f"{order.get('technician_name', 'N/A')}\n\n"
+        f"{"Qo'shimcha ma'lumotlar: " if lang == 'uz' else "Дополнительная информация: "}"
+        f"{order.get('description', 'N/A')}")
 
 # Setup logger
 logger = setup_logger('bot.admin.orders')
 
 def get_admin_orders_router():
-    router = Router()
+    router = get_role_router("admin")
     
     @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📝 Zayavkalar", "📝 Заявки"]))
     @admin_only
     async def orders_menu(message: Message, state: FSMContext):
-        """Orders management main menu"""
+        """Show orders menu"""
         try:
             await safe_delete_message(message.bot, message.chat.id, message.message_id)
             lang = await get_user_lang(message.from_user.id)
             
-            # Get orders management stats
+            # Get orders statistics
             stats = await get_orders_management_stats()
             
             if lang == 'uz':
-                text = (
-                    f"📝 <b>Zayavkalar boshqaruvi</b>\n\n"
-                    f"📊 <b>Statistika:</b>\n"
-                )
-                for status_stat in stats.get('by_status', []):
-                    status_name = {
-                        'new': '🆕 Yangi',
-                        'pending': '⏳ Kutilmoqda',
-                        'assigned': '👨‍🔧 Tayinlangan',
-                        'in_progress': '🔄 Jarayonda',
-                        'completed': '✅ Bajarilgan',
-                        'cancelled': '❌ Bekor qilingan'
-                    }.get(status_stat['status'], status_stat['status'])
-                    text += f"• {status_name}: <b>{status_stat['count']}</b>\n"
-                
-                text += (
-                    f"\n🚨 <b>Diqqat talab qiladi:</b>\n"
-                    f"• Tayinlanmagan: <b>{stats.get('unassigned', 0)}</b>\n"
-                    f"• Kechikkan: <b>{stats.get('overdue', 0)}</b>\n\n"
-                    f"Kerakli amalni tanlang:"
-                )
+                text = "📊 <b>Zayavkalar statistikasi</b>\n\n"
+                text += f"Yangi: {stats.get('new', 0)}\n"
+                text += f"Jarayonda: {stats.get('in_progress', 0)}\n"
+                text += f"Bajarilgan: {stats.get('completed', 0)}\n"
+                text += f"Bekor qilingan: {stats.get('cancelled', 0)}\n\n"
+                text += "Zayavkalar bo'yicha qidirish va filtrlash uchun quyidagi tugmalardan foydalaning:"
             else:
-                text = (
-                    f"📝 <b>Управление заявками</b>\n\n"
-                    f"📊 <b>Статистика:</b>\n"
-                )
-                for status_stat in stats.get('by_status', []):
-                    status_name = {
-                        'new': '🆕 Новые',
-                        'pending': '⏳ Ожидающие',
-                        'assigned': '👨‍🔧 Назначенные',
-                        'in_progress': '🔄 В процессе',
-                        'completed': '✅ Выполненные',
-                        'cancelled': '❌ Отмененные'
-                    }.get(status_stat['status'], status_stat['status'])
-                    text += f"• {status_name}: <b>{status_stat['count']}</b>\n"
-                
-                text += (
-                    f"\n🚨 <b>Требуют внимания:</b>\n"
-                    f"• Неназначенные: <b>{stats.get('unassigned', 0)}</b>\n"
-                    f"• Просроченные: <b>{stats.get('overdue', 0)}</b>\n\n"
-                    f"Выберите действие:"
-                )
+                text = "📊 <b>Статистика заявок</b>\n\n"
+                text += f"Новые: {stats.get('new', 0)}\n"
+                text += f"В процессе: {stats.get('in_progress', 0)}\n"
+                text += f"Выполненные: {stats.get('completed', 0)}\n"
+                text += f"Отменённые: {stats.get('cancelled', 0)}\n\n"
+                text += "Для поиска и фильтрации заявок используйте следующие кнопки:"
             
             sent_message = await message.answer(
                 text,
-                reply_markup=get_orders_management_keyboard(lang)
+                reply_markup=get_zayavka_main_keyboard(lang)
             )
-            await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.orders)
+            
+            # Save message ID for cleanup
+            await state.update_data(last_message_id=sent_message.message_id)
             
         except Exception as e:
-            logger.error(f"Error in orders management menu: {e}")
+            logger.error(f"Error in orders menu: {e}")
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
             await message.answer(error_text)
 
-    @router.message(F.text.in_(["🆕 Yangi zayavkalar", "🆕 Новые заявки"]))
+    @router.message(F.text.in_(['📂 Holat bo\'yicha', '📂 По статусу']))
     @admin_only
-    async def show_new_orders(message: Message):
-        """Show new orders"""
+    async def handle_status_menu(message: Message, state: FSMContext):
+        """Handle status menu"""
         try:
-            await safe_delete_message(message.bot, message.chat.id, message.message_id)
             lang = await get_user_lang(message.from_user.id)
+            await safe_delete_message(message.bot, message.chat.id, message.message_id)
             
-            # Get new orders
-            orders = await get_filtered_orders({'status': 'new'})
+            text = "📂 <b>Holat bo'yicha qidirish</b>\n\n" if lang == 'uz' else "📂 <b>Поиск по статусу</b>\n\n"
+            text += "Holatni tanlang:" if lang == 'uz' else "Выберите статус:"
             
-            if not orders:
-                text = "Yangi zayavkalar yo'q." if lang == 'uz' else "Новых заявок нет."
-                await message.answer(text)
-                return
+            # Switch to section keyboard
+            sent_message = await message.answer(
+                text,
+                reply_markup=get_zayavka_section_keyboard(lang)
+            )
+            await state.update_data(last_message_id=sent_message.message_id)
             
-            if lang == 'uz':
-                text = f"🆕 <b>Yangi zayavkalar</b> ({len(orders)} ta)\n\n"
-            else:
-                text = f"🆕 <b>Новые заявки</b> ({len(orders)} шт.)\n\n"
+            # Show inline keyboard with pagination
+            await message.answer(
+                text,
+                reply_markup=get_zayavka_status_filter_keyboard(lang, page=1, total_pages=1)
+            )
             
-            for order in orders[:10]:  # Show first 10
-                text += (
-                    f"🆔 <b>#{order['id']}</b>\n"
-                    f"👤 {order.get('client_name', 'N/A')}\n"
-                    f"📱 {order.get('client_phone', 'N/A')}\n"
-                    f"📍 {order.get('address', 'N/A')}\n"
-                    f"📝 {order.get('description', 'N/A')[:50]}...\n"
-                    f"📅 {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
+        except Exception as e:
+            logger.error(f"Error in status menu handler: {e}")
+            lang = await get_user_lang(message.from_user.id)
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await message.answer(error_text)
+
+    @router.message(F.text == "🔍 Qidirish / Filtrlash")
+    @admin_only
+    async def handle_filter_menu(message: Message, state: FSMContext):
+        """Handle filter menu selection"""
+        try:
+            lang = await get_user_lang(message.from_user.id)
+            back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+            await safe_delete_message(message.bot, message.chat.id, message.message_id)
+            
+            text = "🔍 <b>Qidirish / Filtrlash</b>\n\n" if lang == 'uz' else "🔍 <b>Поиск / Фильтр</b>\n\n"
+            text += "Qidirish turini tanlang:" if lang == 'uz' else "Выберите тип поиска:"
+            
+            # Switch to section keyboard
+            sent_message = await message.answer(
+                text,
+                reply_markup=get_zayavka_section_keyboard(lang)
+            )
+            await state.update_data(last_message_id=sent_message.message_id)
+            
+            # Show inline keyboard with pagination
+            await message.answer(
+                text,
+                reply_markup=get_zayavka_filter_menu_keyboard(lang, page=1, total_pages=2, admin=True)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in filter menu handler: {e}")
+            lang = await get_user_lang(message.from_user.id)
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await message.answer(error_text)
+
+    @router.callback_query(F.data.startswith("zayavka:status:"))
+    @admin_only
+    async def handle_status_selection(callback: CallbackQuery, state: FSMContext):
+        """Handle status selection from inline keyboard"""
+        try:
+            lang = await get_user_lang(callback.from_user.id)
+            data = callback.data.split(':')[2:]
+            action = data[0]
+            
+            if action in ["prev", "next"]:
+                current_page = int(data[1])
+                new_page = current_page - 1 if action == "prev" else current_page + 1
+                
+                # Get orders for the selected status
+                state_data = await state.get_data()
+                status = state_data.get('selected_status')
+                orders = await get_filtered_orders(status=status)
+                
+                if not orders:
+                    text = "Zayavkalar topilmadi." if lang == 'uz' else "Заявки не найдены."
+                    await callback.message.edit_text(text)
+                    return
+                
+                # Show first 10 orders
+                text = "Zayavkalar:\n\n" if lang == 'uz' else "Заявки:\n\n"
+                for order in orders[:10]:
+                    text += format_order(order, lang)
+                    text += "\n\n"
+                
+                await callback.message.edit_reply_markup(
+                    reply_markup=get_zayavka_status_filter_keyboard(lang, page=new_page, total_pages=1)
                 )
+                await callback.answer()
+                return
+
+            # Get orders for the selected status
+            status = data[1]
+            orders = await get_filtered_orders(filters={'status': status})
+            
+            if not orders:
+                text = "Zayavkalar topilmadi." if lang == 'uz' else "Заявки не найдены."
+                await callback.message.edit_text(text)
+                return
                 
-                # Add management buttons
-                keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="👨‍🔧 Tayinlash" if lang == 'uz' else "👨‍🔧 Назначить",
-                            callback_data=f"assign_order_{order['id']}"
-                        ),
-                        InlineKeyboardButton(
-                            text="📋 Batafsil" if lang == 'uz' else "📋 Подробно",
-                            callback_data=f"order_details_{order['id']}"
-                        )
-                    ]
-                ])
+            # Show first 10 orders
+            text = "Zayavkalar:\n\n" if lang == 'uz' else "Заявки:\n\n"
+            for order in orders[:10]:
+                text += format_order(order, lang)
+                text += "\n\n"
                 
-                await message.answer(text, reply_markup=keyboard)
-                text = ""  # Reset for next order
-            
-            if len(orders) > 10:
-                remaining_text = f"\n... va yana {len(orders) - 10} ta zayavka" if lang == 'uz' else f"\n... и еще {len(orders) - 10} заявок"
-                await message.answer(remaining_text)
+            await state.update_data(selected_status=status)
+            await callback.message.edit_reply_markup(
+                reply_markup=get_zayavka_status_filter_keyboard(lang, page=1, total_pages=1)
+            )
+            await callback.answer()
             
         except Exception as e:
-            logger.error(f"Error showing new orders: {e}")
-            lang = await get_user_lang(message.from_user.id)
+            logger.error(f"Error in status selection handler: {e}")
+            lang = await get_user_lang(callback.from_user.id)
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
+            await callback.message.edit_text(error_text)
 
-    @router.message(F.text.in_(["⏳ Kutilayotgan zayavkalar", "⏳ Ожидающие заявки"]))
+    @router.callback_query(F.data.startswith("zayavka:filter:"))
     @admin_only
-    async def show_pending_orders(message: Message):
-        """Show pending orders"""
+    async def handle_filter_selection(callback: CallbackQuery, state: FSMContext):
+        """Handle filter selection from inline keyboard"""
         try:
-            await safe_delete_message(message.bot, message.chat.id, message.message_id)
-            lang = await get_user_lang(message.from_user.id)
+            lang = await get_user_lang(callback.from_user.id)
+            data = callback.data.split(':')[2:]
+            action = data[0]
             
-            # Get pending orders
-            orders = await get_filtered_orders({'status': 'pending'})
-            
-            if not orders:
-                text = "Kutilayotgan zayavkalar yo'q." if lang == 'uz' else "Ожидающих заявок нет."
-                await message.answer(text)
+            if action in ["prev", "next"]:
+                current_page = int(data[1])
+                new_page = current_page - 1 if action == "prev" else current_page + 1
+                
+                # Get current filter type from state
+                state_data = await state.get_data()
+                active_filter = state_data.get('filter_type')
+                
+                await callback.message.edit_reply_markup(
+                    reply_markup=get_zayavka_filter_menu_keyboard(lang, page=new_page, active_filter=active_filter, admin=True)
+                )
+                await callback.answer()
                 return
-            
-            await show_orders_list(message, orders, "pending", lang)
-            
-        except Exception as e:
-            logger.error(f"Error showing pending orders: {e}")
-            lang = await get_user_lang(message.from_user.id)
-            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
 
-    @router.message(F.text.in_(["🔄 Jarayondagi zayavkalar", "🔄 Заявки в процессе"]))
-    @admin_only
-    async def show_in_progress_orders(message: Message):
-        """Show in progress orders"""
-        try:
-            await safe_delete_message(message.bot, message.chat.id, message.message_id)
-            lang = await get_user_lang(message.from_user.id)
-            
-            # Get in progress orders
-            orders = await get_filtered_orders({'status': 'in_progress'})
-            
-            if not orders:
-                text = "Jarayondagi zayavkalar yo'q." if lang == 'uz' else "Заявок в процессе нет."
-                await message.answer(text)
-                return
-            
-            await show_orders_list(message, orders, "in_progress", lang)
-            
-        except Exception as e:
-            logger.error(f"Error showing in progress orders: {e}")
-            lang = await get_user_lang(message.from_user.id)
-            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
-
-    @router.message(F.text.in_(["🚨 Tayinlanmagan zayavkalar", "🚨 Неназначенные заявки"]))
-    @admin_only
-    async def show_unassigned_orders(message: Message):
-        """Show unassigned orders"""
-        try:
-            await safe_delete_message(message.bot, message.chat.id, message.message_id)
-            lang = await get_user_lang(message.from_user.id)
-            
-            # Get unassigned orders
-            orders = await get_filtered_orders({'technician_id': 0})
-            
-            if not orders:
-                text = "Tayinlanmagan zayavkalar yo'q." if lang == 'uz' else "Неназначенных заявок нет."
-                await message.answer(text)
-                return
-            
-            await show_orders_list(message, orders, "unassigned", lang)
-            
-        except Exception as e:
-            logger.error(f"Error showing unassigned orders: {e}")
-            lang = await get_user_lang(message.from_user.id)
-            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
-            await message.answer(error_text)
-
-    async def show_orders_list(message, orders, order_type, lang):
-        """Helper function to show orders list"""
-        try:
-            type_names = {
-                'pending': ('Kutilayotgan zayavkalar', 'Ожидающие заявки'),
-                'in_progress': ('Jarayondagi zayavkalar', 'Заявки в процессе'),
-                'unassigned': ('Tayinlanmagan zayavkalar', 'Неназначенные заявки')
+            filter_map = {
+                'username': "🔤 FIO / Username",
+                'id': "🔢 Zayavka ID",
+                'date': "📆 Sana oraliq",
+                'category': "🏷 Kategoriya",
+                'technician': "👨‍🔧 Texnik"
             }
-            
-            title = type_names.get(order_type, ('Zayavkalar', 'Заявки'))
-            header = title[0] if lang == 'uz' else title[1]
-            
-            text = f"📋 <b>{header}</b> ({len(orders)} ta)\n\n" if lang == 'uz' else f"📋 <b>{header}</b> ({len(orders)} шт.)\n\n"
-            
-            for i, order in enumerate(orders[:5], 1):  # Show first 5
-                text += (
-                    f"{i}. 🆔 <b>#{order['id']}</b>\n"
-                    f"   👤 {order.get('client_name', 'N/A')}\n"
-                    f"   📱 {order.get('client_phone', 'N/A')}\n"
-                    f"   📍 {order.get('address', 'N/A')}\n"
-                    f"   📅 {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                )
+        
+            filter_type = filter_map.get(action)
+            if not filter_type:
+                raise ValueError("Invalid filter type")
                 
-                if order.get('technician_name'):
-                    text += f"   👨‍🔧 {order['technician_name']}\n"
-                
-                text += "\n"
+            text = {
+                'uz': {
+                    'username': " 🔡 <b>FIO / Username bo'yicha qidirish</b>\n\n",
+                    'id': " 🔢 <b>Zayavka ID bo'yicha qidirish</b>\n\n",
+                    'date': " 📅 <b>Sana oraliq bo'yicha qidirish</b>\n\n",
+                    'category': " 🏷 <b>Kategoriya bo'yicha qidirish</b>\n\n",
+                    'technician': " 👨‍🔧 <b>Texnik bo'yicha qidirish</b>\n\n"
+                },
+                'ru': {
+                    'username': " 🔡 <b>Поиск по ФИО / Username</b>\n\n",
+                    'id': " 🔢 <b>Поиск по ID заявки</b>\n\n",
+                    'date': " 📅 <b>Поиск по дате</b>\n\n",
+                    'category': " 🏷 <b>Поиск по категории</b>\n\n",
+                    'technician': " 👨‍🔧 <b>Поиск по технику</b>\n\n"
+                }
+            }
+        
+            text = text[lang][action]
+            text += "Kerakli ma'lumotni kiriting:" if lang == 'uz' else "Введите нужную информацию:"
+        
+            # Set state based on filter type
+            if action in ["date", "category"]:
+                await state.set_state(AdminStates.filtering_selected)
+            else:
+                await state.set_state(AdminStates.filtering)
+        
+            await callback.message.edit_text(text)
             
-            if len(orders) > 5:
-                text += f"... va yana {len(orders) - 5} ta" if lang == 'uz' else f"... и еще {len(orders) - 5} шт."
-            
-            # Add bulk actions keyboard
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="👨‍🔧 Ommaviy tayinlash" if lang == 'uz' else "👨‍🔧 Массовое назначение",
-                        callback_data=f"bulk_assign_{order_type}"
-                    )
-                ]
-            ])
-            
-            await message.answer(text, reply_markup=keyboard)
-            
+            # Send new message with filter keyboard (replace with edit_text for inline UX)
+            await callback.message.edit_text(
+                "Qidirish turini tanlang:" if lang == 'uz' else "Выберите тип поиска:",
+                reply_markup=get_zayavka_filter_menu_keyboard(lang, active_filter=action if action in ["date", "category"] else None, admin=True)
+            )
+            await state.update_data(filter_type=action)
+            await callback.answer()
+        
         except Exception as e:
-            logger.error(f"Error showing orders list: {e}")
+            logger.error(f"Error in filter selection handler: {e}")
+            lang = await get_user_lang(callback.from_user.id)
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await callback.message.edit_text(error_text)
 
-    @router.callback_query(F.data.startswith("assign_order_"))
+    @router.callback_query(F.data.startswith("bulk_assign_"))
     @admin_only
-    async def assign_order(call: CallbackQuery):
-        """Assign order to technician"""
+    async def bulk_assign_orders(call: CallbackQuery, state: FSMContext):
+        """Bulk assign orders to technician"""
         try:
-            await answer_and_cleanup(call, cleanup_after=True)
             lang = await get_user_lang(call.from_user.id)
             
-            order_id = int(call.data.split("_")[-1])
+            order_type = call.data.split("_")[2]
             
             # Get available technicians
             technicians = await get_available_technicians()
@@ -301,55 +315,24 @@ def get_admin_orders_router():
                 keyboard.inline_keyboard.append([
                     InlineKeyboardButton(
                         text=f"👨‍🔧 {tech['full_name']} ({tech.get('active_tasks', 0)} vazifa)",
-                        callback_data=f"confirm_assign_{order_id}_{tech['id']}"
+                        callback_data=f"bulk_confirm_{order_type}_{tech['id']}"
                     )
                 ])
             
             await call.message.edit_text(text, reply_markup=keyboard)
-            
+        
         except Exception as e:
-            logger.error(f"Error assigning order: {e}")
-            await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
-
-    @router.callback_query(F.data.startswith("confirm_assign_"))
-    @admin_only
-    async def confirm_assign_order(call: CallbackQuery):
-        """Confirm order assignment"""
-        try:
+            logger.error(f"Error in bulk assign: {e}")
             lang = await get_user_lang(call.from_user.id)
-            
-            parts = call.data.split("_")
-            order_id = int(parts[2])
-            technician_id = int(parts[3])
-            
-            # Assign order
-            success = await assign_zayavka_to_technician(order_id, technician_id, call.from_user.id)
-            
-            if success:
-                # Log admin action
-                await log_admin_action(call.from_user.id, "assign_order", {
-                    "order_id": order_id,
-                    "technician_id": technician_id
-                })
-                
-                text = f"✅ Zayavka #{order_id} texnikga tayinlandi." if lang == 'uz' else f"✅ Заявка #{order_id} назначена технику."
-                await call.answer("Tayinlandi!" if lang == 'uz' else "Назначено!")
-            else:
-                text = "Zayavkani tayinlashda xatolik." if lang == 'uz' else "Ошибка при назначении заявки."
-                await call.answer("Xatolik!" if lang == 'uz' else "Ошибка!")
-            
-            await call.message.edit_text(text)
-            
-        except Exception as e:
-            logger.error(f"Error confirming order assignment: {e}")
-            await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await call.message.edit_text(error_text)
+            return
 
     @router.callback_query(F.data.startswith("order_details_"))
     @admin_only
-    async def show_order_details(call: CallbackQuery):
-        """Show detailed order information"""
+    async def show_order_details(call: CallbackQuery, state: FSMContext):
+        """Show order details"""
         try:
-            await answer_and_cleanup(call, cleanup_after=True)
             lang = await get_user_lang(call.from_user.id)
             
             order_id = int(call.data.split("_")[-1])
@@ -361,72 +344,38 @@ def get_admin_orders_router():
                 text = "Zayavka topilmadi." if lang == 'uz' else "Заявка не найдена."
                 await call.message.edit_text(text)
                 return
-            
-            if lang == 'uz':
-                text = (
-                    f"📋 <b>Zayavka #{order['id']}</b>\n\n"
-                    f"👤 <b>Mijoz:</b> {order.get('user_name', 'N/A')}\n"
-                    f"📱 <b>Telefon:</b> {order.get('client_phone', 'N/A')}\n"
-                    f"📍 <b>Manzil:</b> {order.get('address', 'N/A')}\n"
-                    f"📝 <b>Tavsif:</b> {order.get('description', 'N/A')}\n"
-                    f"📊 <b>Status:</b> {order['status']}\n"
-                    f"📅 <b>Yaratilgan:</b> {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                )
-                
-                if order.get('technician_name'):
-                    text += f"👨‍🔧 <b>Texnik:</b> {order['technician_name']}\n"
-                    text += f"📱 <b>Texnik tel:</b> {order.get('technician_phone', 'N/A')}\n"
-                
-                if order.get('assigned_at'):
-                    text += f"📅 <b>Tayinlangan:</b> {order['assigned_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                
-                if order.get('completed_at'):
-                    text += f"✅ <b>Bajarilgan:</b> {order['completed_at'].strftime('%d.%m.%Y %H:%M')}\n"
-            else:
-                text = (
-                    f"📋 <b>Заявка #{order['id']}</b>\n\n"
-                    f"👤 <b>Клиент:</b> {order.get('user_name', 'N/A')}\n"
-                    f"📱 <b>Телефон:</b> {order.get('client_phone', 'N/A')}\n"
-                    f"📍 <b>Адрес:</b> {order.get('address', 'N/A')}\n"
-                    f"📝 <b>Описание:</b> {order.get('description', 'N/A')}\n"
-                    f"📊 <b>Статус:</b> {order['status']}\n"
-                    f"📅 <b>Создана:</b> {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                )
-                
-                if order.get('technician_name'):
-                    text += f"👨‍🔧 <b>Техник:</b> {order['technician_name']}\n"
-                    text += f"📱 <b>Тел. техника:</b> {order.get('technician_phone', 'N/A')}\n"
-                
-                if order.get('assigned_at'):
-                    text += f"📅 <b>Назначена:</b> {order['assigned_at'].strftime('%d.%m.%Y %H:%M')}\n"
-                
-                if order.get('completed_at'):
-                    text += f"✅ <b>Выполнена:</b> {order['completed_at'].strftime('%d.%m.%Y %H:%M')}\n"
-            
-            # Add action buttons
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-            
-            if order['status'] in ['new', 'pending']:
-                keyboard.inline_keyboard.append([
+
+            text = (
+                "Zayavka ma'lumotlari:\n\n"
+                f"🆔 #{order['id']}\n"
+                f"👤 {order.get('client_name', 'N/A')}\n"
+                f"📱 {order.get('client_phone', 'N/A')}\n"
+                f"📍 {order.get('address', 'N/A')}\n"
+                f"📝 {order.get('title', 'N/A')}\n"
+                f"📅 {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n\n"
+                "Holat: " if lang == 'uz' else "Статус: "
+                f"{order.get('status', 'N/A')}\n\n"
+                "Texnik: " if lang == 'uz' else "Техник: "
+                f"{order.get('technician_name', 'N/A')}\n\n"
+                "Qo'shimcha ma'lumotlar: " if lang == 'uz' else "Дополнительная информация: "
+                f"{order.get('description', 'N/A')}")
+        
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
                     InlineKeyboardButton(
-                        text="👨‍🔧 Tayinlash" if lang == 'uz' else "👨‍🔧 Назначить",
-                        callback_data=f"assign_order_{order['id']}"
+                        text="📋 Batafsil" if lang == 'uz' else "📋 Подробно",
+                        callback_data=f"order_details_{order['id']}"
                     )
-                ])
-            
-            if order['status'] != 'completed':
-                keyboard.inline_keyboard.append([
-                    InlineKeyboardButton(
-                        text="📊 Status o'zgartirish" if lang == 'uz' else "📊 Изменить статус",
-                        callback_data=f"change_status_{order['id']}"
-                    )
-                ])
-            
+                ]
+            ])
+        
             await call.message.edit_text(text, reply_markup=keyboard)
-            
+            return
         except Exception as e:
             logger.error(f"Error showing order details: {e}")
-            await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
+            lang = await get_user_lang(call.from_user.id)
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await call.message.edit_text(error_text)
 
     @router.callback_query(F.data.startswith("change_status_"))
     @admin_only
@@ -465,7 +414,9 @@ def get_admin_orders_router():
             
         except Exception as e:
             logger.error(f"Error changing order status: {e}")
-            await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
+            lang = await get_user_lang(call.from_user.id)
+            error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await call.message.edit_text(error_text)
 
     @router.callback_query(F.data.startswith("set_status_"))
     @admin_only
@@ -483,7 +434,7 @@ def get_admin_orders_router():
             
             if success:
                 # Log admin action
-                await log_admin_action(call.from_user.id, "change_order_status", {
+                await log_admin_action(call.from_user.id, "update_status", {
                     "order_id": order_id,
                     "new_status": new_status
                 })
@@ -500,48 +451,57 @@ def get_admin_orders_router():
                 
                 text = f"✅ Zayavka #{order_id} statusi '{status_text}' ga o'zgartirildi." if lang == 'uz' else f"✅ Статус заявки #{order_id} изменен на '{status_text}'."
                 await call.answer("Status o'zgartirildi!" if lang == 'uz' else "Статус изменен!")
+                
+                await call.message.delete()
             else:
                 text = "Statusni o'zgartirishda xatolik." if lang == 'uz' else "Ошибка при изменении статуса."
                 await call.answer("Xatolik!" if lang == 'uz' else "Ошибка!")
-            
-            await call.message.edit_text(text)
-            
+                
+                # Show error message and return to previous menu
+                await call.message.edit_text(text)
+        
         except Exception as e:
             logger.error(f"Error setting order status: {e}")
             await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
+            
+            # Show error message and return to previous menu
+            lang = await get_user_lang(call.from_user.id)
+            text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
+            await call.message.edit_text(text)
 
-    @router.callback_query(F.data.startswith("bulk_assign_"))
+    @router.callback_query(F.data.startswith("bulk_confirm_"))
     @admin_only
-    async def bulk_assign_orders(call: CallbackQuery):
-        """Bulk assign orders"""
+    async def confirm_bulk_assign(call: CallbackQuery, state: FSMContext):
+        """
+        Texnikni tanlashdan so'ng, barcha tanlangan buyurtmalarni shu texnikka biriktiradi.
+        """
         try:
             lang = await get_user_lang(call.from_user.id)
-            order_type = call.data.split("_")[-1]
-            
-            # Get available technicians
-            technicians = await get_available_technicians()
-            
-            if not technicians:
-                text = "Mavjud texniklar yo'q." if lang == 'uz' else "Нет доступных техников."
-                await call.message.edit_text(text)
+            parts = call.data.split("_")
+            order_type = parts[2]
+            technician_id = int(parts[3])
+
+            # order_id larni state dan olish (masalan, 'selected_order_ids' deb saqlangan bo'lishi mumkin)
+            data = await state.get_data()
+            order_ids = data.get("selected_order_ids", [])
+
+            if not order_ids:
+                await call.answer("Buyurtmalar topilmadi." if lang == 'uz' else "Заявки не найдены.", show_alert=True)
                 return
-            
-            text = "Ommaviy tayinlash uchun texnikni tanlang:" if lang == 'uz' else "Выберите техника для массового назначения:"
-            
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[])
-            for tech in technicians[:10]:
-                keyboard.inline_keyboard.append([
-                    InlineKeyboardButton(
-                        text=f"👨‍🔧 {tech['full_name']} ({tech.get('active_tasks', 0)} vazifa)",
-                        callback_data=f"bulk_confirm_{order_type}_{tech['id']}"
-                    )
-                ])
-            
-            await call.message.edit_text(text, reply_markup=keyboard)
-            
+
+            # Bulk biriktirish
+            result = await bulk_assign_orders(order_ids, technician_id, call.from_user.id)
+
+            if result:
+                text = "Buyurtmalar texnikka biriktirildi." if lang == 'uz' else "Заявки назначены технику."
+            else:
+                text = "Biriktirishda xatolik." if lang == 'uz' else "Ошибка при назначении."
+
+            await call.message.edit_text(text)
+            await call.answer()
         except Exception as e:
-            logger.error(f"Error in bulk assign orders: {e}")
-            await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
+            logger.error(f"Error in confirm_bulk_assign: {e}")
+            await call.answer("Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка.", show_alert=True)
 
     @router.message(F.text.in_(["🔍 Zayavka qidirish", "🔍 Поиск заявки"]))
     @admin_only
@@ -555,7 +515,7 @@ def get_admin_orders_router():
             
             await message.answer(text)
             await state.set_state(AdminStates.waiting_for_order_id)
-            
+        
         except Exception as e:
             logger.error(f"Error in search orders menu: {e}")
             lang = await get_user_lang(message.from_user.id)
@@ -600,7 +560,7 @@ def get_admin_orders_router():
             else:
                 text = (
                     f"🔍 <b>Результат поиска</b>\n\n"
-                    f"📋 <b>Заявка #{order['id']}</b>\n\n"
+                    f"📋 <b>Заявка #{order_id}</b>\n\n"
                     f"👤 <b>Клиент:</b> {order.get('user_name', 'N/A')}\n"
                     f"📱 <b>Телефон:</b> {order.get('client_phone', 'N/A')}\n"
                     f"📍 <b>Адрес:</b> {order.get('address', 'N/A')}\n"
@@ -609,25 +569,29 @@ def get_admin_orders_router():
                     f"📅 <b>Создана:</b> {order['created_at'].strftime('%d.%m.%Y %H:%M')}\n"
                 )
             
-            if order.get('technician_name'):
-                tech_text = f"👨‍🔧 <b>Texnik:</b> {order['technician_name']}\n" if lang == 'uz' else f"👨‍🔧 <b>Техник:</b> {order['technician_name']}\n"
-                text += tech_text
-            
             # Add management buttons
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [
                     InlineKeyboardButton(
                         text="📋 Batafsil" if lang == 'uz' else "📋 Подробно",
-                        callback_data=f"order_details_{order['id']}"
+                        callback_data=f"order_details_{order_id}"
                     )
                 ]
             ])
             
+            # Add back button
+            keyboard.inline_keyboard.append([
+                InlineKeyboardButton(
+                    text="◀️ Orqaga" if lang == 'uz' else "◀️ Назад",
+                    callback_data="back_to_orders"
+                )
+            ])
+            
             await message.answer(text, reply_markup=keyboard)
             await state.clear()
-            
+        
         except Exception as e:
-            logger.error(f"Error processing order search: {e}")
+            logger.error(f"Error in order search: {e}")
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
             await message.answer(error_text)

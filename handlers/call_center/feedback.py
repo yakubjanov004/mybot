@@ -1,9 +1,8 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from datetime import datetime
-
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import (
     create_feedback, get_client_feedback
@@ -15,9 +14,10 @@ from keyboards.feedback_buttons import (
 )
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_call_center_feedback_router():
-    router = Router()
+    router = get_role_router("call_center")
 
     @router.message(F.text.in_(["⭐️ Baholash", "⭐️ Оценка"]))
     async def reply_feedback(message: Message, state: FSMContext):

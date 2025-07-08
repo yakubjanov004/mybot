@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from keyboards.client_buttons import get_contact_keyboard, get_main_menu_keyboard
@@ -9,10 +9,11 @@ from utils.logger import setup_logger
 from utils.inline_cleanup import safe_delete_message
 from utils.message_utils import get_main_menu_keyboard
 from loader import inline_message_manager, config
+from utils.role_router import get_role_router
 
 def get_client_start_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     def get_welcome_message(lang: str) -> str:
         """Get welcome message in the specified language"""
@@ -23,11 +24,10 @@ def get_client_start_router():
 
     @router.message(F.text == "/start")
     async def cmd_start(message: Message, state: FSMContext):
+        user = None  # Fix: always define user before usage
         try:
             await safe_delete_message(message.bot, message.chat.id, message.message_id)
             await state.clear()
-            
-            user = await get_user_by_telegram_id(message.from_user.id)
             
             # Check if user is admin and update role if needed
             if str(message.from_user.id) in config.ADMIN_IDS:
@@ -35,6 +35,8 @@ def get_client_start_router():
             else:
                 role = 'client'
             
+            # Always check if user exists before creating
+            user = await get_user_by_telegram_id(message.from_user.id)
             if not user:
                 user_id = await create_user(
                     telegram_id=int(message.from_user.id),

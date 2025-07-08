@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.technician_buttons import get_language_keyboard, get_main_menu_keyboard, get_technician_main_menu_keyboard
@@ -7,11 +7,12 @@ from database.technician_queries import get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
+from utils.role_router import get_role_router
 import functools
 
 def get_technician_language_router():
     logger = setup_logger('bot.technician.language')
-    router = Router()
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)

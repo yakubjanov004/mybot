@@ -1,15 +1,15 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import get_call_center_stats, get_operator_performance
 from keyboards.call_center_buttons import call_center_detailed_statistics_menu
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_call_center_statistics_router():
-    router = Router()
+    router = get_role_router("call_center")
 
     @router.message(F.text.in_(["📊 Statistika", "📊 Статистика"]))
     async def call_center_statistics_handler(message: Message, state: FSMContext):

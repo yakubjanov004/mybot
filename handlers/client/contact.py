@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -8,10 +8,11 @@ from database.base_queries import get_user_by_telegram_id, update_user_phone, ge
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_contact_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @router.message(StateFilter(UserStates.waiting_for_contact), F.contact)
     async def process_contact(message: Message, state: FSMContext):

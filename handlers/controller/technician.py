@@ -1,8 +1,8 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
-
+from filters.role_filter import RoleFilter
+from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, assign_zayavka_to_technician, get_all_technicians
 from keyboards.controllers_buttons import (
     technicians_menu, technician_assignment_keyboard, back_to_controllers_menu
@@ -11,9 +11,9 @@ from states.controllers_states import ControllersStates
 from utils.logger import logger
 
 def get_controller_technician_router():
-    router = Router()
+    router = get_role_router("controller")
 
-    @router.message(F.text.in_(["👨‍🔧 Texniklar nazorati", "👨‍🔧 Контроль техников"]))
+    @router.message(F.text.in_(["\U0001F468\u200D\U0001F527 Texniklar nazorati", "\U0001F468\u200D\U0001F527 \u041A\u043E\u043D\u0442\u0440\u043E\u043B\u044C \u0442\u0435\u0445\u043D\u0438\u043A\u043E\u0432"]))
     async def technicians_control_menu(message: Message, state: FSMContext):
         """Texniklar nazorati menyusi"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -30,23 +30,25 @@ def get_controller_technician_router():
         total_count = len(technicians)
         
         if lang == 'uz':
-            text = f"""👨‍🔧 <b>Texniklar nazorati</b>
+            text = f"""
+\U0001F468\u200D\U0001F527 <b>Texniklar nazorati</b>
 
-📊 <b>Umumiy ma'lumot:</b>
+\U0001F4CA <b>Umumiy ma'lumot:</b>
 • Jami texniklar: {total_count}
 • Faol texniklar: {active_count}
 • Nofaol texniklar: {total_count - active_count}
 
 Kerakli amalni tanlang:"""
         else:
-            text = f"""👨‍🔧 <b>Контроль техников</b>
+            text = f"""
+\U0001F468\u200D\U0001F527 <b>\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u044C \u0442\u0435\u0445\u043D\u0438\u043A\u043E\u0432</b>
 
-📊 <b>Общая информация:</b>
-• Всего техников: {total_count}
-• Активные техники: {active_count}
-• Неактивные техники: {total_count - active_count}
+\U0001F4CA <b>\u041E\u0431\u0449\u0430\u044F \u0438\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F:</b>
+• \u0412\u0441\u0435\u0433\u043E \u0442\u0435\u0445\u043D\u0438\u043A\u043E\u0432: {total_count}
+• \u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0435 \u0442\u0435\u0445\u043D\u0438\u043A\u0438: {active_count}
+• \u041D\u0435\u0430\u043A\u0442\u0438\u0432\u043D\u044B\u0435 \u0442\u0435\u0445\u043D\u0438\u043A\u0438: {total_count - active_count}
 
-Выберите нужное действие:"""
+\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043D\u0443\u0436\u043D\u043E\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435:"""
         
         await message.answer(
             text,
@@ -136,7 +138,7 @@ Kerakli amalni tanlang:"""
         
         await message.answer(text, parse_mode='HTML')
 
-    @router.message(F.text.in_(["�� Vazifa tayinlash", "🎯 Назначение задач"]))
+    @router.message(F.text.in_(["🎯 Vazifa tayinlash", "🎯 Назначение задач"]))
     async def task_assignment_menu(message: Message, state: FSMContext):
         """Vazifa tayinlash menyusi"""
         user = await get_user_by_telegram_id(message.from_user.id)

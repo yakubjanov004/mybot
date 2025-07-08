@@ -1,27 +1,23 @@
 import asyncio
+
 import asyncpg
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from dotenv import load_dotenv
-import logging
 from config import config
 from aiogram.fsm.storage.memory import MemoryStorage
 from utils.logger import setup_logger
-from utils.inline_cleanup import InlineMessageManager 
+from utils.inline_cleanup import InlineMessageManager
 from config import ZAYAVKA_GROUP_ID
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# Setup logging
-logger = setup_logger("loader")
+from utils.role_dispatcher import RoleAwareDispatcher, set_global_role_dispatcher
+from database.base_queries import DatabaseManager
 
 # Load environment variables
 load_dotenv()
+
+# Setup logger (nomi: bot, darajasi: INFO)
+logger = setup_logger("bot")
 
 # Initialize bot
 bot = Bot(
@@ -30,39 +26,35 @@ bot = Bot(
 )
 
 # Initialize dispatcher
-dp = Dispatcher(storage=MemoryStorage())
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
+role_dispatcher = RoleAwareDispatcher(dp)
+set_global_role_dispatcher(role_dispatcher)
 
 # Initialize inline message manager
 inline_message_manager = InlineMessageManager(bot)
 
-from database.base_queries import DatabaseManager
-
-# Initialize database manager
-db = DatabaseManager()
+# Initialize database manager va pool
+bot.db_manager = DatabaseManager()
+bot.db = None  # Pool obyektini saqlash uchun
 
 async def create_db_pool():
-    """Create database connection pool"""
+    """Create and initialize database connection pool, set bot.db"""
     try:
-        # Initialize database manager
-        bot.db = DatabaseManager()
-        await bot.db.init_pool()
-        
+        await bot.db_manager.init_pool()
+        bot.db = bot.db_manager.get_pool()
         # Test connection
         async with bot.db.acquire() as conn:
             await conn.fetchval('SELECT 1')
-        
-        logger.info(
-            f"Database connection pool created successfully: "
-            f"host={config.DB_HOST}, port={config.DB_PORT}, "
-            f"database={config.DB_NAME}, user={config.DB_USER}"
-        )
-        return bot.db.get_pool()
+        logger.info("Database connection pool created successfully")
+        return bot.db
     except Exception as e:
         logger.error(f"Error creating database pool: {str(e)}", exc_info=True)
         raise
 
-async def initialize_database(pool: asyncpg.Pool):
-    """Initialize database with required tables"""
+async def initialize_database():
+    """Initialize database with required tables if needed (migration)"""
+    pool = bot.db
     try:
         async with pool.acquire() as conn:
             # Check if tables exist
@@ -73,41 +65,18 @@ async def initialize_database(pool: asyncpg.Pool):
                     AND table_name = 'users'
                 );
             """)
-            
             if not tables_exist:
                 logger.info("Database tables not found, creating...")
-                
-                # Read and execute the migration file
                 try:
                     with open('database/migrations/010_final_schema_update.sql', 'r', encoding='utf-8') as f:
                         migration_sql = f.read()
-                    
                     await conn.execute(migration_sql)
                     logger.info("Database tables created successfully")
-                    
                 except FileNotFoundError:
                     logger.warning("Migration file not found, creating basic tables...")
                     await create_basic_tables(conn)
-                    
             else:
                 logger.info("Database tables already exist")
-                
-            # Verify critical tables
-            critical_tables = ['users', 'zayavki', 'materials', 'feedback']
-            for table in critical_tables:
-                exists = await conn.fetchval(f"""
-                    SELECT EXISTS (
-                        SELECT FROM information_schema.tables 
-                        WHERE table_schema = 'public' 
-                        AND table_name = '{table}'
-                    );
-                """)
-                if not exists:
-                    logger.error(f"Critical table '{table}' is missing!")
-                    raise Exception(f"Database setup incomplete: missing table '{table}'")
-            
-            logger.info("Database initialization completed successfully")
-            
     except Exception as e:
         logger.error(f"Database initialization failed: {str(e)}", exc_info=True)
         raise
@@ -128,7 +97,6 @@ async def create_basic_tables(conn):
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Materials table
     CREATE TABLE IF NOT EXISTS materials (
         id SERIAL PRIMARY KEY,
@@ -142,7 +110,6 @@ async def create_basic_tables(conn):
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Zayavki table
     CREATE TABLE IF NOT EXISTS zayavki (
         id SERIAL PRIMARY KEY,
@@ -155,7 +122,6 @@ async def create_basic_tables(conn):
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Feedback table
     CREATE TABLE IF NOT EXISTS feedback (
         id SERIAL PRIMARY KEY,
@@ -165,7 +131,6 @@ async def create_basic_tables(conn):
         comment TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Status logs table
     CREATE TABLE IF NOT EXISTS status_logs (
         id SERIAL PRIMARY KEY,
@@ -175,7 +140,6 @@ async def create_basic_tables(conn):
         changed_by INTEGER NOT NULL REFERENCES users(id),
         changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Solutions table
     CREATE TABLE IF NOT EXISTS solutions (
         id SERIAL PRIMARY KEY,
@@ -185,13 +149,11 @@ async def create_basic_tables(conn):
         media TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
     );
-
     -- Create basic indexes
     CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
     CREATE INDEX IF NOT EXISTS idx_zayavki_user_id ON zayavki(user_id);
     CREATE INDEX IF NOT EXISTS idx_zayavki_status ON zayavki(status);
     """
-    
     await conn.execute(basic_schema)
     logger.info("Basic database schema created")
 
@@ -205,11 +167,7 @@ async def on_startup():
         bot.pool = pool
         
         # Initialize database tables
-        await initialize_database(pool)
-        
-        # Initialize DatabaseManager
-        from database.base_queries import DatabaseManager
-        bot.db_manager = DatabaseManager(pool)
+        await initialize_database()
         
         # Get bot info
         bot_info = await bot.get_me()
@@ -230,27 +188,18 @@ async def on_startup():
         logger.error(f"Error during startup: {str(e)}", exc_info=True)
         raise
 
-async def on_shutdown(dp: Dispatcher):
-    """Shutdown handler"""
+async def on_shutdown():
     try:
         logger.info("Bot shutdown initiated...")
-        
-        # Stop inline message cleanup
         if inline_message_manager:
             await inline_message_manager.stop_auto_cleanup()
-        
-        # Close database pool
-        if bot.pool:
+        if hasattr(bot, 'pool') and bot.pool:
             await bot.pool.close()
             logger.info("Database pool closed")
-        
-        # Close cache
-        if cache:
+        if 'cache' in globals() and cache:
             await cache.close()
             logger.info("Cache closed")
-        
         logger.info("Bot shutdown completed")
-        
     except Exception as e:
         logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
 

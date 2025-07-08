@@ -193,56 +193,84 @@ async def get_users_by_role(pool: asyncpg.Pool, role: str) -> List[Dict[str, Any
         """, role)
         return [dict(row) for row in rows]
 
-async def get_filtered_applications(pool: asyncpg.Pool, statuses: list = None, page: int = 1, limit: int = 5) -> dict:
+async def get_filtered_applications(
+    pool: asyncpg.Pool,
+    statuses: list = None,
+    date_from: str = None,
+    date_to: str = None,
+    assigned_only: bool = None,
+    technician_id: int = None,
+    page: int = 1,
+    limit: int = 5
+) -> dict:
     """
     Get filtered applications with pagination
-    
-    Args:
-        pool: Database connection pool
-        statuses: List of statuses to filter by (None for all statuses)
-        page: Current page number
-        limit: Number of items per page
-    
-    Returns:
-        Dictionary containing applications and pagination info
     """
     async with pool.acquire() as conn:
         # Build base query
         query = """
             SELECT z.*, 
-                   u.full_name as assigned_to_name,
-                   u.telegram_id as assigned_to_telegram_id
+                   u.full_name as user_name,
+                   u.phone_number as client_phone,
+                   t.full_name as technician_name,
+                   t.telegram_id as technician_telegram_id
             FROM zayavki z
-            LEFT JOIN users u ON z.assigned_to = u.id
+            LEFT JOIN users u ON z.user_id = u.id
+            LEFT JOIN users t ON z.assigned_to = t.id
             WHERE 1=1
         """
-        
-        # Add status filter if provided
+        params = []
         if statuses:
-            status_filters = " OR ".join([f"status = '{status}'" for status in statuses])
+            status_filters = " OR ".join([f"z.status = '{status}'" for status in statuses])
             query += f" AND ({status_filters})"
-        
-        # Add ordering and pagination
-        query += " ORDER BY created_at DESC LIMIT $1 OFFSET $2"
-        
-        # Get applications for current page
+        if date_from:
+            query += f" AND z.created_at >= ${len(params)+1}"
+            params.append(date_from)
+        if date_to:
+            query += f" AND z.created_at <= ${len(params)+1}"
+            params.append(date_to)
+        if assigned_only:
+            query += f" AND z.assigned_to IS NOT NULL"
+        if technician_id is not None:
+            if technician_id == 0:
+                query += f" AND z.assigned_to IS NULL"
+            else:
+                query += f" AND z.assigned_to = {technician_id}"
+        query += f" ORDER BY z.created_at DESC LIMIT ${len(params)+1} OFFSET ${len(params)+2}"
         offset = (page - 1) * limit
-        applications = await conn.fetch(query, limit, offset)
-        
-        # Get total count for pagination
-        count_query = "SELECT COUNT(*) FROM zayavki WHERE 1=1"
+        params.extend([limit, offset])
+        applications = await conn.fetch(query, *params)
+
+        # COUNT query
+        count_query = """
+            SELECT COUNT(*) FROM zayavki z
+            LEFT JOIN users u ON z.user_id = u.id
+            LEFT JOIN users t ON z.assigned_to = t.id
+            WHERE 1=1
+        """
+        count_params = []
         if statuses:
             count_query += f" AND ({status_filters})"
-        total_count = await conn.fetchval(count_query)
-        
-        # Calculate pagination info
-        total_pages = (total_count + limit - 1) // limit
-        
+        if date_from:
+            count_query += f" AND z.created_at >= ${len(count_params)+1}"
+            count_params.append(date_from)
+        if date_to:
+            count_query += f" AND z.created_at <= ${len(count_params)+1}"
+            count_params.append(date_to)
+        if assigned_only:
+            count_query += f" AND z.assigned_to IS NOT NULL"
+        if technician_id is not None:
+            if technician_id == 0:
+                count_query += f" AND z.assigned_to IS NULL"
+            else:
+                count_query += f" AND z.assigned_to = {technician_id}"
+        total_count = await conn.fetchval(count_query, *count_params)
+        total_pages = (total_count + limit - 1) // limit if total_count else 1
         return {
             'applications': [dict(app) for app in applications],
             'total_pages': total_pages,
-            'current_page': page,
-            'total_count': total_count
+            'page': page,
+            'total': total_count
         }
 
 async def get_staff_attendance(pool: asyncpg.Pool, period: str = 'monthly') -> List[Dict[str, Any]]:

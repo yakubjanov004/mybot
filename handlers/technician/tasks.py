@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
@@ -14,11 +14,12 @@ from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message, cleanup_user_inline_messages
 from utils.cache_manager import MemoryCache
 from loader import bot
+from utils.role_router import get_role_router
 import functools
 
 def get_technician_tasks_router():
     logger = setup_logger('bot.technician.tasks')
-    router = Router()
+    router = get_role_router("technician")
 
     # Message tracking helpers
     message_cache = MemoryCache(default_ttl=3600)

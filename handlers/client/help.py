@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.client_buttons import get_client_help_menu, get_client_help_back_inline, get_main_menu_keyboard
@@ -7,10 +7,11 @@ from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_help_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @router.message(F.text.in_(["❓ Yordam", "❓ Помощь"]))
     async def client_help_handler(message: Message, state: FSMContext):
@@ -149,7 +150,7 @@ def get_client_help_router():
                 "• Перейдите в 'Мои заказы'\n"
                 "• Или свяжитесь с оператором\n\n"
                 "Статусы заказа:\n"
-                "�� Новый - принят\n"
+                "🆕 Новый - принят\n"
                 "✅ Подтвержден - взят в работу\n"
                 "⏳ В процессе - выполняется\n"
                 "✅ Выполнен - завершен"

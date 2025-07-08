@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
@@ -7,11 +7,12 @@ from database.base_queries import update_user_language
 from keyboards.warehouse_buttons import language_selection_keyboard, warehouse_main_menu
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_warehouse_language_router():
-    router = Router()
+    router = get_role_router("warehouse")
 
-    @router.message(F.text.in_(["🌐 Tilni o'zgartirish", "�� Изменить язык"]))
+    @router.message(F.text.in_(["🌐 Tilni o'zgartirish", "🌐 Выберите язык"]))
     async def change_language_handler(message: Message, state: FSMContext):
         """Handle language change request"""
         try:

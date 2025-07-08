@@ -1,19 +1,19 @@
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import F
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from functools import wraps
 import logging
 from datetime import datetime, timedelta
 
 from database.admin_queries import (
-    is_admin, get_admin_dashboard_stats, get_performance_metrics,
-    export_admin_data, log_admin_action
+    get_admin_dashboard_stats, get_performance_metrics, export_admin_data, log_admin_action
 )
 from database.base_queries import get_system_statistics, get_user_by_telegram_id, get_user_lang
 from keyboards.admin_buttons import get_statistics_keyboard
 from states.admin_states import AdminStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 from utils.role_checks import admin_only
 from loader import inline_message_manager
 from aiogram.filters import StateFilter
@@ -22,7 +22,7 @@ from aiogram.filters import StateFilter
 logger = setup_logger('bot.admin.statistics')
 
 def get_admin_statistics_router():
-    router = Router()
+    router = get_role_router("admin")
 
     @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📊 Statistika", "📊 Статистика"]))
     @admin_only

@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.client_buttons import get_language_keyboard, get_main_menu_keyboard
@@ -7,10 +7,11 @@ from database.base_queries import get_user_by_telegram_id, update_user_language,
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_language_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @router.message(F.text.in_(["🌐 Til o'zgartirish", "🌐 Изменить язык"]))
     async def client_change_language(message: Message, state: FSMContext):

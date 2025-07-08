@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StateFilter
@@ -9,10 +9,11 @@ from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.get_role import get_user_role
 from utils.logger import setup_logger
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_main_menu_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @router.message(StateFilter(UserStates.main_menu), F.text.in_(["🏠 Asosiy menyu", "🏠 Главное меню"]))
     async def main_menu_handler(message: Message, state: FSMContext):
@@ -34,10 +35,14 @@ def get_client_main_menu_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    # Fallback: only triggers in main_menu state for unknown text
     @router.message(StateFilter(UserStates.main_menu))
     async def fallback_main_menu(message: Message, state: FSMContext):
-        if message.text not in ["🆕 Yangi buyurtma", "🆕 Новый заказ", "📋 Mening buyurtmalarim", "📋 Мои заказы", "👤 Profil", "👤 Профиль", "📞 Operator bilan bog'lanish", "📞 Связаться с оператором", "❓ Yordam", "❓ Помощь", "🌐 Til o'zgartirish", "🌐 Изменить язык", "🏠 Asosiy menyu", "🏠 Главное меню"]:
+        known_texts = [
+            "🆕 Yangi buyurtma", "🆕 Новый заказ", "📋 Mening buyurtmalarim", "📋 Мои заказы",
+            "👤 Profil", "👤 Профиль", "📞 Operator bilan bog'lanish", "📞 Связаться с оператором",
+            "❓ Yordam", "❓ Помощь", "🌐 Til o'zgartirish", "🌐 Изменить язык", "🏠 Asosiy menyu", "🏠 Главное меню"
+        ]
+        if message.text not in known_texts:
             user = await get_user_by_telegram_id(message.from_user.id)
             lang = user.get('language', 'uz')
             sent_message = await message.answer(

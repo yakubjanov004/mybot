@@ -1,17 +1,17 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
-
+from filters.role_filter import RoleFilter
+from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, update_user_language
 from keyboards.controllers_buttons import language_keyboard, controllers_main_menu
 from states.controllers_states import ControllersStates
 from utils.logger import logger
 
 def get_controller_language_router():
-    router = Router()
+    router = get_role_router("controller")
 
-    @router.message(F.text.in_(["🌐 Til o'zgartirish", "�� Изменить язык"]))
+    @router.message(F.text.in_(["🌐 Til o'zgartirish", "🌐 Изменить язык"]))
     async def change_language_menu(message: Message, state: FSMContext):
         """Til o'zgartirish menyusi"""
         user = await get_user_by_telegram_id(message.from_user.id)

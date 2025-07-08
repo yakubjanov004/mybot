@@ -1,18 +1,18 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
-
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import get_call_center_dashboard_stats
 from keyboards.call_center_buttons import call_center_main_menu_reply
 from states.call_center import CallCenterStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_call_center_main_menu_router():
-    router = Router()
+    router = get_role_router("call_center")
 
-    @router.message(F.text.in_(["📞 Call Center", "�� Колл-центр"]))
+    @router.message(F.text.in_(["📞 Call Center", " Колл-центр"]))
     async def call_center_start(message: Message, state: FSMContext):
         """Call center main menu"""
         user = await get_user_by_telegram_id(message.from_user.id)

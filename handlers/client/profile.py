@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -11,10 +11,11 @@ from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
 from utils.role_checks import client_only
 from loader import inline_message_manager
+from utils.role_router import get_role_router
 
 def get_client_profile_router():
     logger = setup_logger('bot.client')
-    router = Router()
+    router = get_role_router("client")
 
     @client_only
     @router.message(StateFilter(UserStates.main_menu), F.text.in_(['👤 Profil', '👤 Профиль']))

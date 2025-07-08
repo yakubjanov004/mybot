@@ -10,6 +10,10 @@ class AdminStates(StatesGroup):
     editing_user = State()
     user_roles = State()
     
+    # Order management states
+    filtering = State()
+    filtering_selected = State()
+    
     # System management states
     system_menu = State()
     system_stats = State()
@@ -114,3 +118,5 @@ class AdminStates(StatesGroup):
     change_role = State()
     blocking = State()
     change_language = State()
+    waiting_for_search_method = State()
+    waiting_for_role_change_id = State()

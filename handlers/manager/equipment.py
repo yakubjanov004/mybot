@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
@@ -8,10 +8,11 @@ from states.manager_states import ManagerStates
 from loader import bot
 from database.base_queries import get_user_by_telegram_id
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_equipment_router():
     logger = setup_logger('bot.manager.equipment')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(['🔧 Jihozlar', '🔧 Оборудование']))
     async def show_equipment_menu(message: Message, state: FSMContext):
@@ -166,7 +167,7 @@ def get_manager_equipment_router():
                     maintenance_text = "🔧 <b>Texnik xizmat jadvali:</b>\n\n"
                     
                     for eq in maintenance_list:
-                        status_emoji = "��" if eq.get('status') == 'maintenance' else "🟡"
+                        status_emoji = "🟡"
                         maintenance_text += (
                             f"{status_emoji} <b>{eq.get('name', 'Noma\'lum')}</b>\n"
                             f"   📍 Joylashuv: {eq.get('location', '-')}\n"
@@ -177,7 +178,7 @@ def get_manager_equipment_router():
                     maintenance_text = "🔧 <b>График технического обслуживания:</b>\n\n"
                     
                     for eq in maintenance_list:
-                        status_emoji = "🔴" if eq.get('status') == 'maintenance' else "🟡"
+                        status_emoji = "🟡"
                         maintenance_text += (
                             f"{status_emoji} <b>{eq.get('name', 'Неизвестно')}</b>\n"
                             f"   📍 Расположение: {eq.get('location', '-')}\n"

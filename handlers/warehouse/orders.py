@@ -1,7 +1,6 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-
 from database.warehouse_queries import (
     get_warehouse_user_by_telegram_id, get_pending_warehouse_orders,
     get_in_progress_warehouse_orders, get_completed_warehouse_orders,
@@ -10,9 +9,10 @@ from database.warehouse_queries import (
 from keyboards.warehouse_buttons import orders_menu, order_status_keyboard
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
+from utils.role_router import get_role_router
 
 def get_warehouse_orders_router():
-    router = Router()
+    router = get_role_router("warehouse")
 
     @router.message(F.text.in_(["📋 Buyurtmalar boshqaruvi", "📋 Управление заказами"]))
     async def orders_management_handler(message: Message, state: FSMContext):
@@ -263,7 +263,7 @@ def get_warehouse_orders_router():
                 for order in orders:
                     text += f"🔹 **#{order['id']}** - {order.get('client_name', 'Noma\'lum')}\n"
                     text += f"   📝 {order['description'][:50]}{'...' if len(order['description']) > 50 else ''}\n"
-                    text += f"   �� {order['created_at'].strftime('%d.%m.%Y %H:%M') if order['created_at'] else 'N/A'}\n"
+                    text += f"   📅 {order['created_at'].strftime('%d.%m.%Y %H:%M') if order['created_at'] else 'N/A'}\n"
                     if order.get('technician_name'):
                         text += f"   👨‍🔧 {order['technician_name']}\n"
                     if order.get('client_phone'):

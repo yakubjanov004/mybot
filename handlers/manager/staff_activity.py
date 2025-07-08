@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, date, timedelta
@@ -8,10 +8,11 @@ from database.manager_queries import get_online_staff, get_staff_performance, ge
 from database.base_queries import get_user_by_telegram_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
+from utils.role_router import get_role_router
 
 def get_manager_staff_activity_router():
     logger = setup_logger('bot.manager.staff_activity')
-    router = Router()
+    router = get_role_router("manager")
 
     @router.message(F.text.in_(['👥 Xodimlar faolligi', '👥 Активность сотрудников']))
     async def show_staff_activity_menu(message: Message, state: FSMContext):

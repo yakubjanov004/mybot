@@ -1,9 +1,8 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import StateFilter
-from datetime import datetime, timedelta
-
+from filters.role_filter import RoleFilter
+from utils.role_router import get_role_router
 from database.queries import (
     UserQueries,
     OrderQueries,
@@ -12,9 +11,10 @@ from database.queries import (
 from keyboards.controllers_buttons import reports_menu, back_to_controllers_menu
 from states.controllers_states import ControllersStates
 from utils.logger import logger
+from datetime import datetime, timedelta
 
 def get_controller_reports_router():
-    router = Router()
+    router = get_role_router("controller")
 
     @router.message(F.text.in_(["📊 Hisobotlar", "📊 Отчеты"]))
     async def reports_menu_handler(message: Message, state: FSMContext):

@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
@@ -10,11 +10,12 @@ from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.get_lang import get_user_lang
 from loader import bot
+from utils.role_router import get_role_router
 import functools
 
 def get_technician_help_router():
     logger = setup_logger('bot.technician.help')
-    router = Router()
+    router = get_role_router("technician")
 
     def require_technician(func):
         @functools.wraps(func)
