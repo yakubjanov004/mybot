@@ -6,7 +6,7 @@ from database.warehouse_queries import (
     get_in_progress_warehouse_orders, get_completed_warehouse_orders,
     update_order_status_warehouse, mark_order_ready_for_installation
 )
-from keyboards.warehouse_buttons import orders_menu, order_status_keyboard
+from keyboards.warehouse_buttons import warehouse_orders_menu, order_status_keyboard
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
 from utils.role_router import get_role_router
@@ -14,7 +14,7 @@ from utils.role_router import get_role_router
 def get_warehouse_orders_router():
     router = get_role_router("warehouse")
 
-    @router.message(F.text.in_(["📋 Buyurtmalar boshqaruvi", "📋 Управление заказами"]))
+    @router.message(F.text.in_(["📋 Buyurtmalar", "📋 Заказы"]))
     async def orders_management_handler(message: Message, state: FSMContext):
         """Handle orders management"""
         try:
@@ -23,16 +23,99 @@ def get_warehouse_orders_router():
                 return
             
             lang = user.get('language', 'uz')
-            orders_text = "📋 Buyurtmalar boshqaruvi" if lang == 'uz' else "📋 Управление заказами"
+            orders_text = "📋 Buyurtmalar" if lang == 'uz' else "📋 Заказы"
             
             await message.answer(
                 orders_text,
-                reply_markup=orders_menu(lang)
+                reply_markup=warehouse_orders_menu(lang)
             )
             await state.set_state(WarehouseStates.orders_menu)
             
         except Exception as e:
             logger.error(f"Error in orders management: {str(e)}")
+
+    @router.message(F.text.in_(["⏳ Kutilayotgan buyurtmalar"]))
+    async def pending_orders_reply_handler(message: Message, state: FSMContext):
+        """Reply tugmasi orqali kutilayotgan buyurtmalarni ko'rsatish"""
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        orders = await get_pending_warehouse_orders()
+        if orders:
+            text = "⏳ Kutilayotgan buyurtmalar:\n\n"
+            for order in orders:
+                text += f"🔹 #{order['id']} - {order.get('client_name', 'Noma\'lum')}\n"
+                text += f"   📝 {order['description'][:50]}{'...' if len(order['description']) > 50 else ''}\n"
+                text += f"   📅 {order['created_at'].strftime('%d.%m.%Y %H:%M') if order['created_at'] else 'N/A'}\n"
+                text += f"   📊 Status: {order['status']}\n"
+                if order.get('client_phone'):
+                    text += f"   📞 {order['client_phone']}\n"
+                text += "\n"
+                if len(text) > 3500:
+                    text += "... va boshqalar"
+                    break
+        else:
+            text = "📭 Kutilayotgan buyurtmalar yo'q"
+        await message.answer(text, reply_markup=warehouse_orders_menu(lang))
+        await state.set_state(WarehouseStates.orders_menu)
+
+    @router.message(F.text.in_(["🔄 Jarayondagi buyurtmalar"]))
+    async def in_progress_orders_reply_handler(message: Message, state: FSMContext):
+        """Reply tugmasi orqali jarayondagi buyurtmalarni ko'rsatish"""
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        orders = await get_in_progress_warehouse_orders()
+        if orders:
+            text = "🔄 Jarayondagi buyurtmalar:\n\n"
+            for order in orders:
+                text += f"🔹 #{order['id']} - {order.get('client_name', 'Noma\'lum')}\n"
+                text += f"   📝 {order['description'][:50]}{'...' if len(order['description']) > 50 else ''}\n"
+                text += f"   👨‍🔧 Texnik: {order.get('technician_name', 'Tayinlanmagan')}\n"
+                text += f"   📅 {order['created_at'].strftime('%d.%m.%Y %H:%M') if order['created_at'] else 'N/A'}\n"
+                text += f"   📊 Status: {order['status']}\n"
+                if order.get('client_phone'):
+                    text += f"   📞 {order['client_phone']}\n"
+                text += "\n"
+                if len(text) > 3500:
+                    text += "... va boshqalar"
+                    break
+        else:
+            text = "📭 Jarayondagi buyurtmalar yo'q"
+        await message.answer(text, reply_markup=warehouse_orders_menu(lang))
+        await state.set_state(WarehouseStates.orders_menu)
+
+    @router.message(F.text.in_(["✅ Bajarilgan buyurtmalar"]))
+    async def completed_orders_reply_handler(message: Message, state: FSMContext):
+        """Reply tugmasi orqali bajarilgan buyurtmalarni ko'rsatish"""
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        orders = await get_completed_warehouse_orders(10)
+        if orders:
+            text = "✅ Bajarilgan buyurtmalar:\n\n"
+            for order in orders:
+                text += f"🔹 #{order['id']} - {order.get('client_name', 'Noma\'lum')}\n"
+                text += f"   📝 {order['description'][:50]}{'...' if len(order['description']) > 50 else ''}\n"
+                text += f"   👨‍🔧 Texnik: {order.get('technician_name', 'Noma\'lum')}\n"
+                text += f"   📅 Yaratilgan: {order['created_at'].strftime('%d.%m.%Y') if order['created_at'] else 'N/A'}\n"
+                text += f"   ✅ Tugallangan: {order['completed_at'].strftime('%d.%m.%Y') if order['completed_at'] else 'N/A'}\n"
+                if order.get('client_phone'):
+                    text += f"   📞 {order['client_phone']}\n"
+                text += "\n"
+                if len(text) > 3500:
+                    text += "... va boshqalar"
+                    break
+        else:
+            text = "📭 Bajarilgan buyurtmalar yo'q"
+        await message.answer(text, reply_markup=warehouse_orders_menu(lang))
+        await state.set_state(WarehouseStates.orders_menu)
+
+    @router.message(F.text.in_(["◀️ Orqaga"]))
+    async def orders_back_reply_handler(message: Message, state: FSMContext):
+        """Buyurtmalar menyusidan orqaga qaytish"""
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        from keyboards.warehouse_buttons import warehouse_main_menu
+        await message.answer("Ombor bosh menyusi", reply_markup=warehouse_main_menu(lang))
+        await state.set_state(WarehouseStates.main_menu)
 
     @router.callback_query(F.data == "pending_orders")
     async def pending_orders_handler(callback: CallbackQuery, state: FSMContext):

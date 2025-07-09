@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from filters.role_filter import RoleFilter
 from utils.role_router import get_role_router
-from database.base_queries import get_user_by_telegram_id, assign_zayavka_to_technician, get_all_technicians
+from database.base_queries import get_user_by_telegram_id, assign_zayavka_to_technician, get_all_technicians, get_orders_by_status
 from keyboards.controllers_buttons import (
     technicians_menu, technician_assignment_keyboard, back_to_controllers_menu
 )

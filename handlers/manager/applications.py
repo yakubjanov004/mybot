@@ -3,16 +3,20 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from datetime import datetime
+from loader import bot
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
 from keyboards.manager_buttons import (
     zayavka_type_keyboard, media_attachment_keyboard, geolocation_keyboard,
-    confirmation_keyboard, get_manager_main_keyboard
+    confirmation_keyboard, get_manager_main_keyboard, get_manager_view_applications_keyboard
 )
 from database.base_queries import get_user_by_telegram_id
 from states.manager_states import ManagerStates
 from database.base_queries import get_user_lang, create_zayavka
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
+from database.technician_queries import get_available_technicians
+from database.manager_queries import assign_technician_to_order
+from keyboards.manager_buttons import get_assign_technician_keyboard
 
 def get_manager_applications_router():
     logger = setup_logger('bot.manager.applications')
@@ -404,110 +408,14 @@ def get_manager_applications_router():
 
     @router.message(F.text.in_(["📋 Arizalarni ko'rish", "📋 Просмотр заявок"]))
     async def view_applications(message: Message, state: FSMContext):
-        """Manager: View all applications with pagination and full info"""
-        try:
-            await safe_delete_message(message.bot, message.chat.id, message.message_id)
-            user = await get_user_by_telegram_id(message.from_user.id)
-            if not user or user['role'] != 'manager':
-                return
-            lang = user.get('language', 'uz')
-            page = 1
-            per_page = 5
-            await state.update_data(manager_apps_page=page)
-            conn = await bot.db.acquire()
-            try:
-                total = await conn.fetchval('SELECT COUNT(*) FROM zayavki')
-                if not total or total == 0:
-                    no_apps_text = "❗️ Hozircha arizalar yo'q." if lang == 'uz' else "❗️ Пока нет заявок."
-                    await message.answer(no_apps_text)
-                    return
-                offset = (page - 1) * per_page
-                apps = await conn.fetch(
-                    '''SELECT z.*, u.full_name as client_name, u.phone_number as client_phone, t.full_name as technician_name
-                       FROM zayavki z
-                       LEFT JOIN users u ON z.user_id = u.id
-                       LEFT JOIN users t ON z.assigned_to = t.id
-                       ORDER BY z.created_at DESC
-                       LIMIT $1 OFFSET $2''',
-                    per_page, offset
-                )
-                for app in apps:
-                    status_emoji = {
-                        'new': '🆕',
-                        'confirmed': '✅',
-                        'in_progress': '⏳',
-                        'completed': '🏁',
-                        'cancelled': '❌'
-                    }.get(app['status'], '📋')
-                    if lang == 'uz':
-                        status_text = {
-                            'new': '🆕 Yangi',
-                            'confirmed': '✅ Tasdiqlangan',
-                            'in_progress': '⏳ Jarayonda',
-                            'completed': '🏁 Bajarilgan',
-                            'cancelled': '❌ Bekor qilingan'
-                        }.get(app['status'], app['status'])
-                        tech = app.get('technician_name') or "🧑‍🔧 Tayinlanmagan"
-                        info = (
-                            f"📄 <b>Zayavka raqami:</b> #{app['id']} {status_emoji}\n"
-                            f"👤 <b>Mijoz:</b> {app.get('client_name') or 'Noma\'lum'}\n"
-                            f"📞 <b>Telefon:</b> {app.get('client_phone') or '-'}\n"
-                            f"📍 <b>Manzil:</b> {app.get('address') or '-'}\n"
-                            f"📝 <b>Tavsif:</b> {app.get('description') or '-'}\n"
-                            f"📊 <b>Status:</b> {status_text}\n"
-                            f"🧑‍🔧 <b>Texnik:</b> {tech}\n"
-                            f"🕒 <b>Yaratilgan:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
-                            f"📅 <b>Biriktirilgan:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
-                            f"✅ <b>Yakunlangan:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
-                        )
-                    else:
-                        status_text = {
-                            'new': '🆕 Новая',
-                            'confirmed': '✅ Подтверждена',
-                            'in_progress': '⏳ В процессе',
-                            'completed': '🏁 Выполнена',
-                            'cancelled': '❌ Отменена'
-                        }.get(app['status'], app['status'])
-                        tech = app.get('technician_name') or "🧑‍🔧 Не назначен"
-                        info = (
-                            f"📄 <b>Номер заявки:</b> #{app['id']} {status_emoji}\n"
-                            f"👤 <b>Клиент:</b> {app.get('client_name') or 'Неизвестно'}\n"
-                            f"📞 <b>Телефон:</b> {app.get('client_phone') or '-'}\n"
-                            f"📍 <b>Адрес:</b> {app.get('address') or '-'}\n"
-                            f"📝 <b>Описание:</b> {app.get('description') or '-'}\n"
-                            f"📊 <b>Статус:</b> {status_text}\n"
-                            f"🧑‍🔧 <b>Техник:</b> {tech}\n"
-                            f"🕒 <b>Создано:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
-                            f"📅 <b>Назначено:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
-                            f"✅ <b>Завершено:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
-                        )
-                    if app.get('media'):
-                        await message.answer_photo(photo=app['media'], caption=info, parse_mode='HTML')
-                    else:
-                        await message.answer(info, parse_mode='HTML')
-                # Pagination buttons
-                total_pages = (total + per_page - 1) // per_page
-                buttons = []
-                if page > 1:
-                    buttons.append(InlineKeyboardButton(
-                        text="⬅️ Oldingi" if lang == 'uz' else "◀️ Предыдущая",
-                        callback_data=f"manager_apps_page_{page-1}"
-                    ))
-                if page < total_pages:
-                    buttons.append(InlineKeyboardButton(
-                        text="Keyingi ➡️" if lang == 'uz' else "Следующая ▶️",
-                        callback_data=f"manager_apps_page_{page+1}"
-                    ))
-                if buttons:
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[buttons])
-                    page_text = f"📄 {page*per_page if page*per_page <= total else total}/{total}"
-                    await message.answer(page_text, reply_markup=keyboard)
-            finally:
-                await conn.release()
-        except Exception as e:
-            logger.error(f"Error in view_applications: {str(e)}", exc_info=True)
-            error_text = "❗️ Xatolik yuz berdi" if lang == 'uz' else "❗️ Произошла ошибка"
-            await message.answer(error_text)
+        """Manager: Show view options for applications (all, by ID, back)"""
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        await message.answer(
+            "Arizalarni ko'rish usulini tanlang:" if lang == 'uz' else 'Выберите способ просмотра заявок:',
+            reply_markup=get_manager_view_applications_keyboard(lang)
+        )
+        await state.clear()
 
     # Pagination callback for manager applications
     @router.callback_query(lambda c: c.data.startswith('manager_apps_page_'))
@@ -611,10 +519,351 @@ def get_manager_applications_router():
                     await callback.message.answer(page_text, reply_markup=keyboard)
                 await callback.answer()
             finally:
-                await conn.release()
+                await bot.db.release(conn)
         except Exception as e:
             logger.error(f"Error in manager_apps_page_callback: {str(e)}", exc_info=True)
             error_text = "❗️ Xatolik yuz berdi" if lang == 'uz' else "❗️ Произошла ошибка"
             await callback.message.answer(error_text)
+
+    @router.message(F.text.in_(["📋 Hammasini ko'rish", "📋 Посмотреть все"]))
+    async def manager_view_all_applications(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        page = 1
+        per_page = 5
+        conn = await bot.db.acquire()
+        try:
+            total = await conn.fetchval('SELECT COUNT(*) FROM zayavki')
+            if not total or total == 0:
+                no_apps_text = "❗️ Hozircha arizalar yo'q." if lang == 'uz' else "❗️ Пока нет заявок."
+                await message.answer(no_apps_text)
+                return
+            offset = (page - 1) * per_page
+            apps = await conn.fetch(
+                '''SELECT z.*, u.full_name as client_name, u.phone_number as client_phone, t.full_name as technician_name
+                   FROM zayavki z
+                   LEFT JOIN users u ON z.user_id = u.id
+                   LEFT JOIN users t ON z.assigned_to = t.id
+                   ORDER BY z.created_at DESC
+                   LIMIT $1 OFFSET $2''',
+                per_page, offset
+            )
+            start = offset + 1
+            end = offset + len(apps)
+            header = f"📋 Ko'rsatilmoqda: {start}-{end} / {total}" if lang == 'uz' else f"📋 Показывается: {start}-{end} / {total}"
+            text = header + "\n\n"
+            for app in apps:
+                status_emoji = {
+                    'new': '🆕',
+                    'confirmed': '✅',
+                    'in_progress': '⏳',
+                    'completed': '🏁',
+                    'cancelled': '❌'
+                }.get(app['status'], '📋')
+                if lang == 'uz':
+                    status_text = {
+                        'new': '🆕 Yangi',
+                        'confirmed': '✅ Tasdiqlangan',
+                        'in_progress': '⏳ Jarayonda',
+                        'completed': '🏁 Bajarilgan',
+                        'cancelled': '❌ Bekor qilingan'
+                    }.get(app['status'], app['status'])
+                    tech = app.get('technician_name') or "🧑‍🔧 Tayinlanmagan"
+                    info = (
+                        f"📄 <b>Zayavka raqami:</b> #{app['id']} {status_emoji}\n"
+                        f"👤 <b>Mijoz:</b> {app.get('client_name') or 'Noma\'lum'}\n"
+                        f"📞 <b>Telefon:</b> {app.get('client_phone') or '-'}\n"
+                        f"📍 <b>Manzil:</b> {app.get('address') or '-'}\n"
+                        f"📝 <b>Tavsif:</b> {app.get('description') or '-'}\n"
+                        f"📊 <b>Status:</b> {status_text}\n"
+                        f"🧑‍🔧 <b>Texnik:</b> {tech}\n"
+                        f"🕒 <b>Yaratilgan:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                        f"📅 <b>Biriktirilgan:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
+                        f"✅ <b>Yakunlangan:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
+                    )
+                else:
+                    status_text = {
+                        'new': '🆕 Новая',
+                        'confirmed': '✅ Подтверждена',
+                        'in_progress': '⏳ В процессе',
+                        'completed': '🏁 Выполнена',
+                        'cancelled': '❌ Отменена'
+                    }.get(app['status'], app['status'])
+                    tech = app.get('technician_name') or "🧑‍🔧 Не назначен"
+                    info = (
+                        f"📄 <b>Номер заявки:</b> #{app['id']} {status_emoji}\n"
+                        f"👤 <b>Клиент:</b> {app.get('client_name') or 'Неизвестно'}\n"
+                        f"📞 <b>Телефон:</b> {app.get('client_phone') or '-'}\n"
+                        f"📍 <b>Адрес:</b> {app.get('address') or '-'}\n"
+                        f"📝 <b>Описание:</b> {app.get('description') or '-'}\n"
+                        f"📊 <b>Статус:</b> {status_text}\n"
+                        f"🧑‍🔧 <b>Техник:</b> {tech}\n"
+                        f"🕒 <b>Создано:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                        f"📅 <b>Назначено:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
+                        f"✅ <b>Завершено:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
+                    )
+                text += info + "\n-----------------------------\n"
+            total_pages = (total + per_page - 1) // per_page
+            buttons = []
+            if total > per_page:
+                if page > 1:
+                    buttons.append(InlineKeyboardButton(
+                        text="⬅️ Oldingi" if lang == 'uz' else "◀️ Предыдущая",
+                        callback_data=f"manager_apps_page_{page-1}"
+                    ))
+                if page < total_pages:
+                    buttons.append(InlineKeyboardButton(
+                        text="Keyingi ➡️" if lang == 'uz' else "Следующая ▶️",
+                        callback_data=f"manager_apps_page_{page+1}"
+                    ))
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=[buttons]) if buttons else None
+            sent = await message.answer(text, parse_mode='HTML', reply_markup=reply_markup)
+            await state.update_data(last_apps_message_id=sent.message_id)
+        finally:
+            await bot.db.release(conn)
+        await state.set_state(ManagerStates.viewing_applications)
+
+    @router.message(F.text.in_(["🔎 ID bo'yicha ko'rish", "🔎 По ID"]))
+    async def manager_view_by_id_start(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        await message.answer(
+            "Ariza raqamini kiriting (masalan, 123 yoki #123):" if lang == 'uz' else "Введите номер заявки (например, 123 или #123):"
+        )
+        await state.set_state(ManagerStates.application_details)
+
+    @router.message(StateFilter(ManagerStates.application_details))
+    async def manager_view_by_id_process(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        app_id_text = message.text.strip().replace('#', '')
+        if not app_id_text.isdigit():
+            await message.answer("❗️ Noto'g'ri format. Faqat raqam kiriting." if lang == 'uz' else "❗️ Неверный формат. Введите только число.")
+            return
+        app_id = int(app_id_text)
+        conn = await bot.db.acquire()
+        try:
+            app = await conn.fetchrow(
+                '''SELECT z.*, u.full_name as client_name, u.phone_number as client_phone, t.full_name as technician_name
+                   FROM zayavki z
+                   LEFT JOIN users u ON z.user_id = u.id
+                   LEFT JOIN users t ON z.assigned_to = t.id
+                   WHERE z.id = $1''',
+                app_id
+            )
+            if not app:
+                await message.answer(f"❌ #{app_id} raqamli ariza topilmadi." if lang == 'uz' else f"❌ Заявка #{app_id} не найдена.")
+                return
+            status_emoji = {
+                'new': '🆕',
+                'confirmed': '✅',
+                'in_progress': '⏳',
+                'completed': '🏁',
+                'cancelled': '❌'
+            }.get(app['status'], '📋')
+            if lang == 'uz':
+                status_text = {
+                    'new': '🆕 Yangi',
+                    'confirmed': '✅ Tasdiqlangan',
+                    'in_progress': '⏳ Jarayonda',
+                    'completed': '🏁 Bajarilgan',
+                    'cancelled': '❌ Bekor qilingan'
+                }.get(app['status'], app['status'])
+                tech = app.get('technician_name') or "🧑‍🔧 Tayinlanmagan"
+                info = (
+                    f"📄 <b>Zayavka raqami:</b> #{app['id']} {status_emoji}\n"
+                    f"👤 <b>Mijoz:</b> {app.get('client_name') or 'Noma\'lum'}\n"
+                    f"📞 <b>Telefon:</b> {app.get('client_phone') or '-'}\n"
+                    f"📍 <b>Manzil:</b> {app.get('address') or '-'}\n"
+                    f"📝 <b>Tavsif:</b> {app.get('description') or '-'}\n"
+                    f"📊 <b>Status:</b> {status_text}\n"
+                    f"🧑‍🔧 <b>Texnik:</b> {tech}\n"
+                    f"🕒 <b>Yaratilgan:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                    f"📅 <b>Biriktirilgan:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
+                    f"✅ <b>Yakunlangan:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
+                )
+            else:
+                status_text = {
+                    'new': '🆕 Новая',
+                    'confirmed': '✅ Подтверждена',
+                    'in_progress': '⏳ В процессе',
+                    'completed': '🏁 Выполнена',
+                    'cancelled': '❌ Отменена'
+                }.get(app['status'], app['status'])
+                tech = app.get('technician_name') or "🧑‍🔧 Не назначен"
+                info = (
+                    f"📄 <b>Номер заявки:</b> #{app['id']} {status_emoji}\n"
+                    f"👤 <b>Клиент:</b> {app.get('client_name') or 'Неизвестно'}\n"
+                    f"📞 <b>Телефон:</b> {app.get('client_phone') or '-'}\n"
+                    f"📍 <b>Адрес:</b> {app.get('address') or '-'}\n"
+                    f"📝 <b>Описание:</b> {app.get('description') or '-'}\n"
+                    f"📊 <b>Статус:</b> {status_text}\n"
+                    f"🧑‍🔧 <b>Техник:</b> {tech}\n"
+                    f"🕒 <b>Создано:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                    f"📅 <b>Назначено:</b> {app.get('assigned_at').strftime('%d.%m.%Y %H:%M') if app.get('assigned_at') else '-'}\n"
+                    f"✅ <b>Завершено:</b> {app.get('completed_at').strftime('%d.%m.%Y %H:%M') if app.get('completed_at') else '-'}\n"
+                )
+            await message.answer(info, parse_mode='HTML')
+        finally:
+            await bot.db.release(conn)
+        await state.clear()
+
+    @router.message(F.text.in_(["👨‍🔧 Texnik biriktirish", "👨‍🔧 Назначить техника"]))
+    async def manager_assign_technician_start(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        await message.answer(
+            "Ariza raqamini kiriting (masalan, 123 yoki #123):" if lang == 'uz' else "Введите номер заявки (например, 123 или #123):"
+        )
+        await state.set_state(ManagerStates.entering_application_id_for_assignment)
+
+    @router.message(StateFilter(ManagerStates.entering_application_id_for_assignment))
+    async def manager_assign_technician_id(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        app_id_text = message.text.strip().replace('#', '')
+        if not app_id_text.isdigit():
+            await message.answer("❗️ Noto'g'ri format. Faqat raqam kiriting." if lang == 'uz' else "❗️ Неверный формат. Введите только число.")
+            return
+        app_id = int(app_id_text)
+        conn = await bot.db.acquire()
+        try:
+            app = await conn.fetchrow(
+                '''SELECT z.*, u.full_name as client_name, u.phone_number as client_phone
+                   FROM zayavki z
+                   LEFT JOIN users u ON z.user_id = u.id
+                   WHERE z.id = $1''',
+                app_id
+            )
+            if not app:
+                await message.answer(f"❌ #{app_id} raqamli ariza topilmadi." if lang == 'uz' else f"❌ Заявка #{app_id} не найдена.")
+                return
+            # Ariza info
+            status_emoji = {
+                'new': '🆕',
+                'confirmed': '✅',
+                'in_progress': '⏳',
+                'completed': '🏁',
+                'cancelled': '❌'
+            }.get(app['status'], '📋')
+            if lang == 'uz':
+                status_text = {
+                    'new': '🆕 Yangi',
+                    'confirmed': '✅ Tasdiqlangan',
+                    'in_progress': '⏳ Jarayonda',
+                    'completed': '🏁 Bajarilgan',
+                    'cancelled': '❌ Bekor qilingan'
+                }.get(app['status'], app['status'])
+                info = (
+                    f"📄 <b>Zayavka raqami:</b> #{app['id']} {status_emoji}\n"
+                    f"👤 <b>Mijoz:</b> {app.get('client_name') or 'Noma\'lum'}\n"
+                    f"📞 <b>Telefon:</b> {app.get('client_phone') or '-'}\n"
+                    f"📍 <b>Manzil:</b> {app.get('address') or '-'}\n"
+                    f"📝 <b>Tavsif:</b> {app.get('description') or '-'}\n"
+                    f"📊 <b>Status:</b> {status_text}\n"
+                    f"🕒 <b>Yaratilgan:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                )
+            else:
+                status_text = {
+                    'new': '🆕 Новая',
+                    'confirmed': '✅ Подтверждена',
+                    'in_progress': '⏳ В процессе',
+                    'completed': '🏁 Выполнена',
+                    'cancelled': '❌ Отменена'
+                }.get(app['status'], app['status'])
+                info = (
+                    f"📄 <b>Номер заявки:</b> #{app['id']} {status_emoji}\n"
+                    f"👤 <b>Клиент:</b> {app.get('client_name') or 'Неизвестно'}\n"
+                    f"📞 <b>Телефон:</b> {app.get('client_phone') or '-'}\n"
+                    f"📍 <b>Адрес:</b> {app.get('address') or '-'}\n"
+                    f"📝 <b>Описание:</b> {app.get('description') or '-'}\n"
+                    f"📊 <b>Статус:</b> {status_text}\n"
+                    f"🕒 <b>Создано:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                )
+            # Texniklar ro'yxati
+            technicians = await get_available_technicians(conn)
+            if not technicians:
+                await message.answer("❗️ Texniklar topilmadi." if lang == 'uz' else "❗️ Нет доступных техников.")
+                return
+            await message.answer(
+                info,
+                parse_mode='HTML',
+                reply_markup=get_assign_technician_keyboard(app_id, technicians, lang)
+            )
+        finally:
+            await bot.db.release(conn)
+        await state.clear()
+
+    @router.callback_query(lambda c: c.data.startswith('manager_assign_zayavka_'))
+    async def manager_assign_technician_callback(callback: CallbackQuery, state: FSMContext):
+        # callback_data: manager_assign_zayavka_{app_id}_{tech_id}
+        parts = callback.data.split('_')
+        app_id = int(parts[3])
+        tech_id = int(parts[4])
+        user = await get_user_by_telegram_id(callback.from_user.id)
+        lang = user.get('language', 'uz') if user else 'uz'
+        conn = await bot.db.acquire()
+        try:
+            success = await assign_technician_to_order(app_id, tech_id, bot.db)
+            if success:
+                app = await conn.fetchrow(
+                    '''SELECT z.*, u.full_name as client_name, u.phone_number as client_phone, t.full_name as technician_name
+                       FROM zayavki z
+                       LEFT JOIN users u ON z.user_id = u.id
+                       LEFT JOIN users t ON z.assigned_to = t.id
+                       WHERE z.id = $1''',
+                    app_id
+                )
+                status_emoji = {
+                    'new': '🆕',
+                    'confirmed': '✅',
+                    'in_progress': '⏳',
+                    'completed': '🏁',
+                    'cancelled': '❌'
+                }.get(app['status'], '📋')
+                if lang == 'uz':
+                    status_text = {
+                        'new': '🆕 Yangi',
+                        'confirmed': '✅ Tasdiqlangan',
+                        'in_progress': '⏳ Jarayonda',
+                        'completed': '🏁 Bajarilgan',
+                        'cancelled': '❌ Bekor qilingan'
+                    }.get(app['status'], app['status'])
+                    info = (
+                        f"✅ <b>Texnik biriktirildi!</b>\n"
+                        f"📄 <b>Zayavka raqami:</b> #{app['id']} {status_emoji}\n"
+                        f"👤 <b>Mijoz:</b> {app.get('client_name') or 'Noma\'lum'}\n"
+                        f"📞 <b>Telefon:</b> {app.get('client_phone') or '-'}\n"
+                        f"📍 <b>Manzil:</b> {app.get('address') or '-'}\n"
+                        f"📝 <b>Tavsif:</b> {app.get('description') or '-'}\n"
+                        f"📊 <b>Status:</b> {status_text}\n"
+                        f"🧑‍🔧 <b>Texnik:</b> {app.get('technician_name') or '-'}\n"
+                        f"🕒 <b>Yaratilgan:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                    )
+                else:
+                    status_text = {
+                        'new': '🆕 Новая',
+                        'confirmed': '✅ Подтверждена',
+                        'in_progress': '⏳ В процессе',
+                        'completed': '🏁 Выполнена',
+                        'cancelled': '❌ Отменена'
+                    }.get(app['status'], app['status'])
+                    info = (
+                        f"✅ <b>Техник назначен!</b>\n"
+                        f"📄 <b>Номер заявки:</b> #{app['id']} {status_emoji}\n"
+                        f"👤 <b>Клиент:</b> {app.get('client_name') or 'Неизвестно'}\n"
+                        f"📞 <b>Телефон:</b> {app.get('client_phone') or '-'}\n"
+                        f"📍 <b>Адрес:</b> {app.get('address') or '-'}\n"
+                        f"📝 <b>Описание:</b> {app.get('description') or '-'}\n"
+                        f"📊 <b>Статус:</b> {status_text}\n"
+                        f"🧑‍🔧 <b>Техник:</b> {app.get('technician_name') or '-'}\n"
+                        f"🕒 <b>Создано:</b> {app.get('created_at').strftime('%d.%m.%Y %H:%M') if app.get('created_at') else '-'}\n"
+                    )
+                await callback.message.edit_text(info, parse_mode='HTML')
+            else:
+                await callback.message.answer("❗️ Texnik biriktirishda xatolik." if lang == 'uz' else "❗️ Ошибка при назначении техника.")
+        finally:
+            await bot.db.release(conn)
+        await callback.answer()
 
     return router

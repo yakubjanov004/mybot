@@ -19,37 +19,17 @@ def get_manager_orders_router():
             await message.answer(text)
         except Exception as e:
             logger.error(f"Error in manager_create_order: {e}")
+    
 
-    @router.message(F.text.in_(["📋 Arizalarni ko'rish", "📋 Просмотр заявок"]))
-    async def manager_orders_list(message: Message):
-        """Manager orders list"""
-        try:
-            lang = await get_user_lang(message.from_user.id)
-            text = "📋 Manager: Mening arizalarim ro'yxati" if lang == 'uz' else "📋 Менеджер: Список моих заявок"
-            await message.answer(text)
-        except Exception as e:
-            logger.error(f"Error in manager_orders_list: {e}")
-
-
-    @router.message(F.text.in_(["🔄 Status o'zgartirish", "🔄 Изменить статус"]))
-    async def manager_change_status(message: Message):
-        """Manager change order status"""
-        try:
-            lang = await get_user_lang(message.from_user.id)
-            text = "🔄 Manager: Ariza statusini o'zgartirish" if lang == 'uz' else "🔄 Менеджер: Изменение статуса заявки"
-            await message.answer(text)
-        except Exception as e:
-            logger.error(f"Error in manager_change_status: {e}")
-
-    @router.message(F.text.in_(["👨‍🔧 Texnik biriktirish", "👨‍🔧 Назначить техника"]))
-    async def manager_assign_technician(message: Message):
-        """Manager assign technician"""
-        try:
-            lang = await get_user_lang(message.from_user.id)
-            text = "👨‍🔧 Manager: Texnik biriktirish oynasi" if lang == 'uz' else "👨‍🔧 Менеджер: Окно назначения техника"
-            await message.answer(text)
-        except Exception as e:
-            logger.error(f"Error in manager_assign_technician: {e}")
+    # @router.message(F.text.in_(["👨‍🔧 Texnik biriktirish", "👨‍🔧 Назначить техника"]))
+    # async def manager_assign_technician(message: Message):
+    #     """Manager assign technician"""
+    #     try:
+    #         lang = await get_user_lang(message.from_user.id)
+    #         text = "👨‍🔧 Manager: Texnik biriktirish oynasi" if lang == 'uz' else "👨‍🔧 Менеджер: Окно назначения техника"
+    #         await message.answer(text)
+    #     except Exception as e:
+    #         logger.error(f"Error in manager_assign_technician: {e}")
 
     @router.message(F.text.in_(["📊 Hisobot yaratish", "📊 Создать отчет"]))
     async def manager_create_report(message: Message):

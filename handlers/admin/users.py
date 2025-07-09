@@ -523,6 +523,45 @@ def get_admin_users_router():
         except Exception as e:
             await message.answer("Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка.")
 
+    @router.message(AdminStates.waiting_for_role_change_phone)
+    @admin_only
+    async def process_role_change_phone(message: Message, state: FSMContext):
+        lang = await get_user_lang(message.from_user.id)
+        phone = message.text.strip()
+        # Search users by phone (partial match allowed)
+        from database.base_queries import search_users
+        users = await search_users(phone, limit=5)
+        if not users:
+            await message.answer("Foydalanuvchi topilmadi." if lang == 'uz' else "Пользователь не найден.")
+            return
+        if len(users) > 1:
+            # If multiple users found, show a list
+            text = ("Bir nechta foydalanuvchi topildi. Iltimos, aniq telefon raqamini kiriting yoki quyidagilardan tanlang:" if lang == 'uz'
+                    else "Найдено несколько пользователей. Пожалуйста, уточните номер или выберите из списка:")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text=f"{u.get('full_name', 'N/A')} ({u.get('phone_number', 'N/A')})",
+                    callback_data=f"change_role_{u['telegram_id']}"
+                )] for u in users
+            ])
+            await message.answer(text, reply_markup=keyboard)
+            return
+        user = users[0]
+        text = (
+            f"👤 <b>Foydalanuvchi:</b> {user.get('full_name', 'N/A')}\n"
+            f"�� <b>Telegram ID:</b> {user['telegram_id']}\n"
+            f"📱 <b>Telefon:</b> {user.get('phone_number', 'N/A')}\n"
+            f"🏷️ <b>Joriy rol:</b> {user.get('role', 'N/A')}\n\n"
+            f"Yangi rolni tanlang:" if lang == 'uz' else
+            f"👤 <b>Пользователь:</b> {user.get('full_name', 'N/A')}\n"
+            f"🆔 <b>Telegram ID:</b> {user['telegram_id']}\n"
+            f"📱 <b>Телефон:</b> {user.get('phone_number', 'N/A')}\n"
+            f"🏷️ <b>Текущая роль:</b> {user.get('role', 'N/A')}\n\n"
+            f"Выберите новую роль:"
+        )
+        await message.answer(text, reply_markup=roles_keyboard(user['telegram_id'], lang))
+        await state.clear()
+
     @router.message(F.text.in_(["◀️ Orqaga", "◀️ Назад"]))
     @admin_only
     async def back_to_admin_menu(message: Message, state: FSMContext):

@@ -54,4 +54,48 @@ async def get_technician_performance(pool: asyncpg.Pool) -> List[Dict[str, Any]]
             GROUP BY u.id, u.full_name
             ORDER BY completed_orders DESC
         """)
+        return [dict(row) for row in rows]
+
+async def get_recent_feedback(days: int = 7, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """So'nggi N kun ichidagi mijoz fikrlarini (feedback) qaytaradi"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    async with pool.acquire() as conn:
+        query = f"""
+            SELECT f.id, f.zayavka_id, f.user_id, u.full_name as user_name, f.rating, f.comment, f.created_at
+            FROM feedback f
+            LEFT JOIN users u ON f.user_id = u.id
+            WHERE f.created_at >= NOW() - INTERVAL '{days} days'
+            ORDER BY f.created_at DESC
+        """
+        rows = await conn.fetch(query)
         return [dict(row) for row in rows] 
+
+async def get_quality_trends(pool: asyncpg.Pool = None, period: str = 'monthly') -> List[Dict[str, Any]]:
+    """Get quality trends over time"""
+    if not pool:
+        from loader import bot
+        pool = bot.db 
+
+    query = """
+        SELECT 
+            date_trunc($1, f.created_at) as period,
+            AVG(rating) as avg_rating,
+            COUNT(*) as total_feedbacks,
+            COUNT(CASE WHEN rating >= 4 THEN 1 END) as positive_feedbacks,
+            COUNT(CASE WHEN rating < 3 THEN 1 END) as negative_feedbacks
+        FROM feedback f
+        GROUP BY date_trunc($1, f.created_at)
+        ORDER BY period DESC
+    """
+
+    try:
+        async with pool.acquire() as conn:
+            results = await conn.fetch(query, period)
+            return [dict(row) for row in results]
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting quality trends: {str(e)}", exc_info=True)
+        return []

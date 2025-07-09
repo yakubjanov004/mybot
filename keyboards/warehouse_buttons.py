@@ -1,17 +1,83 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 def warehouse_main_menu(language: str) -> ReplyKeyboardMarkup:
-    """Warehouse main menu keyboard"""
-    inventory_management_text = "📦 Inventarizatsiya boshqaruvi" if language == "uz" else "📦 Управление инвентаризацией"
-    orders_management_text = "📋 Buyurtmalar boshqaruvi" if language == "uz" else "📋 Управление заказами"
-    warehouse_statistics_text = "📊 Sklad statistikasi" if language == "uz" else "📊 Статистика склада"
-    change_language_text = "🌐 Tilni o'zgartirish" if language == "uz" else "🌐 Изменить язык"
+    """Ombor uchun asosiy menyu (ReplyKeyboard)"""
+    inventory = "📦 Inventarizatsiya" if language == 'uz' else "📦 Инвентаризация"
+    orders = "📋 Buyurtmalar" if language == 'uz' else "📋 Заказы"
+    statistics = "📊 Statistikalar" if language == 'uz' else "📊 Статистика"
+    export = "📤 Export" if language == 'uz' else "📤 Экспорт"
+    change_lang = "🌐 Tilni o'zgartirish" if language == 'uz' else "🌐 Изменить язык"
     keyboard = [
-        [KeyboardButton(text=inventory_management_text), KeyboardButton(text=orders_management_text)],
-        [KeyboardButton(text=warehouse_statistics_text)],
-        [KeyboardButton(text=change_language_text)]
+        [KeyboardButton(text=inventory), KeyboardButton(text=orders)],
+        [KeyboardButton(text=statistics), KeyboardButton(text=export)],
+        [KeyboardButton(text=change_lang)]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def warehouse_inventory_menu(language: str) -> ReplyKeyboardMarkup:
+    add_item = "➕ Mahsulot qo'shish" if language == 'uz' else "➕ Добавить товар"
+    update_item = "✏️ Mahsulotni yangilash" if language == 'uz' else "✏️ Обновить товар"
+    low_stock = "⚠️ Kam zaxira" if language == 'uz' else "⚠️ Низкий запас"
+    out_of_stock = "❌ Tugagan mahsulotlar" if language == 'uz' else "❌ Нет в наличии"
+    search = "🔍 Qidirish" if language == 'uz' else "🔍 Поиск"
+    view_all = "📋 Barcha mahsulotlar" if language == 'uz' else "📋 Все товары"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [KeyboardButton(text=add_item), KeyboardButton(text=update_item)],
+        [KeyboardButton(text=low_stock), KeyboardButton(text=out_of_stock)],
+        [KeyboardButton(text=search), KeyboardButton(text=view_all)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def warehouse_orders_menu(language: str) -> ReplyKeyboardMarkup:
+    """Buyurtmalar uchun menyu (ReplyKeyboard)"""
+    pending = "⏳ Kutilayotgan buyurtmalar" if language == 'uz' else "⏳ Ожидающие заказы"
+    in_progress = "🔄 Jarayondagi buyurtmalar" if language == 'uz' else "🔄 Заказы в процессе"
+    completed = "✅ Bajarilgan buyurtmalar" if language == 'uz' else "✅ Выполненные заказы"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [KeyboardButton(text=pending), KeyboardButton(text=in_progress)],
+        [KeyboardButton(text=completed)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
+def warehouse_statistics_menu(language: str) -> ReplyKeyboardMarkup:
+    """Statistikalar uchun asosiy menyu (ReplyKeyboard)"""
+    inventory_stats = "📦 Inventarizatsiya statistikasi" if language == 'uz' else "📦 Статистика инвентаризации"
+    orders_stats = "📋 Buyurtmalar statistikasi" if language == 'uz' else "📋 Статистика заказов"
+    low_stock_stats = "⚠️ Kam zaxira statistikasi" if language == 'uz' else "⚠️ Статистика низкого запаса"
+    financial_stats = "💰 Moliyaviy hisobot" if language == 'uz' else "💰 Финансовый отчет"
+    period_stats = "📆 Vaqt oralig'idagi statistika" if language == 'uz' else "📆 Статистика за период"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [KeyboardButton(text=inventory_stats)],
+        [KeyboardButton(text=orders_stats)],
+        [KeyboardButton(text=low_stock_stats)],
+        [KeyboardButton(text=financial_stats)],
+        [KeyboardButton(text=period_stats)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def statistics_period_menu(language: str) -> ReplyKeyboardMarkup:
+    """Vaqt oralig'idagi statistika uchun ichki reply menyu"""
+    monthly = "📈 Oylik statistika" if language == 'uz' else "📈 Месячная статистика"
+    daily = "📅 Kunlik statistika" if language == 'uz' else "📅 Ежедневная статистика"
+    weekly = "📊 Haftalik statistika" if language == 'uz' else "📊 Недельная статистика"
+    yearly = "🗓 Yillik statistika" if language == 'uz' else "🗓 Годовая статистика"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [KeyboardButton(text=monthly), KeyboardButton(text=daily)],
+        [KeyboardButton(text=weekly), KeyboardButton(text=yearly)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
 
 def inventory_menu(language: str) -> InlineKeyboardMarkup:
     """Inventory management menu"""
@@ -160,6 +226,19 @@ def inventory_actions_keyboard(language: str) -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def inventory_actions_inline(item_id: int, language: str) -> InlineKeyboardMarkup:
+    increase = "➕ Kirim" if language == 'uz' else "➕ Приход"
+    decrease = "➖ Chiqim" if language == 'uz' else "➖ Расход"
+    delete = "🗑️ O‘chirish" if language == 'uz' else "🗑️ Удалить"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [InlineKeyboardButton(text=increase, callback_data=f"increase_{item_id}"),
+         InlineKeyboardButton(text=decrease, callback_data=f"decrease_{item_id}")],
+        [InlineKeyboardButton(text=delete, callback_data=f"delete_{item_id}")],
+        [InlineKeyboardButton(text=back, callback_data="warehouse_inventory")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def warehouse_detailed_statistics_menu(language: str) -> InlineKeyboardMarkup:
     """Detailed statistics menu for warehouse"""
     daily_stats = "📅 Kunlik statistika" if language == 'uz' else "📅 Ежедневная статистика"
@@ -216,6 +295,19 @@ def export_menu(language: str) -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def export_reply_menu(language: str) -> ReplyKeyboardMarkup:
+    """Export uchun ichki reply menyu"""
+    excel = "Excelga export" if language == 'uz' else "Экспорт в Excel"
+    pdf = "PDFga export" if language == 'uz' else "Экспорт в PDF"
+    word = "Wordga export" if language == 'uz' else "Экспорт в Word"
+    back = "◀️ Orqaga" if language == 'uz' else "◀️ Назад"
+    keyboard = [
+        [KeyboardButton(text=excel), KeyboardButton(text=pdf)],
+        [KeyboardButton(text=word)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
 def language_selection_keyboard() -> InlineKeyboardMarkup:
     """Language selection keyboard"""
     uz_text = "🇺🇿 O'zbek tili"
@@ -237,5 +329,18 @@ def export_format_keyboard(language: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=pdf, callback_data="export_pdf")],
         [InlineKeyboardButton(text=word, callback_data="export_word")],
         [InlineKeyboardButton(text=back, callback_data="warehouse_back")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def update_item_fields_inline(item_id: int, language: str) -> InlineKeyboardMarkup:
+    name = "✏️ Nomi" if language == 'uz' else "✏️ Название"
+    quantity = "🔢 Miqdori" if language == 'uz' else "🔢 Количество"
+    price = "💰 Narxi" if language == 'uz' else "💰 Цена"
+    description = "📝 Tavsifi" if language == 'uz' else "📝 Описание"
+    keyboard = [
+        [InlineKeyboardButton(text=name, callback_data=f"update_name_{item_id}"),
+         InlineKeyboardButton(text=quantity, callback_data=f"update_quantity_{item_id}")],
+        [InlineKeyboardButton(text=price, callback_data=f"update_price_{item_id}"),
+         InlineKeyboardButton(text=description, callback_data=f"update_description_{item_id}")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

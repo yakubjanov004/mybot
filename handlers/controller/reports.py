@@ -8,6 +8,7 @@ from database.queries import (
     OrderQueries,
     ReportQueries
 )
+from database.base_queries import get_user_by_telegram_id, get_all_orders, get_service_quality_metrics, get_system_statistics, get_all_technicians
 from keyboards.controllers_buttons import reports_menu, back_to_controllers_menu
 from states.controllers_states import ControllersStates
 from utils.logger import logger
@@ -202,7 +203,7 @@ Kerakli hisobotni tanlang:"""
 📅 <b>Sana:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}
 
 📊 <b>Umumiy ko'rsatkichlar:</b>
-• O'rtacha baho: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• O'rtacha baho: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Jami sharhlar: {quality_metrics.get('total_reviews', 0)}
 • Mijoz qoniqishi: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -212,7 +213,7 @@ Kerakli hisobotni tanlang:"""
 📅 <b>Дата:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}
 
 📊 <b>Общие показатели:</b>
-• Средняя оценка: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• Средняя оценка: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Всего отзывов: {quality_metrics.get('total_reviews', 0)}
 • Удовлетворенность клиентов: {quality_metrics.get('satisfaction_rate', 0)}%
 

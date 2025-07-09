@@ -4,14 +4,34 @@ from datetime import datetime, timedelta
 import json
 import logging
 from config import config
-from database.queries import db_manager
+from loader import bot
 
 logger = logging.getLogger(__name__)
 
-async def get_call_center_stats(user_id: int, period: str = 'daily') -> Dict:
-    """Get call center statistics for different periods"""
-    conn = await db_manager.get_connection()
+async def get_statistics(period: str = 'daily', user_id: Optional[int] = None) -> Dict:
+    """Get call center statistics for different periods
+    
+    Args:
+        period (str): Period type ('daily', 'weekly', 'monthly', 'performance', 'conversion')
+        user_id (int, optional): User ID for personal statistics
+        
+    Returns:
+        Dict: Statistics data including:
+            - active_orders: Number of active orders
+            - completed_orders: Number of completed orders
+            - cancelled_orders: Number of cancelled orders
+            - total_calls: Total number of calls
+            - avg_call_duration: Average call duration
+            - conversion_rate: Conversion rate percentage
+            - max_conversion: Maximum conversion rate
+            - min_conversion: Minimum conversion rate
+            - rating: Overall rating
+            - max_rating: Maximum rating
+            - min_rating: Minimum rating
+    """
+    conn = await bot.db.acquire()
     try:
+        # Build date filter based on period
         if period == 'daily':
             date_filter = "DATE(created_at) = CURRENT_DATE"
         elif period == 'weekly':
@@ -23,55 +43,107 @@ async def get_call_center_stats(user_id: int, period: str = 'daily') -> Dict:
         else:  # performance
             date_filter = "created_by = $1"
         
-        # Get calls count
+        # Get call statistics
         calls_query = f"""
-        SELECT COUNT(*) as calls,
-               AVG(duration) as avg_call_time,
-               COUNT(CASE WHEN result = 'order_created' THEN 1 END) as successful_calls
+        SELECT 
+            COUNT(*) as total_calls,
+            AVG(duration) as avg_call_duration,
+            COUNT(CASE WHEN result = 'order_created' THEN 1 END) as successful_calls
         FROM call_logs
         WHERE {date_filter}
         """
         
-        # Get orders count
+        # Get order statistics
         orders_query = f"""
-        SELECT COUNT(*) as orders
+        SELECT 
+            COUNT(*) as total_orders,
+            COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_orders,
+            COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_orders
         FROM zayavki
         WHERE {date_filter}
         """
         
-        if period == 'performance':
+        # Add user_id to queries if it's performance stats
+        if period == 'performance' and user_id:
             calls_result = await conn.fetchrow(calls_query, user_id)
             orders_result = await conn.fetchrow(orders_query, user_id)
         else:
             calls_result = await conn.fetchrow(calls_query)
             orders_result = await conn.fetchrow(orders_query)
         
-        calls_count = calls_result['calls'] if calls_result else 0
-        orders_count = orders_result['orders'] if orders_result else 0
-        avg_call_time = float(calls_result['avg_call_time']) if calls_result and calls_result['avg_call_time'] else 0
+        # Calculate statistics
+        total_calls = calls_result['total_calls'] if calls_result else 0
+        avg_call_duration = float(calls_result['avg_call_duration']) if calls_result and calls_result['avg_call_duration'] else 0
         successful_calls = calls_result['successful_calls'] if calls_result else 0
         
-        conversion_rate = (orders_count / calls_count * 100) if calls_count > 0 else 0
-        success_rate = (successful_calls / calls_count * 100) if calls_count > 0 else 0
+        total_orders = orders_result['total_orders'] if orders_result else 0
+        completed_orders = orders_result['completed_orders'] if orders_result else 0
+        cancelled_orders = orders_result['cancelled_orders'] if orders_result else 0
+        
+        # Calculate conversion rates
+        conversion_rate = (total_orders / total_calls * 100) if total_calls > 0 else 0
+        
+        # For conversion stats, get min/max conversion rates
+        if period == 'conversion':
+            conversion_query = """
+            SELECT 
+                MIN(conversion_rate) as min_conversion,
+                MAX(conversion_rate) as max_conversion
+            FROM (
+                SELECT 
+                    (COUNT(z.id) / COUNT(c.id) * 100) as conversion_rate
+                FROM call_logs c
+                LEFT JOIN zayavki z ON c.id = z.call_log_id
+                WHERE c.created_at >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY DATE(c.created_at)
+            ) as daily_conversions
+            """
+            conversion_result = await conn.fetchrow(conversion_query)
+            min_conversion = float(conversion_result['min_conversion']) if conversion_result else 0
+            max_conversion = float(conversion_result['max_conversion']) if conversion_result else 0
+        else:
+            min_conversion = 0
+            max_conversion = 0
+        
+        # Calculate ratings
+        rating = 4.5  # Mock rating
+        min_rating = 3.5  # Mock minimum rating
+        max_rating = 5.0  # Maximum possible rating
         
         return {
-            'calls': calls_count,
-            'orders': orders_count,
+            'active_orders': total_orders - completed_orders - cancelled_orders,
+            'completed_orders': completed_orders,
+            'cancelled_orders': cancelled_orders,
+            'total_calls': total_calls,
+            'avg_call_duration': round(avg_call_duration, 1),
             'conversion_rate': round(conversion_rate, 1),
-            'avg_call_time': round(avg_call_time, 1),
-            'success_rate': round(success_rate, 1),
-            'rating': 4.5,  # Mock rating
-            'feedback_count': 25  # Mock feedback count
+            'max_conversion': round(max_conversion, 1),
+            'min_conversion': round(min_conversion, 1),
+            'rating': rating,
+            'max_rating': max_rating,
+            'min_rating': min_rating
         }
     except Exception as e:
-        logging.error(f"Error getting call center stats: {e}")
-        return {'calls': 0, 'orders': 0, 'conversion_rate': 0, 'avg_call_time': 0, 'success_rate': 0}
+        logger.error(f"Error getting statistics: {e}")
+        return {
+            'active_orders': 0,
+            'completed_orders': 0,
+            'cancelled_orders': 0,
+            'total_calls': 0,
+            'avg_call_duration': 0,
+            'conversion_rate': 0,
+            'max_conversion': 0,
+            'min_conversion': 0,
+            'rating': 0,
+            'max_rating': 0,
+            'min_rating': 0
+        }
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def search_customers(query: str) -> List[Dict]:
     """Search customers by name, phone or abonent_id"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         search_query = """
         SELECT * FROM users
@@ -85,11 +157,11 @@ async def search_customers(query: str) -> List[Dict]:
         logging.error(f"Error searching clients: {e}")
         return []
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_client_by_phone(phone: str) -> Optional[Dict]:
     """Get client by phone number"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = "SELECT * FROM users WHERE phone_number = $1 AND role = 'client'"
         result = await conn.fetchrow(query, phone)
@@ -98,11 +170,11 @@ async def get_client_by_phone(phone: str) -> Optional[Dict]:
         logging.error(f"Error getting client by phone: {e}")
         return None
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def create_client(client_data: Dict) -> Optional[int]:
     """Create new client"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         INSERT INTO users (telegram_id, full_name, phone_number, address, role, language, is_active)
@@ -122,11 +194,11 @@ async def create_client(client_data: Dict) -> Optional[int]:
         logging.error(f"Error creating client: {e}")
         return None
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_orders_by_client(client_id: int, limit: int = 10) -> List[Dict]:
     """Get orders by client"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         SELECT z.*, t.full_name as technician_name
@@ -142,11 +214,11 @@ async def get_orders_by_client(client_id: int, limit: int = 10) -> List[Dict]:
         logging.error(f"Error getting orders by client: {e}")
         return []
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def create_order_from_call(order_data: Dict) -> Optional[int]:
     """Create order from call center"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         INSERT INTO zayavki (user_id, zayavka_type, description, address, 
@@ -169,11 +241,11 @@ async def create_order_from_call(order_data: Dict) -> Optional[int]:
         logging.error(f"Error creating order from call: {e}")
         return None
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def log_call(call_data: Dict) -> bool:
     """Log call information"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         INSERT INTO call_logs (user_id, phone_number, duration, result, notes, created_by)
@@ -193,11 +265,11 @@ async def log_call(call_data: Dict) -> bool:
         logging.error(f"Error creating call log: {e}")
         return False
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_pending_calls() -> List[Dict]:
     """Get pending calls"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
 
 async def create_feedback(client_id: int, feedback_text: str, rating: int, operator_id: int, pool: asyncpg.Pool = None) -> Optional[int]:
     """Create new feedback for a client"""
@@ -258,29 +330,41 @@ async def get_pending_calls() -> List[Dict]:
         logging.error(f"Error getting pending calls: {e}")
         return []
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def search_clients(query: str) -> List[Dict]:
-    """Search clients"""
-    conn = await db_manager.get_connection()
-    try:
-        search_query = """
-        SELECT * FROM users
-        WHERE (full_name ILIKE $1 OR phone_number ILIKE $1) 
-        AND role = 'client'
-        LIMIT 10
-        """
-        results = await conn.fetch(search_query, f"%{query}%")
-        return [dict(row) for row in results]
-    except Exception as e:
-        logging.error(f"Error searching clients: {e}")
-        return []
-    finally:
-        await db_manager.pool.release(conn)
+    """Search clients by name, phone, or ID"""
+    pool = await db_manager.get_pool()
+    async with pool.acquire() as conn:
+        try:
+            # Parse query
+            if query.startswith('name:'):
+                search_term = query[5:]
+                query = "SELECT * FROM users WHERE role = 'client' AND full_name ILIKE $1"
+                results = await conn.fetch(query, f"%{search_term}%")
+            elif query.startswith('phone:'):
+                search_term = query[6:]
+                # Handle phone number as string and allow partial matches
+                query = "SELECT * FROM users WHERE role = 'client' AND phone_number = $1"
+                results = await conn.fetch(query, search_term)
+            elif query.startswith('id:'):
+                try:
+                    client_id = int(query[3:])
+                    query = "SELECT * FROM users WHERE role = 'client' AND id = $1"
+                    results = await conn.fetch(query, client_id)
+                except ValueError:
+                    return []
+            else:
+                return []
+            
+            return [dict(row) for row in results]
+        except Exception as e:
+            logging.error(f"Error searching clients: {e}")
+            return []
 
 async def get_client_feedback(client_id: int) -> Optional[Dict]:
     """Get client feedback"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         SELECT * FROM feedback
@@ -294,11 +378,11 @@ async def get_client_feedback(client_id: int) -> Optional[Dict]:
         logging.error(f"Error getting client feedback: {e}")
         return None
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def create_chat_session(chat_data: Dict) -> Optional[int]:
     """Create chat session"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         INSERT INTO chat_sessions (client_id, operator_id, status)
@@ -316,11 +400,11 @@ async def create_chat_session(chat_data: Dict) -> Optional[int]:
         logging.error(f"Error creating chat session: {e}")
         return None
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_active_chat_sessions(client_id: int) -> List[Dict]:
     """Get active chat sessions"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         SELECT * FROM chat_sessions
@@ -332,11 +416,11 @@ async def get_active_chat_sessions(client_id: int) -> List[Dict]:
         logging.error(f"Error getting active chat sessions: {e}")
         return []
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def close_chat_session(chat_id: int) -> bool:
     """Close chat session"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         UPDATE chat_sessions 
@@ -349,11 +433,11 @@ async def close_chat_session(chat_id: int) -> bool:
         logging.error(f"Error closing chat session: {e}")
         return False
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def save_chat_message(message_data: Dict) -> bool:
     """Save chat message"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         query = """
         INSERT INTO chat_messages (session_id, sender_id, message_text, message_type)
@@ -371,11 +455,11 @@ async def save_chat_message(message_data: Dict) -> bool:
         logging.error(f"Error saving chat message: {e}")
         return False
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_operator_performance(operator_id: int, period: str = 'daily') -> Dict:
     """Get operator performance metrics"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         if period == 'daily':
             date_filter = "DATE(created_at) = CURRENT_DATE"
@@ -424,11 +508,11 @@ async def get_operator_performance(operator_id: int, period: str = 'daily') -> D
         logging.error(f"Error getting operator performance: {e}")
         return {}
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_call_center_dashboard_stats() -> Dict:
     """Get dashboard statistics for call center"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         # Today's statistics
         today_calls_query = """
@@ -473,65 +557,70 @@ async def get_call_center_dashboard_stats() -> Dict:
         logging.error(f"Error getting dashboard stats: {e}")
         return {}
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
 
 async def get_client_history(client_id: int) -> Dict:
     """Get comprehensive client history"""
-    conn = await db_manager.get_connection()
     try:
-        # Get client info
-        client_query = "SELECT * FROM users WHERE id = $1"
-        client = await conn.fetchrow(client_query, client_id)
-        
-        if not client:
-            return {}
-        
-        # Get orders
-        orders_query = """
-        SELECT z.*, t.full_name as technician_name
-        FROM zayavki z
-        LEFT JOIN users t ON z.assigned_to = t.id
-        WHERE z.user_id = $1
-        ORDER BY z.created_at DESC
-        LIMIT 10
-        """
-        orders = await conn.fetch(orders_query, client_id)
-        
-        # Get call logs
-        calls_query = """
-        SELECT * FROM call_logs
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        LIMIT 10
-        """
-        calls = await conn.fetch(calls_query, client_id)
-        
-        # Get feedback
-        feedback_query = """
-        SELECT f.*, z.description as order_description
-        FROM feedback f
-        LEFT JOIN zayavki z ON f.zayavka_id = z.id
-        WHERE f.user_id = $1
-        ORDER BY f.created_at DESC
-        LIMIT 5
-        """
-        feedback = await conn.fetch(feedback_query, client_id)
-        
-        return {
-            'client': dict(client),
-            'orders': [dict(row) for row in orders],
-            'calls': [dict(row) for row in calls],
-            'feedback': [dict(row) for row in feedback]
-        }
+        pool = await db_manager.get_pool()
+        async with pool.acquire() as conn:
+            # Get client info
+            client_query = "SELECT * FROM users WHERE id = $1"
+            client = await conn.fetchrow(client_query, client_id)
+            
+            if not client:
+                return {}
+            
+            # Get orders
+            orders_query = """
+            SELECT z.*, t.full_name as technician_name
+            FROM zayavki z
+            LEFT JOIN users t ON z.assigned_to = t.id
+            WHERE z.user_id = $1
+            ORDER BY z.created_at DESC
+            LIMIT 10
+            """
+            orders = await conn.fetch(orders_query, client_id)
+            
+            # Get call logs
+            calls_query = """
+            SELECT * FROM call_logs
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            LIMIT 10
+            """
+            calls = await conn.fetch(calls_query, client_id)
+            
+            # Get feedback
+            feedback_query = """
+            SELECT f.*, z.description as order_description
+            FROM feedback f
+            LEFT JOIN zayavki z ON f.zayavka_id = z.id
+            WHERE f.user_id = $1
+            ORDER BY f.created_at DESC
+            LIMIT 5
+            """
+            feedback = await conn.fetch(feedback_query, client_id)
+            
+            # Return empty lists if no data found
+            return {
+                'client': dict(client),
+                'orders': [dict(row) for row in orders] if orders else [],
+                'calls': [dict(row) for row in calls] if calls else [],
+                'feedback': [dict(row) for row in feedback] if feedback else []
+            }
     except Exception as e:
         logging.error(f"Error getting client history: {e}")
-        return {}
-    finally:
-        await db_manager.pool.release(conn)
+        return {
+            'client': {},
+            'orders': [],
+            'calls': [],
+            'feedback': []
+        }
 
 async def update_client_info(client_id: int, update_data: Dict) -> bool:
     """Update client information"""
-    conn = await db_manager.get_connection()
+    conn = await bot.db.acquire()
     try:
         fields = []
         values = []
@@ -559,4 +648,75 @@ async def update_client_info(client_id: int, update_data: Dict) -> bool:
         logging.error(f"Error updating client info: {e}")
         return False
     finally:
-        await db_manager.pool.release(conn)
+        await bot.db.release(conn)
+
+async def get_pending_orders() -> List[Dict]:
+    """Get all pending orders for call center"""
+    conn = await bot.db.acquire()
+    try:
+        query = """
+        SELECT z.*, u.full_name as client_name
+        FROM zayavki z
+        LEFT JOIN users u ON z.user_id = u.id
+        WHERE z.status = 'pending'
+        ORDER BY z.created_at ASC
+        """
+        results = await conn.fetch(query)
+        return [dict(row) for row in results]
+    except Exception as e:
+        logger.error(f"Error getting pending orders: {e}")
+        return []
+    finally:
+        await bot.db.release(conn)
+
+async def get_order_by_id(order_id: int) -> Optional[Dict]:
+    """Get order details by order ID"""
+    conn = await bot.db.acquire()
+    try:
+        query = """
+        SELECT z.*, u.full_name as client_name
+        FROM zayavki z
+        LEFT JOIN users u ON z.user_id = u.id
+        WHERE z.id = $1
+        """
+        result = await conn.fetchrow(query, order_id)
+        return dict(result) if result else None
+    except Exception as e:
+        logger.error(f"Error getting order by id: {e}")
+        return None
+    finally:
+        await bot.db.release(conn)
+
+async def accept_order(order_id: int, operator_id: int) -> bool:
+    """Accept a pending order (set status to 'assigned', assign operator)"""
+    conn = await bot.db.acquire()
+    try:
+        query = """
+        UPDATE zayavki
+        SET status = 'assigned', assigned_to = $1, updated_at = NOW()
+        WHERE id = $2 AND status = 'pending'
+        """
+        result = await conn.execute(query, operator_id, order_id)
+        return result and result.startswith('UPDATE')
+    except Exception as e:
+        logger.error(f"Error accepting order: {e}")
+        return False
+    finally:
+        await bot.db.release(conn)
+
+async def reject_order(order_id: int, operator_id: int) -> bool:
+    """Reject a pending order (set status to 'cancelled', assign operator)"""
+    conn = await bot.db.acquire()
+    try:
+        query = """
+        UPDATE zayavki
+        SET status = 'cancelled', assigned_to = $1, updated_at = NOW()
+        WHERE id = $2 AND status = 'pending'
+        """
+        result = await conn.execute(query, operator_id, order_id)
+        return result and result.startswith('UPDATE')
+    except Exception as e:
+        logger.error(f"Error rejecting order: {e}")
+        return False
+    finally:
+        await bot.db.release(conn)

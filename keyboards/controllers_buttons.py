@@ -7,14 +7,12 @@ def controllers_main_menu(lang='uz'):
             [KeyboardButton(text="📋 Buyurtmalar nazorati"), KeyboardButton(text="👨‍🔧 Texniklar nazorati")],
             [KeyboardButton(text="🎯 Sifat nazorati"), KeyboardButton(text="📊 Hisobotlar")],
             [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="🌐 Til o'zgartirish")],
-            [KeyboardButton(text="🏠 Bosh menyu")]
         ]
     else:
         keyboard = [
             [KeyboardButton(text="📋 Контроль заказов"), KeyboardButton(text="👨‍🔧 Контроль техников")],
             [KeyboardButton(text="🎯 Контроль качества"), KeyboardButton(text="📊 Отчеты")],
             [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="🌐 Изменить язык")],
-            [KeyboardButton(text="🏠 Главное меню")]
         ]
     
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -91,7 +89,6 @@ def language_keyboard():
     """Til tanlash klaviaturasi"""
     keyboard = [
         [KeyboardButton(text="🇺🇿 O'zbek tili"), KeyboardButton(text="🇷🇺 Русский язык")],
-        [KeyboardButton(text="◀️ Orqaga")]
     ]
     
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)

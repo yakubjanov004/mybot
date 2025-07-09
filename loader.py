@@ -173,16 +173,6 @@ async def on_startup():
         bot_info = await bot.get_me()
         logger.info(f"Bot started successfully: @{bot_info.username}")
         
-        # Notify admins
-        for admin_id in config.ADMIN_IDS:
-            try:
-                await bot.send_message(
-                    admin_id, 
-                    "Бот запущен и готов к работе!"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to notify admin {admin_id}: {str(e)}")
-        
         return True
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}", exc_info=True)

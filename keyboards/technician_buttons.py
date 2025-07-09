@@ -14,7 +14,7 @@ def get_technician_main_menu_keyboard(lang="uz"):
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-def get_technician_help_menu(language: str) -> InlineKeyboardMarkup:
+def get_technician_help_menu(language: str) -> ReplyKeyboardMarkup:
     """Technician help menu"""
     request_help_text = "🆘 Yordam so'rash" if language == "uz" else "🆘 Запросить помощь"
     send_location_text = "📍 Geolokatsiya yuborish" if language == "uz" else "📍 Отправить геолокацию"
@@ -23,40 +23,15 @@ def get_technician_help_menu(language: str) -> InlineKeyboardMarkup:
     back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
     
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=request_help_text,
-                callback_data="tech_request_help"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=send_location_text,
-                callback_data="tech_send_location"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=contact_manager_text,
-                callback_data="tech_contact_manager"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=equipment_request_text,
-                callback_data="tech_equipment_request"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="tech_main_menu"
-            )
-        ]
+        [KeyboardButton(text=request_help_text)],
+        [KeyboardButton(text=send_location_text)],
+        [KeyboardButton(text=contact_manager_text)],
+        [KeyboardButton(text=equipment_request_text)],
+        [KeyboardButton(text=back_text)]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-def get_help_request_types_keyboard(language: str) -> InlineKeyboardMarkup:
+def get_help_request_types_keyboard(language: str) -> ReplyKeyboardMarkup:
     """Help request types keyboard"""
     equipment_issue_text = "🔧 Jihoz muammosi" if language == "uz" else "🔧 Проблема с оборудованием"
     parts_needed_text = "🛠️ Qo'shimcha ehtiyot qism kerak" if language == "uz" else "🛠️ Нужны дополнительные запчасти"
@@ -66,44 +41,14 @@ def get_help_request_types_keyboard(language: str) -> InlineKeyboardMarkup:
     back_text = "◀️ Orqaga" if language == "uz" else "◀️ Назад"
     
     keyboard = [
-        [
-            InlineKeyboardButton(
-                text=equipment_issue_text,
-                callback_data="help_type_equipment"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=parts_needed_text,
-                callback_data="help_type_parts"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=technical_question_text,
-                callback_data="help_type_question"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=emergency_text,
-                callback_data="help_type_emergency"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=client_issue_text,
-                callback_data="help_type_client"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=back_text,
-                callback_data="tech_help_menu"
-            )
-        ]
+        [KeyboardButton(text=equipment_issue_text)],
+        [KeyboardButton(text=parts_needed_text)],
+        [KeyboardButton(text=technical_question_text)],
+        [KeyboardButton(text=emergency_text)],
+        [KeyboardButton(text=client_issue_text)],
+        [KeyboardButton(text=back_text)]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def get_back_technician_keyboard(lang="uz"):
     """Back to main menu keyboard for technician"""
@@ -132,39 +77,6 @@ def get_language_keyboard(role="technician"):
         ]
     )
     return keyboard
-
-def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
-    """Main menu keyboard for technician"""
-    tasks_text = "📋 Vazifalarim" if lang == "uz" else "📋 Мои задачи"
-    reports_text = "📊 Hisobotlar" if lang == "uz" else "📊 Отчеты"
-    help_text = "🆘 Yordam" if lang == "uz" else "🆘 Помощь"
-    language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
-    
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text=tasks_text,
-                callback_data="tech_tasks"
-            ),
-            InlineKeyboardButton(
-                text=reports_text,
-                callback_data="tech_reports"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=help_text,
-                callback_data="tech_help"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=language_text,
-                callback_data="tech_change_lang"
-            )
-        ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_technician_selection_keyboard(technicians):
     """Keyboard for selecting technician for task transfer"""

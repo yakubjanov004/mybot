@@ -4,12 +4,20 @@ from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 from keyboards.technician_buttons import get_back_technician_keyboard, get_reports_keyboard
 from states.technician_states import TechnicianStates
-from database.technician_queries import get_technician_stats, get_zayavki_by_assigned
+from database.technician_queries import get_technician_stats, get_zayavki_by_assigned, get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
+from aiogram.fsm.state import State
 import functools
+
+# Define states for navigation
+class NavigationStates(State):
+    MAIN_MENU = "main_menu"
+    REPORTS_MENU = "reports_menu"
+    REPORT_DETAILS = "report_details"
+    TIME_RANGE_STATS = "time_range_stats"
 
 def get_technician_reports_router():
     logger = setup_logger('bot.technician.reports')
@@ -59,6 +67,7 @@ def get_technician_reports_router():
                     f"📆 За месяц: {stats['month']}\n"
                 )
                 details_btn_text = "🔎 Подробнее"
+                back_btn_text = "⬅️ Назад"
             else:
                 stat_text = (
                     f"📝 Hisobotlaringiz\n"
@@ -68,11 +77,14 @@ def get_technician_reports_router():
                     f"📆 Oyda: {stats['month']} ta\n"
                 )
                 details_btn_text = "🔎 Batafsil"
+                back_btn_text = "⬅️ Orqaga"
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=details_btn_text, callback_data="techreport_page_1")]
+                [InlineKeyboardButton(text=details_btn_text, callback_data="techreport_page_1")],
+                [InlineKeyboardButton(text=back_btn_text, callback_data="back")]
             ])
             await message.answer(stat_text, reply_markup=keyboard)
+            await state.set_state(NavigationStates.REPORTS_MENU)
         except Exception as e:
             logger.error(f"Error in reports: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
@@ -150,10 +162,44 @@ def get_technician_reports_router():
                     callback_data=f"techreport_page_{page+1}"
                 ))
             
+            # Add back button to return to previous menu
+            nav_buttons.append(InlineKeyboardButton(
+                text="⬅️ Orqaga" if lang == "uz" else "⬅️ Назад",
+                callback_data="back_to_reports"
+            ))
+            
             keyboard = InlineKeyboardMarkup(inline_keyboard=[nav_buttons] if nav_buttons else [])
             await callback.message.edit_text(text, reply_markup=keyboard)
+            await state.set_state(NavigationStates.REPORT_DETAILS)
         except Exception as e:
             logger.error(f"Error in report_details_page: {str(e)}", exc_info=True)
+            await callback.message.answer("Xatolik yuz berdi!")
+
+    # Add back button handler
+    @router.callback_query(F.data == "back")
+    async def back_handler(callback: CallbackQuery, state: FSMContext):
+        await answer_and_cleanup(callback)
+        try:
+            current_state = await state.get_state()
+            if current_state == NavigationStates.REPORT_DETAILS:
+                # Go back to reports menu
+                await reports(callback.message, state)
+            elif current_state == NavigationStates.REPORTS_MENU:
+                # Go back to main menu
+                await callback.message.answer("Asosiy menyuga qaytdingiz.", reply_markup=get_back_technician_keyboard())
+            await state.set_state(NavigationStates.MAIN_MENU)
+        except Exception as e:
+            logger.error(f"Error in back_handler: {str(e)}", exc_info=True)
+            await callback.message.answer("Xatolik yuz berdi!")
+
+    @router.callback_query(F.data == "back_to_reports")
+    async def back_to_reports_handler(callback: CallbackQuery, state: FSMContext):
+        await answer_and_cleanup(callback)
+        try:
+            await reports(callback.message, state)
+            await state.set_state(NavigationStates.REPORTS_MENU)
+        except Exception as e:
+            logger.error(f"Error in back_to_reports_handler: {str(e)}", exc_info=True)
             await callback.message.answer("Xatolik yuz berdi!")
 
     return router

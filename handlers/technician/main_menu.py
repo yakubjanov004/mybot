@@ -4,12 +4,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 from keyboards.technician_buttons import get_technician_main_menu_keyboard, get_back_technician_keyboard
 from states.technician_states import TechnicianStates
-from keyboards.technician_buttons import get_main_menu_keyboard as get_technician_main_menu_keyboard
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.get_role import get_user_role
 from utils.role_router import get_role_router
+from database.technician_queries import get_technician_by_telegram_id
 import functools
 
 def get_technician_main_menu_router():

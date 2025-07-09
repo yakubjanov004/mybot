@@ -14,7 +14,7 @@ def get_manager_status_management_router():
     logger = setup_logger('bot.manager.status')
     router = get_role_router("manager")
 
-    @router.message(F.text.in_(['🔄 Status o\'zgartirish', '🔄 Изменить статус']))
+    @router.message(F.text.in_(["🔄 Status o'zgartirish", "🔄 Изменить статус"]))
     async def change_status_menu(message: Message, state: FSMContext):
         await safe_delete_message(message.bot, message.chat.id, message.message_id)
         try:
@@ -100,7 +100,11 @@ def get_manager_status_management_router():
             await state.update_data(application_id=app_id)
             await message.answer(
                 app_info,
-                reply_markup=get_status_keyboard(lang, current_status),
+                reply_markup=get_status_keyboard(
+                    statuses=['new', 'in_progress', 'completed', 'cancelled'],
+                    application_id=app_id,
+                    lang=lang
+                ),
                 parse_mode='HTML'
             )
             await state.set_state(ManagerStates.selecting_new_status)
@@ -120,9 +124,11 @@ def get_manager_status_management_router():
         """Change application status with confirmation"""
         try:
             await answer_and_cleanup(callback, cleanup_after=True)
-            new_status = callback.data.replace("status_", "")
-            data = await state.get_data()
-            app_id = data.get('application_id')
+
+            # Callback data: status_{status}_{application_id}
+            status_with_prefix, app_id = callback.data.rsplit("_", 1)
+            new_status = status_with_prefix.replace("status_", "")
+            app_id = int(app_id)
 
             if not app_id:
                 await callback.answer("❌ Ariza ID topilmadi", show_alert=True)
@@ -146,13 +152,41 @@ def get_manager_status_management_router():
             success = await update_zayavka_status(app_id, new_status, user['id'])
 
             if success:
-                success_text = (
-                    f"✅ #{app_id} raqamli arizaning statusi muvaffaqiyatli o'zgartirildi!\n\n"
-                    f"📊 Yangi status: {status_label}"
-                    if lang == 'uz' else
-                    f"✅ Статус заявки #{app_id} успешно изменен!\n\n"
-                    f"📊 Новый статус: {status_label}"
-                )
+                # Qo'shimcha ma'lumotlarni olish
+                from database.base_queries import get_application_by_id
+                application = await get_application_by_id(app_id)
+                client_name = application.get('user_name', 'Nomaʼlum')
+                client_phone = application.get('client_phone', 'Nomaʼlum')
+                address = application.get('address', 'Nomaʼlum')
+                description = application.get('description', '')
+                technician = application.get('technician_name', 'Biriktirilmagan')
+                created_at = application.get('created_at', '')
+                updated_at = application.get('updated_at', '')
+
+                if lang == 'uz':
+                    success_text = (
+                        f"✅ <b>#{app_id} raqamli arizaning statusi muvaffaqiyatli o'zgartirildi!</b>\n\n"
+                        f"📊 <b>Yangi status:</b> {status_label}\n"
+                        f"👤 <b>Mijoz:</b> {client_name}\n"
+                        f"📞 <b>Telefon:</b> <code>{client_phone}</code>\n"
+                        f"🏠 <b>Manzil:</b> {address}\n"
+                        f"📝 <b>Izoh:</b> {description}\n"
+                        f"👨‍🔧 <b>Texnik:</b> {technician}\n"
+                        f"🕒 <b>Yaratilgan:</b> {created_at}\n"
+                        f"♻️ <b>O'zgartirilgan:</b> {updated_at}"
+                    )
+                else:
+                    success_text = (
+                        f"✅ <b>Статус заявки #{app_id} успешно изменен!</b>\n\n"
+                        f"📊 <b>Новый статус:</b> {status_label}\n"
+                        f"👤 <b>Клиент:</b> {client_name}\n"
+                        f"📞 <b>Телефон:</b> <code>{client_phone}</code>\n"
+                        f"🏠 <b>Адрес:</b> {address}\n"
+                        f"📝 <b>Описание:</b> {description}\n"
+                        f"👨‍🔧 <b>Техник:</b> {technician}\n"
+                        f"🕒 <b>Создано:</b> {created_at}\n"
+                        f"♻️ <b>Изменено:</b> {updated_at}"
+                    )
                 await callback.message.edit_text(success_text, parse_mode='HTML')
                 logger.info(f"Manager {user['id']} changed status of application #{app_id} to {new_status}")
             else:

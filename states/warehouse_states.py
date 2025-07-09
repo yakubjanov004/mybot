@@ -13,14 +13,16 @@ class WarehouseStates(StatesGroup):
     adding_item_name = State()
     adding_item_quantity = State()
     adding_item_price = State()
-    adding_item_category = State()
     adding_item_description = State()
+    adding_item_category = State()
     
     # Updating items
     selecting_item_to_update = State()
     updating_item_quantity = State()
     updating_item_price = State()
     updating_item_info = State()
+    updating_item_description = State()
+    updating_item_name = State()
     
     # Orders management
     orders_menu = State()
@@ -55,3 +57,6 @@ class WarehouseStates(StatesGroup):
     
     # Language selection
     selecting_language = State()
+    statistics_menu = State()
+    export_menu = State()
+    statistics_period_menu  = State()

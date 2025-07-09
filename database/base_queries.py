@@ -298,32 +298,54 @@ async def get_all_orders(pool: asyncpg.Pool = None, limit: int = None) -> List[D
     except Exception as e:
         logger.error(f"Error getting all orders: {str(e)}", exc_info=True)
         return []
-
-async def get_orders_by_status(status: str, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
-    """Get orders by status"""
+        
+async def get_orders_by_status(
+    status: Union[str, List[str]], pool: asyncpg.Pool = None
+) -> List[Dict[str, Any]]:
+    """Get orders by status (single or multiple)"""
     if not pool:
         from loader import bot
         pool = bot.db
-    
-    query = """
-        SELECT 
-            z.*, 
-            u.full_name as client_name,
-            u.phone_number as client_phone,
-            u.telegram_id as client_telegram_id,
-            u.language as client_language,
-            t.full_name as technician_name,
-            t.telegram_id as technician_telegram_id,
-            t.language as technician_language,
-            s.solution_text as solution
-        FROM zayavki z
-        LEFT JOIN users u ON z.user_id = u.id
-        LEFT JOIN users t ON z.assigned_to = t.id
-        LEFT JOIN solutions s ON z.id = s.zayavka_id
-        WHERE z.status = $1
-        ORDER BY z.created_at DESC
-    """
-    
+
+    if isinstance(status, list):
+        query = """
+            SELECT 
+                z.*, 
+                u.full_name as client_name,
+                u.phone_number as client_phone,
+                u.telegram_id as client_telegram_id,
+                u.language as client_language,
+                t.full_name as technician_name,
+                t.telegram_id as technician_telegram_id,
+                t.language as technician_language,
+                s.solution_text as solution
+            FROM zayavki z
+            LEFT JOIN users u ON z.user_id = u.id
+            LEFT JOIN users t ON z.assigned_to = t.id
+            LEFT JOIN solutions s ON z.id = s.zayavka_id
+            WHERE z.status = ANY($1)
+            ORDER BY z.created_at DESC
+        """
+    else:
+        query = """
+            SELECT 
+                z.*, 
+                u.full_name as client_name,
+                u.phone_number as client_phone,
+                u.telegram_id as client_telegram_id,
+                u.language as client_language,
+                t.full_name as technician_name,
+                t.telegram_id as technician_telegram_id,
+                t.language as technician_language,
+                s.solution_text as solution
+            FROM zayavki z
+            LEFT JOIN users u ON z.user_id = u.id
+            LEFT JOIN users t ON z.assigned_to = t.id
+            LEFT JOIN solutions s ON z.id = s.zayavka_id
+            WHERE z.status = $1
+            ORDER BY z.created_at DESC
+        """
+
     try:
         async with pool.acquire() as conn:
             results = await conn.fetch(query, status)
@@ -681,30 +703,22 @@ async def get_service_quality_metrics(pool: asyncpg.Pool = None) -> Dict[str, An
                     COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_orders
                 FROM zayavki
             ),
-            time_stats AS (
-                SELECT 
-                    AVG(completion_time) as avg_completion_time,
-                    MAX(completion_time) as max_completion_time,
-                    MIN(completion_time) as min_completion_time
-                FROM zayavki
-                WHERE status = 'completed'
-            ),
             feedback_stats AS (
                 SELECT 
                     AVG(rating) as avg_rating,
                     COUNT(*) as total_feedbacks,
                     COUNT(CASE WHEN rating >= 4 THEN 1 END) as positive_feedbacks,
                     COUNT(CASE WHEN rating < 3 THEN 1 END) as negative_feedbacks
-                FROM feedbacks
+                FROM feedback
             )
         SELECT 
             o.total_orders,
             o.completed_orders,
             o.cancelled_orders,
             o.rejected_orders,
-            t.avg_completion_time,
-            t.max_completion_time,
-            t.min_completion_time,
+            NULL as avg_completion_time,
+            NULL as max_completion_time,
+            NULL as min_completion_time,
             f.avg_rating,
             f.total_feedbacks,
             f.positive_feedbacks,
@@ -720,7 +734,6 @@ async def get_service_quality_metrics(pool: asyncpg.Pool = None) -> Dict[str, An
                 ELSE 0
             END as positive_feedback_rate
         FROM order_stats o
-        CROSS JOIN time_stats t
         CROSS JOIN feedback_stats f
     """
     
@@ -1229,3 +1242,6 @@ async def get_staff_members(pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error getting staff members: {str(e)}")
         return []
+
+# Alias for compatibility with handler imports
+get_application_by_id = get_zayavka_by_id

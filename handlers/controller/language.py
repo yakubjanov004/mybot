@@ -19,7 +19,7 @@ def get_controller_language_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.language_selection)
+        await state.set_state(ControllersStates.selecting_language)
         
         if lang == 'uz':
             text = """🌐 <b>Til tanlash</b>

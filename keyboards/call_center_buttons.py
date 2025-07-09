@@ -4,7 +4,7 @@ from aiogram.filters.callback_data import CallbackData
 def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
     search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
-    stats = "📊 Statistika" if lang == 'uz' else "📊 Статистика"
+    stats = "📊 Statistikalar" if lang == 'uz' else "📊 Статистика"
     pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
     feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
     chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
@@ -18,21 +18,56 @@ def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-def new_order_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """New order menu keyboard"""
+def new_order_reply_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    """New order reply keyboard (only back button)"""
     back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
     keyboard = [
-        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
+        [KeyboardButton(text=back)]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
-def client_search_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """Client search menu keyboard"""
-    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+
+def client_search_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    """Client search menu keyboard with search methods"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="🔤 " + ("Ism bo'yicha qidirish" if lang == 'uz' else "Поиск по имени")
+                ),
+                KeyboardButton(
+                    text="📞 " + ("Telefon raqami bo'yicha" if lang == 'uz' else "По номеру телефона")
+                )
+            ],
+            [
+                KeyboardButton(
+                    text="🆔 " + ("ID raqami bo'yicha" if lang == 'uz' else "По ID")
+                )
+            ],
+            [
+                KeyboardButton(
+                    text="🔙 " + ("Orqaga" if lang == 'uz' else "Назад")
+                )
+            ]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
+
+def get_client_actions_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    """Reply keyboard for client actions"""
+    order = "📄 Buyurtma yaratish" if lang == 'uz' else "📄 Создать заказ"
+    call = "📞 Qo'ng'iroq qilish" if lang == 'uz' else "📞 Позвонить"
+    chat = "💬 Chat o'chirish" if lang == 'uz' else "💬 Начать чат"
+    details = "🔍 To'liq ma'lumot" if lang == 'uz' else "🔍 Полная информация"
+    back = "🔙 Ortga" if lang == 'uz' else "🔙 Назад"
+
     keyboard = [
-        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
+        [KeyboardButton(text=order), KeyboardButton(text=call)],
+        [KeyboardButton(text=chat), KeyboardButton(text=details)],
+        [KeyboardButton(text=back)]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def order_types_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
     """Order types selection keyboard"""
@@ -146,25 +181,10 @@ def call_result_keyboard(language: str) -> InlineKeyboardMarkup:
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def call_center_statistics_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """Call center statistics menu"""
-    daily_stats = "📅 Bugungi ko'rsatkichlar" if lang == 'uz' else "📅 Сегодняшние показатели"
-    weekly_stats = "📊 Haftalik hisobot" if lang == 'uz' else "📊 Недельный отчет"
-    monthly_stats = "📈 Oylik hisobot" if lang == 'uz' else "📈 Месячный отчет"
-    performance = "🎯 Mening samaradorligim" if lang == 'uz' else "🎯 Моя эффективность"
-    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
-    
-    keyboard = [
-        [InlineKeyboardButton(text=daily_stats, callback_data="stats_daily"),
-         InlineKeyboardButton(text=weekly_stats, callback_data="stats_weekly")],
-        [InlineKeyboardButton(text=monthly_stats, callback_data="stats_monthly"),
-         InlineKeyboardButton(text=performance, callback_data="stats_performance")],
-        [InlineKeyboardButton(text=back, callback_data="call_center_back")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def call_center_detailed_statistics_menu(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """Detailed statistics menu for call center"""
+
+def call_center_statistics_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    """Call center statistics menu"""
     daily_stats = "📅 Bugungi ko'rsatkichlar" if lang == 'uz' else "📅 Сегодняшние показатели"
     weekly_stats = "📊 Haftalik hisobot" if lang == 'uz' else "📊 Недельный отчет"
     monthly_stats = "📈 Oylik hisobot" if lang == 'uz' else "📈 Месячный отчет"
@@ -173,11 +193,11 @@ def call_center_detailed_statistics_menu(lang: str = 'uz') -> InlineKeyboardMark
     back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
     
     keyboard = [
-        [InlineKeyboardButton(text=daily_stats, callback_data="cc_stats_daily"),
-         InlineKeyboardButton(text=weekly_stats, callback_data="cc_stats_weekly")],
-        [InlineKeyboardButton(text=monthly_stats, callback_data="cc_stats_monthly"),
-         InlineKeyboardButton(text=performance, callback_data="cc_stats_performance")],
-        [InlineKeyboardButton(text=conversion, callback_data="cc_stats_conversion")],
-        [InlineKeyboardButton(text=back, callback_data="cc_back_main")]
+        [KeyboardButton(text=daily_stats),
+         KeyboardButton(text=weekly_stats)],
+        [KeyboardButton(text=monthly_stats),
+         KeyboardButton(text=performance)],
+        [KeyboardButton(text=conversion)],
+        [KeyboardButton(text=back)]
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)

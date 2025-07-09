@@ -8,7 +8,7 @@ from database.warehouse_queries import (
     get_warehouse_user_by_telegram_id, get_inventory_export_data,
     get_orders_export_data, get_issued_items_export_data
 )
-from keyboards.warehouse_buttons import export_menu
+from keyboards.warehouse_buttons import warehouse_main_menu, export_menu, export_reply_menu
 from states.warehouse_states import WarehouseStates
 from utils.logger import logger
 from utils.role_router import get_role_router
@@ -16,7 +16,42 @@ from utils.role_router import get_role_router
 def get_warehouse_export_router():
     router = get_role_router("warehouse")
 
-    @router.message(F.text.in_(["📤 Ma'lumotlarni eksport qilish", "📤 Экспорт данных"]))
+    @router.message(F.text.in_(["📤 Export"]))
+    async def export_menu_handler(message: Message, state: FSMContext):
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        await message.answer("Qaysi formatda eksport qilmoqchisiz?", reply_markup=export_reply_menu(lang))
+        await state.set_state(WarehouseStates.exporting_data)
+
+    @router.message(F.text.in_(["Excelga export"]))
+    async def export_excel_handler(message: Message, state: FSMContext):
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        await message.answer("Excelga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
+        await state.set_state(WarehouseStates.exporting_data)
+
+    @router.message(F.text.in_(["PDFga export"]))
+    async def export_pdf_handler(message: Message, state: FSMContext):
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        await message.answer("PDFga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
+        await state.set_state(WarehouseStates.exporting_data)
+
+    @router.message(F.text.in_(["Wordga export"]))
+    async def export_word_handler(message: Message, state: FSMContext):
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        await message.answer("Wordga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
+        await state.set_state(WarehouseStates.exporting_data)
+
+    @router.message(F.text.in_(["◀️ Orqaga"]))
+    async def export_back_handler(message: Message, state: FSMContext):
+        user = await get_warehouse_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        await message.answer("Ombor bosh menyusi", reply_markup=warehouse_main_menu(lang))
+        await state.set_state(WarehouseStates.main_menu)
+
+    @router.message(F.text.in_(["📤 Export", "📤 Экспорт"]))
     async def export_handler(message: Message, state: FSMContext):
         """Handle data export"""
         try:
@@ -29,7 +64,7 @@ def get_warehouse_export_router():
             
             await message.answer(
                 export_text,
-                reply_markup=export_menu(lang)
+                reply_markup=warehouse_main_menu(lang)
             )
             await state.set_state(WarehouseStates.export_menu)
             
@@ -164,7 +199,7 @@ def get_warehouse_export_router():
                 # Send file
                 file = BufferedInputFile(csv_content, filename=filename)
                 
-                success_text = f"✅ Buyurtmalar ma'lumotlari eksport qilindi!\n�� Jami: {len(orders_data)} ta buyurtma"
+                success_text = f"✅ Buyurtmalar ma'lumotlari eksport qilindi!\n📊 Jami: {len(orders_data)} ta buyurtma"
                 if lang == 'ru':
                     success_text = f"✅ Данные заказов экспортированы!\n📊 Всего: {len(orders_data)} заказов"
                 
@@ -238,7 +273,7 @@ def get_warehouse_export_router():
                 # Send file
                 file = BufferedInputFile(csv_content, filename=filename)
                 
-                success_text = f"✅ Chiqarilgan mahsulotlar ma'lumotlari eksport qilindi!\n�� Jami: {len(issued_data)} ta yozuv"
+                success_text = f"✅ Chiqarilgan mahsulotlar ma'lumotlari eksport qilindi!\n📊 Jami: {len(issued_data)} ta yozuv"
                 if lang == 'ru':
                     success_text = f"✅ Данные выданных товаров экспортированы!\n📊 Всего: {len(issued_data)} записей"
                 

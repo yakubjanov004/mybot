@@ -71,3 +71,4 @@ class CallCenterStates(StatesGroup):
     client_chat_file = State()
     client_chat_closing = State()
     client_chat_closing_confirm = State()
+    statistics = State()

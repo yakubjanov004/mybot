@@ -26,7 +26,7 @@ def get_manager_main_keyboard(lang='uz'):
          KeyboardButton(text=ready_for_installation_text)],
         [KeyboardButton(text=staff_activity_text),
          KeyboardButton(text=notifications_text)],
-        [KeyboardButton(text=change_language_text)]
+        [KeyboardButton(text=change_language_text)],
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
@@ -536,3 +536,16 @@ def get_notifications_settings_menu(lang='uz'):
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_manager_view_applications_keyboard(lang='uz'):
+    view_all_text = "📋 Hammasini ko'rish" if lang == 'uz' else "📋 Посмотреть все"
+    by_id_text = "🔎 ID bo'yicha ko'rish" if lang == 'uz' else "🔎 По ID"
+    back_text = "◀️ Orqaga" if lang == 'uz' else "◀️ Назад"
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=view_all_text)],
+            [KeyboardButton(text=by_id_text)],
+            [KeyboardButton(text=back_text)]
+        ],
+        resize_keyboard=True
+    )

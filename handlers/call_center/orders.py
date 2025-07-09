@@ -1,13 +1,13 @@
 from aiogram import F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import (
-    get_client_by_phone, create_client, create_order_from_call, log_call
+    get_client_by_phone, create_client, create_order_from_call, log_call, get_pending_orders, get_order_by_id, accept_order, reject_order
 )
 from keyboards.call_center_buttons import (
-    new_order_menu, order_types_keyboard, call_status_keyboard
+    order_types_keyboard, call_status_keyboard, new_order_reply_menu
 )
 from states.call_center import CallCenterStates
 from utils.logger import logger
@@ -31,7 +31,7 @@ def get_call_center_orders_router():
         text = "📞 Mijoz telefon raqamini kiriting:" if lang == 'uz' else "📞 Введите номер телефона клиента:"
         await message.answer(
             text,
-            reply_markup=new_order_menu(user['language'])
+            reply_markup=new_order_reply_menu(user['language'])
         )
 
     @router.callback_query(F.data == "new_order")
@@ -48,7 +48,7 @@ def get_call_center_orders_router():
         text = "📞 Mijoz telefon raqamini kiriting:" if lang == 'uz' else "📞 Введите номер телефона клиента:"
         await callback.message.edit_text(
             text,
-            reply_markup=new_order_menu(user['language'])
+            reply_markup=new_order_reply_menu(user['language'])
         )
 
     @router.message(StateFilter(CallCenterStates.new_order_phone))
@@ -59,8 +59,8 @@ def get_call_center_orders_router():
         phone = message.text.strip()
         
         # Validate phone format
-        if not phone.startswith('+') and not phone.startswith('998'):
-            text = "❌ Noto'g'ri telefon format. Masalan: +998901234567" if lang == 'uz' else "❌ Неверный формат телефона. Например: +998901234567"
+        if not phone.startswith('998'):
+            text = "❌ Noto'g'ri telefon format. Masalan: 998901234567" if lang == 'uz' else "❌ Неверный формат телефона. Например: 998901234567"
             await message.answer(text)
             return
         
@@ -233,5 +233,120 @@ def get_call_center_orders_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await callback.message.edit_text(error_text)
             await callback.answer()
+
+    @router.message(F.text.in_(["⏳ Kutilayotgan", "⏳ Ожидающие"]))
+    async def show_pending_orders(message: Message, state: FSMContext):
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        orders = await get_pending_orders()
+        if orders:
+            text = ("⏳ Kutilayotgan buyurtmalar:\n\n" if lang == 'uz' else "⏳ Ожидающие заказы:\n\n")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"#{order['id']} | {order['client_name']} | 🕒 {order['created_at'].strftime('%H:%M')}",
+                        callback_data=f"pending_order_{order['id']}"
+                    ),
+                    InlineKeyboardButton(
+                        text=("Qabul qilish" if lang == 'uz' else "Принять"),
+                        callback_data=f"accept_order_{order['id']}"
+                    )
+                ] for order in orders
+            ] + [[InlineKeyboardButton(text=("Orqaga" if lang == 'uz' else "Назад"), callback_data="pending_orders_back")]])
+            await message.answer(text, reply_markup=keyboard)
+        else:
+            text = ("📭 Kutilayotgan buyurtmalar yo'q" if lang == 'uz' else "📭 Нет ожидающих заказов")
+            await message.answer(text)
+
+    @router.callback_query(F.data.startswith("pending_order_"))
+    async def show_pending_order_details(callback: CallbackQuery, state: FSMContext):
+        order_id = int(callback.data.split("_")[-1])
+        user = await get_user_by_telegram_id(callback.from_user.id)
+        lang = user.get('language', 'uz')
+        order = await get_order_by_id(order_id)
+        if not order:
+            await callback.answer(("Buyurtma topilmadi" if lang == 'uz' else "Заказ не найден"), show_alert=True)
+            return
+        text = (
+            f"🆔 Buyurtma ID: #{order['id']}\n"
+            f"👤 Mijoz: {order['client_name']}\n"
+            f"📞 Telefon: {order['phone_number']}\n"
+            f"📝 Tavsif: {order['description']}\n"
+            f"🕒 Yaratilgan: {order['created_at'].strftime('%Y-%m-%d %H:%M')}\n"
+            if lang == 'uz' else
+            f"🆔 ID заказа: #{order['id']}\n"
+            f"👤 Клиент: {order['client_name']}\n"
+            f"📞 Телефон: {order['phone_number']}\n"
+            f"📝 Описание: {order['description']}\n"
+            f"🕒 Создан: {order['created_at'].strftime('%Y-%m-%d %H:%M')}\n"
+        )
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=("Qabul qilish" if lang == 'uz' else "Принять"),
+                    callback_data=f"accept_order_{order['id']}"
+                ),
+                InlineKeyboardButton(
+                    text=("Bekor qilish" if lang == 'uz' else "Отклонить"),
+                    callback_data=f"reject_order_{order['id']}"
+                ),
+                InlineKeyboardButton(
+                    text=("Orqaga" if lang == 'uz' else "Назад"),
+                    callback_data="pending_orders_back"
+                )
+            ]
+        ])
+        await callback.message.edit_text(text, reply_markup=keyboard)
+
+    @router.callback_query(F.data.startswith("accept_order_"))
+    async def accept_pending_order(callback: CallbackQuery, state: FSMContext):
+        order_id = int(callback.data.split("_")[-1])
+        user = await get_user_by_telegram_id(callback.from_user.id)
+        lang = user.get('language', 'uz')
+        success = await accept_order(order_id, user['id'])
+        if success:
+            text = ("✅ Buyurtma qabul qilindi!" if lang == 'uz' else "✅ Заказ принят!")
+        else:
+            text = ("❌ Buyurtmani qabul qilib bo‘lmadi." if lang == 'uz' else "❌ Не удалось принять заказ.")
+        await callback.answer(text, show_alert=True)
+        # Optionally, refresh the pending orders list
+
+    @router.callback_query(F.data.startswith("reject_order_"))
+    async def reject_pending_order(callback: CallbackQuery, state: FSMContext):
+        order_id = int(callback.data.split("_")[-1])
+        user = await get_user_by_telegram_id(callback.from_user.id)
+        lang = user.get('language', 'uz')
+        success = await reject_order(order_id, user['id'])
+        if success:
+            text = ("❌ Buyurtma bekor qilindi!" if lang == 'uz' else "❌ Заказ отклонён!")
+        else:
+            text = ("❌ Buyurtmani bekor qilib bo‘lmadi." if lang == 'uz' else "❌ Не удалось отклонить заказ.")
+        await callback.answer(text, show_alert=True)
+        # Optionally, refresh the pending orders list
+
+    @router.callback_query(F.data == "pending_orders_back")
+    async def back_to_pending_orders(callback: CallbackQuery, state: FSMContext):
+        # Re-show the pending orders list
+        user = await get_user_by_telegram_id(callback.from_user.id)
+        lang = user.get('language', 'uz')
+        orders = await get_pending_orders()
+        if orders:
+            text = ("⏳ Kutilayotgan buyurtmalar:\n\n" if lang == 'uz' else "⏳ Ожидающие заказы:\n\n")
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"#{order['id']} | {order['client_name']} | 🕒 {order['created_at'].strftime('%H:%M')}",
+                        callback_data=f"pending_order_{order['id']}"
+                    ),
+                    InlineKeyboardButton(
+                        text=("Qabul qilish" if lang == 'uz' else "Принять"),
+                        callback_data=f"accept_order_{order['id']}"
+                    )
+                ] for order in orders
+            ] + [[InlineKeyboardButton(text=("Orqaga" if lang == 'uz' else "Назад"), callback_data="pending_orders_back")]])
+            await callback.message.edit_text(text, reply_markup=keyboard)
+        else:
+            text = ("📭 Kutilayotgan buyurtmalar yo'q" if lang == 'uz' else "📭 Нет ожидающих заказов")
+            await callback.message.edit_text(text)
 
     return router

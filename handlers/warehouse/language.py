@@ -56,7 +56,7 @@ def get_warehouse_language_router():
             logger.error(f"Error in change language callback: {str(e)}")
             await callback.answer("Xatolik yuz berdi", show_alert=True)
 
-    @router.callback_query(F.data.startswith("set_lang_"))
+    @router.callback_query(F.data.startswith("set_language_"))
     async def set_language_handler(callback: CallbackQuery, state: FSMContext):
         """Set user language"""
         try:
@@ -66,7 +66,7 @@ def get_warehouse_language_router():
                 return
             
             # Extract language from callback data
-            new_lang = callback.data.split("_")[-1]  # set_lang_uz -> uz
+            new_lang = callback.data.split("_")[-1]  # set_language_uz -> uz
             
             if new_lang not in ['uz', 'ru']:
                 await callback.answer("Noto'g'ri til", show_alert=True)
@@ -83,12 +83,13 @@ def get_warehouse_language_router():
                 else:
                     success_text = "✅ Язык изменен на русский!"
                     welcome_text = "🏢 Добро пожаловать в панель склада!"
-                
-                await callback.message.edit_text(
+                # Eski xabarni o'chirish
+                await callback.message.delete()
+                # Yangi xabar va ReplyKeyboard yuborish
+                await callback.message.answer(
                     f"{success_text}\n\n{welcome_text}",
                     reply_markup=warehouse_main_menu(new_lang)
                 )
-                
                 await state.set_state(WarehouseStates.main_menu)
                 logger.info(f"Warehouse user {user['id']} changed language to {new_lang}")
             else:

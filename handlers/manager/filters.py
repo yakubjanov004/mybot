@@ -8,7 +8,9 @@ from keyboards.manager_buttons import (
     get_status_filter_inline_keyboard,
     get_date_filter_inline_keyboard,
     get_tech_filter_inline_keyboard,
-    get_pagination_inline_keyboard
+    get_pagination_inline_keyboard,
+    get_manager_main_keyboard,
+    get_manager_back_keyboard
 )
 from database.manager_queries import get_filtered_applications
 from database.base_queries import get_user_by_telegram_id, get_zayavka_by_id
@@ -74,7 +76,7 @@ def get_manager_filters_router():
             reply_markup=None
         )
         msg = await message.answer(
-            "⬇️", reply_markup=get_tech_filter_inline_keyboard(lang)
+            "", reply_markup=get_tech_filter_inline_keyboard(lang)
         )
         await state.set_data({"filter_step": "tech", "last_result_message_id": msg.message_id})
 
@@ -82,16 +84,33 @@ def get_manager_filters_router():
     async def filter_back_to_main(message: Message, state: FSMContext):
         lang = await get_user_lang(message.from_user.id)
         chat_id = message.chat.id
+        
+        # Get current state data
+        state_data = await state.get_data()
+        
+        # Delete current message and previous result message if exists
         try:
             await message.delete()
+            if "last_result_message_id" in state_data:
+                try:
+                    await bot.delete_message(chat_id, state_data["last_result_message_id"])
+                except Exception:
+                    pass
         except Exception:
             pass
+        
+        # Send main filter menu
         await bot.send_message(
             chat_id,
-            "Filtr menyusiga qaytdingiz." if lang == 'uz' else "Вы вернулись в меню фильтров.",
-            reply_markup=get_manager_filter_reply_keyboard(lang)
+            "Asosiy menyusiga qaytdingiz." if lang == 'uz' else "Вы вернулись в меню.",
+            reply_markup=get_manager_main_keyboard(lang)
         )
+        
+        # Reset filter step
         await state.set_data({"filter_step": "main"})
+        
+        # Stop further message processing
+        return True
 
     @router.callback_query(F.data.startswith("filter_status_"))
     async def filter_status_callback(callback: CallbackQuery, state: FSMContext):

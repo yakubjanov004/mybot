@@ -540,30 +540,3 @@ class FeedbackQueries:
         except Exception as e:
             logger.error(f"Error getting unresolved issues: {str(e)}", exc_info=True)
             return []
-
-    @staticmethod
-    async def get_quality_trends(pool: asyncpg.Pool = None, period: str = 'monthly') -> List[Dict[str, Any]]:
-        """Get quality trends over time"""
-        if not pool:
-            from loader import bot
-            pool = bot.pool
-        
-        query = """
-            SELECT 
-                date_trunc($1, f.created_at) as period,
-                AVG(rating) as avg_rating,
-                COUNT(*) as total_feedbacks,
-                COUNT(CASE WHEN rating >= 4 THEN 1 END) as positive_feedbacks,
-                COUNT(CASE WHEN rating < 3 THEN 1 END) as negative_feedbacks
-            FROM feedbacks f
-            GROUP BY date_trunc($1, f.created_at)
-            ORDER BY period DESC
-        """
-        
-        try:
-            async with pool.acquire() as conn:
-                results = await conn.fetch(query, period)
-                return [dict(row) for row in results]
-        except Exception as e:
-            logger.error(f"Error getting quality trends: {str(e)}", exc_info=True)
-            return []

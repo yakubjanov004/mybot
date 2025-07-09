@@ -120,3 +120,4 @@ class AdminStates(StatesGroup):
     change_language = State()
     waiting_for_search_method = State()
     waiting_for_role_change_id = State()
+    waiting_for_role_change_phone = State()

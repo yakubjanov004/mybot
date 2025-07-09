@@ -3,15 +3,12 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from filters.role_filter import RoleFilter
 from utils.role_router import get_role_router
-from database.queries import (
-    UserQueries,
-    ReportQueries,
-    FeedbackQueries
-)
+from database.base_queries import get_user_by_telegram_id, get_service_quality_metrics, get_unresolved_issues
 from keyboards.controllers_buttons import quality_control_menu, back_to_controllers_menu
 from states.controllers_states import ControllersStates
 from utils.logger import logger
 from datetime import datetime
+from database.controller_queries import get_recent_feedback, get_quality_trends
 
 def get_controller_quality_router():
     router = get_role_router("controller")
@@ -33,7 +30,7 @@ def get_controller_quality_router():
             text = f"""🎯 <b>Sifat nazorati</b>
 
 ⭐ <b>Xizmat sifati ko'rsatkichlari:</b>
-• O'rtacha baho: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• O'rtacha baho: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Jami sharhlar: {quality_metrics.get('total_reviews', 0)}
 • Mijoz qoniqishi: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -42,7 +39,7 @@ Kerakli bo'limni tanlang:"""
             text = f"""🎯 <b>Контроль качества</b>
 
 ⭐ <b>Показатели качества услуг:</b>
-• Средняя оценка: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• Средняя оценка: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Всего отзывов: {quality_metrics.get('total_reviews', 0)}
 • Удовлетворенность клиентов: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -138,7 +135,7 @@ Kerakli bo'limni tanlang:"""
             text = f"""📊 <b>Xizmat sifatini baholash</b>
 
 ⭐ <b>Umumiy ko'rsatkichlar:</b>
-• O'rtacha baho: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• O'rtacha baho: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Jami sharhlar: {quality_metrics.get('total_reviews', 0)}
 • Mijoz qoniqishi: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -147,7 +144,7 @@ Kerakli bo'limni tanlang:"""
             text = f"""📊 <b>Оценка качества услуг</b>
 
 ⭐ <b>Общие показатели:</b>
-• Средняя оценка: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• Средняя оценка: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Всего отзывов: {quality_metrics.get('total_reviews', 0)}
 • Удовлетворенность клиентов: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -167,7 +164,7 @@ Kerakli bo'limni tanlang:"""
         recommendations_text = "\n\n💡 <b>Tavsiyalar:</b>" if lang == 'uz' else "\n\n💡 <b>Рекомендации:</b>"
         text += recommendations_text
         
-        avg_rating = quality_metrics.get('avg_rating', 0)
+        avg_rating = float(quality_metrics.get('avg_rating') or 0)
         if avg_rating < 3.0:
             rec_text = "\n• Xizmat sifatini yaxshilash zarur" if lang == 'uz' else "\n• Необходимо улучшить качество обслуживания"
             text += rec_text
@@ -198,7 +195,7 @@ Kerakli bo'limni tanlang:"""
         if trends:
             for period in trends[:8]:  # So'nggi 8 hafta
                 period_name = period.get('period', '')
-                rating = period.get('avg_rating', 0)
+                rating = float(period.get('avg_rating') or 0)
                 change = period.get('change', 0)
                 review_count = period.get('review_count', 0)
                 
@@ -238,7 +235,7 @@ Kerakli bo'limni tanlang:"""
 📅 <b>Sana:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}
 
 ⭐ <b>Umumiy ko'rsatkichlar:</b>
-• O'rtacha baho: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• O'rtacha baho: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Jami sharhlar: {quality_metrics.get('total_reviews', 0)}
 • Mijoz qoniqishi: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -252,7 +249,7 @@ Kerakli bo'limni tanlang:"""
 📅 <b>Дата:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}
 
 ⭐ <b>Общие показатели:</b>
-• Средняя оценка: {quality_metrics.get('avg_rating', 0):.1f}/5.0
+• Средняя оценка: {quality_metrics.get('avg_rating') or 0:.1f}/5.0
 • Всего отзывов: {quality_metrics.get('total_reviews', 0)}
 • Удовлетворенность клиентов: {quality_metrics.get('satisfaction_rate', 0)}%
 
@@ -263,7 +260,7 @@ Kerakli bo'limni tanlang:"""
 💡 <b>Рекомендации:</b>"""
         
         # Tavsiyalar
-        avg_rating = quality_metrics.get('avg_rating', 0)
+        avg_rating = float(quality_metrics.get('avg_rating') or 0)
         if avg_rating < 3.0:
             rec_text = "\n• Xizmat sifatini yaxshilash zarur" if lang == 'uz' else "\n• Необходимо улучшить качество обслуживания"
             text += rec_text

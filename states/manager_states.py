@@ -105,3 +105,4 @@ class ManagerStates(StatesGroup):
     searching_equipment = State()
     sending_notification_user_id = State()
     sending_notification_message = State()
+    selecting_new_status = State()
