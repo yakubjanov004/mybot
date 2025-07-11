@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
 from keyboards.manager_buttons import get_equipment_keyboard, get_manager_main_keyboard
-from states.manager_states import ManagerStates
+from states.manager_states import ManagerEquipmentStates
 from loader import bot
 from database.base_queries import get_user_by_telegram_id
 from utils.logger import setup_logger
@@ -126,7 +126,7 @@ def get_manager_equipment_router():
         try:
             add_text = "🔧 Yangi jihoz qo'shish:\n\nJihoz nomini kiriting:" if lang == 'uz' else "🔧 Добавление нового оборудования:\n\nВведите название оборудования:"
             await callback.message.edit_text(add_text)
-            await state.set_state(ManagerStates.adding_equipment_name)
+            await state.set_state(ManagerEquipmentStates.adding_equipment_name)
             
         except Exception as e:
             logger.error(f"Error in start_add_equipment: {str(e)}", exc_info=True)
@@ -136,7 +136,7 @@ def get_manager_equipment_router():
         try:
             search_text = "🔍 Jihoz qidirish:\n\nQidiruv so'zini kiriting:" if lang == 'uz' else "🔍 Поиск оборудования:\n\nВведите поисковый запрос:"
             await callback.message.edit_text(search_text)
-            await state.set_state(ManagerStates.searching_equipment)
+            await state.set_state(ManagerEquipmentStates.searching_equipment)
             
         except Exception as e:
             logger.error(f"Error in start_search_equipment: {str(e)}", exc_info=True)
@@ -224,7 +224,7 @@ def get_manager_equipment_router():
             await callback.answer("Xatolik yuz berdi", show_alert=True)
 
     # Handle equipment name input
-    @router.message(StateFilter(ManagerStates.adding_equipment_name))
+    @router.message(StateFilter(ManagerEquipmentStates.adding_equipment_name))
     async def get_equipment_name(message: Message, state: FSMContext):
         """Get equipment name for adding"""
         try:
@@ -236,7 +236,7 @@ def get_manager_equipment_router():
             
             model_text = "Jihoz modelini kiriting:" if lang == 'uz' else "Введите модель оборудования:"
             await message.answer(model_text)
-            await state.set_state(ManagerStates.adding_equipment_model)
+            await state.set_state(ManagerEquipmentStates.adding_equipment_model)
             
         except Exception as e:
             logger.error(f"Error in get_equipment_name: {str(e)}", exc_info=True)
@@ -244,7 +244,7 @@ def get_manager_equipment_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.adding_equipment_model))
+    @router.message(StateFilter(ManagerEquipmentStates.adding_equipment_model))
     async def get_equipment_model(message: Message, state: FSMContext):
         """Get equipment model for adding"""
         try:
@@ -256,7 +256,7 @@ def get_manager_equipment_router():
             
             location_text = "Jihoz joylashuvini kiriting:" if lang == 'uz' else "Введите расположение оборудования:"
             await message.answer(location_text)
-            await state.set_state(ManagerStates.adding_equipment_location)
+            await state.set_state(ManagerEquipmentStates.adding_equipment_location)
             
         except Exception as e:
             logger.error(f"Error in get_equipment_model: {str(e)}", exc_info=True)
@@ -264,7 +264,7 @@ def get_manager_equipment_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.adding_equipment_location))
+    @router.message(StateFilter(ManagerEquipmentStates.adding_equipment_location))
     async def get_equipment_location(message: Message, state: FSMContext):
         """Get equipment location and save to database"""
         try:
@@ -320,7 +320,7 @@ def get_manager_equipment_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.searching_equipment))
+    @router.message(StateFilter(ManagerEquipmentStates.searching_equipment))
     async def search_equipment(message: Message, state: FSMContext):
         """Search equipment by name or model"""
         try:

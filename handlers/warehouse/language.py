@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from database.warehouse_queries import get_warehouse_user_by_telegram_id
 from database.base_queries import update_user_language
 from keyboards.warehouse_buttons import language_selection_keyboard, warehouse_main_menu
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseSettingsStates, WarehouseMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -28,7 +28,7 @@ def get_warehouse_language_router():
                 language_text,
                 reply_markup=language_selection_keyboard()
             )
-            await state.set_state(WarehouseStates.selecting_language)
+            await state.set_state(WarehouseSettingsStates.selecting_language)
             
         except Exception as e:
             logger.error(f"Error in change language handler: {str(e)}")
@@ -49,7 +49,7 @@ def get_warehouse_language_router():
                 language_text,
                 reply_markup=language_selection_keyboard()
             )
-            await state.set_state(WarehouseStates.selecting_language)
+            await state.set_state(WarehouseSettingsStates.selecting_language)
             await callback.answer()
             
         except Exception as e:
@@ -90,7 +90,7 @@ def get_warehouse_language_router():
                     f"{success_text}\n\n{welcome_text}",
                     reply_markup=warehouse_main_menu(new_lang)
                 )
-                await state.set_state(WarehouseStates.main_menu)
+                await state.set_state(WarehouseMainMenuStates.main_menu)
                 logger.info(f"Warehouse user {user['id']} changed language to {new_lang}")
             else:
                 error_text = "Tilni o'zgartirishda xatolik" if new_lang == 'uz' else "Ошибка при изменении языка"
@@ -118,7 +118,7 @@ def get_warehouse_language_router():
                 welcome_text,
                 reply_markup=warehouse_main_menu(lang)
             )
-            await state.set_state(WarehouseStates.main_menu)
+            await state.set_state(WarehouseMainMenuStates.main_menu)
             await callback.answer()
             
         except Exception as e:

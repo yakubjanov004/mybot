@@ -11,6 +11,16 @@ def safe_callback_data(data: str, max_length: int = 64) -> str:
     hash_obj = hashlib.md5(data.encode())
     return f"hash_{hash_obj.hexdigest()[:50]}"
 
+def get_language_selection_keyboard():
+    """Til tanlash uchun inline keyboard"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="select_lang_uz")],
+            [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="select_lang_ru")]
+        ]
+    )
+    return keyboard
+
 def get_contact_keyboard(lang="uz"):
     """Kontakt ulashish klaviaturasi"""
     share_contact_text = "📱 Kontakt ulashish" if lang == "uz" else "📱 Поделиться контактом"
@@ -22,7 +32,8 @@ def get_contact_keyboard(lang="uz"):
 
 def get_main_menu_keyboard(lang="uz"):
     """Asosiy menyu klaviaturasi - 2 ustunli, 3 qatorli"""
-    new_order_text = "🆕 Yangi buyurtma" if lang == "uz" else "🆕 Новый заказ"
+    service_order_text = "🆕 Texnik xizmat" if lang == "uz" else "🆕 Техническая поддержка"
+    connection_order_text = "🔌 Ulanish uchun ariza" if lang == "uz" else "🔌 Заявка на подключение"
     my_orders_text = "📋 Mening buyurtmalarim" if lang == "uz" else "📋 Мои заказы"
     contact_operator_text = "📞 Operator bilan bog'lanish" if lang == "uz" else "📞 Связаться с оператором"
     change_language_text = "🌐 Til o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
@@ -31,7 +42,10 @@ def get_main_menu_keyboard(lang="uz"):
     
     buttons = [
         [
-            KeyboardButton(text=new_order_text),
+            KeyboardButton(text=service_order_text),
+            KeyboardButton(text=connection_order_text)
+        ],
+        [
             KeyboardButton(text=my_orders_text)
         ],
         [
@@ -144,6 +158,7 @@ def get_client_profile_menu(lang="uz"):
     """Client profile menu"""
     view_info_text = "👁️ Ma'lumotlarni ko'rish" if lang == "uz" else "👁️ Просмотр информации"
     view_orders_text = "🔄 Mening arizalarim" if lang == "uz" else "🔄 Мои заявки"
+    edit_profile_text = "✏️ Ma'lumotlarni o'zgartirish" if lang == "uz" else "✏️ Редактировать информацию"
     
     keyboard = [
         [
@@ -154,6 +169,12 @@ def get_client_profile_menu(lang="uz"):
             InlineKeyboardButton(
                 text=view_orders_text,
                 callback_data="client_order_stats"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=edit_profile_text,
+                callback_data="client_edit_profile"
             )
         ]
     ]
@@ -212,3 +233,38 @@ def get_client_help_back_inline(lang="uz"):
         )]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_client_profile_edit_menu(lang="uz"):
+    """Client profile edit menu"""
+    edit_name_text = "✏️ Ism o'zgartirish" if lang == "uz" else "✏️ Изменить имя"
+    edit_address_text = "📍 Manzil o'zgartirish" if lang == "uz" else "📍 Изменить адрес"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=edit_name_text,
+                callback_data="client_edit_name"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=edit_address_text,
+                callback_data="client_edit_address"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="◀️ Orqaga" if lang == "uz" else "◀️ Назад",
+                callback_data="client_profile_back"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_cancel_edit_keyboard(lang="uz"):
+    """Cancel edit keyboard"""
+    cancel_text = "❌ Bekor qilish" if lang == "uz" else "❌ Отменить"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=cancel_text, callback_data="client_profile_back")]]
+    )
+    return keyboard

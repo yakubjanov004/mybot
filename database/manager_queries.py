@@ -363,4 +363,214 @@ async def get_manager_filters(pool: asyncpg.Pool) -> Dict[str, List[Any]]:
         return {
             'statuses': [row['status'] for row in statuses],
             'types': [row['zayavka_type'] for row in types]
-        } 
+        }
+
+# Junior Manager uchun qo'shimcha funksiyalar
+async def get_orders_for_junior_manager(pool: asyncpg.Pool) -> List[Dict[str, Any]]:
+    """Kichik menejer uchun zayavkalarni olish"""
+    try:
+        async with pool.acquire() as conn:
+            query = """
+                SELECT 
+                    z.id,
+                    z.description,
+                    z.address,
+                    z.status,
+                    z.created_at,
+                    z.assigned_to as assigned_technician_id,
+                    u.full_name as client_name,
+                    u.phone_number as client_phone,
+                    t.full_name as technician_name
+                FROM zayavki z
+                LEFT JOIN users u ON z.user_id = u.id
+                LEFT JOIN users t ON z.assigned_to = t.id
+                WHERE z.status != 'deleted'
+                ORDER BY z.created_at DESC
+                LIMIT 50
+            """
+            result = await conn.fetch(query)
+            return [dict(row) for row in result]
+    except Exception as e:
+        print(f"Error in get_orders_for_junior_manager: {e}")
+        return []
+
+async def assign_order_to_technician(order_id: int, technician_id: int, assigned_by: int, pool: asyncpg.Pool) -> bool:
+    """Zayavkani texnikka tayinlash"""
+    try:
+        async with pool.acquire() as conn:
+            # Zayavkani yangilash
+            update_query = """
+                UPDATE zayavki 
+                SET assigned_to = $1, 
+                    status = 'assigned',
+                    updated_at = NOW()
+                WHERE id = $2
+            """
+            await conn.execute(update_query, technician_id, order_id)
+            
+            # Log qo'shish
+            log_query = """
+                INSERT INTO order_logs (order_id, action, user_id, details, created_at)
+                VALUES ($1, 'assigned', $2, $3, NOW())
+            """
+            await conn.execute(log_query, order_id, assigned_by, f"Assigned to technician {technician_id}")
+            
+            return True
+    except Exception as e:
+        print(f"Error in assign_order_to_technician: {e}")
+        return False
+
+async def get_available_technicians(pool: asyncpg.Pool) -> List[Dict[str, Any]]:
+    """Mavjud texniklarni olish"""
+    try:
+        async with pool.acquire() as conn:
+            query = """
+                SELECT id, full_name as name, phone_number as phone, telegram_id
+                FROM users 
+                WHERE role = 'technician' 
+                AND is_active = true
+                ORDER BY full_name
+            """
+            result = await conn.fetch(query)
+            return [dict(row) for row in result]
+    except Exception as e:
+        print(f"Error in get_available_technicians: {e}")
+        return []
+
+async def get_order_details(order_id: int, pool: asyncpg.Pool) -> Optional[Dict[str, Any]]:
+    """Zayavka tafsilotlarini olish"""
+    try:
+        async with pool.acquire() as conn:
+            query = """
+                SELECT 
+                    z.id,
+                    z.description,
+                    z.address,
+                    z.status,
+                    z.created_at,
+                    z.assigned_to as assigned_technician_id,
+                    u.full_name as client_name,
+                    u.phone_number as client_phone,
+                    t.full_name as assigned_technician
+                FROM zayavki z
+                LEFT JOIN users u ON z.user_id = u.id
+                LEFT JOIN users t ON z.assigned_to = t.id
+                WHERE z.id = $1
+            """
+            result = await conn.fetchrow(query, order_id)
+            return dict(result) if result else None
+    except Exception as e:
+        print(f"Error in get_order_details: {e}")
+        return None
+
+async def get_filtered_orders(filter_type: str, pool: asyncpg.Pool) -> List[Dict[str, Any]]:
+    """Filtr bo'yicha zayavkalarni olish"""
+    try:
+        async with pool.acquire() as conn:
+            base_query = """
+                SELECT 
+                    z.id,
+                    z.description,
+                    z.status,
+                    z.created_at
+                FROM zayavki z
+                WHERE z.status != 'deleted'
+            """
+            
+            if filter_type == 'new':
+                query = base_query + " AND z.status = 'new'"
+            elif filter_type == 'assigned':
+                query = base_query + " AND z.status = 'assigned'"
+            elif filter_type == 'in_progress':
+                query = base_query + " AND z.status = 'in_progress'"
+            elif filter_type == 'completed':
+                query = base_query + " AND z.status = 'completed'"
+            elif filter_type == 'cancelled':
+                query = base_query + " AND z.status = 'cancelled'"
+            elif filter_type == 'today':
+                query = base_query + " AND DATE(z.created_at) = CURRENT_DATE"
+            elif filter_type == 'yesterday':
+                query = base_query + " AND DATE(z.created_at) = CURRENT_DATE - INTERVAL '1 day'"
+            else:
+                query = base_query
+            
+            query += " ORDER BY z.created_at DESC"
+            result = await conn.fetch(query)
+            return [dict(row) for row in result]
+    except Exception as e:
+        print(f"Error in get_filtered_orders: {e}")
+        return []
+
+async def get_junior_manager_reports(pool: asyncpg.Pool) -> Dict[str, Any]:
+    """Kichik menejer uchun hisobot ma'lumotlari"""
+    try:
+        async with pool.acquire() as conn:
+            # Jami zayavkalar
+            total_query = "SELECT COUNT(*) FROM zayavki WHERE status != 'deleted'"
+            total_orders = await conn.fetchval(total_query)
+            
+            # Status bo'yicha zayavkalar
+            status_query = """
+                SELECT status, COUNT(*) as count
+                FROM zayavki 
+                WHERE status != 'deleted'
+                GROUP BY status
+            """
+            status_counts = await conn.fetch(status_query)
+            status_dict = {row['status']: row['count'] for row in status_counts}
+            
+            # Bugungi va kechagi zayavkalar
+            today_query = "SELECT COUNT(*) FROM zayavki WHERE DATE(created_at) = CURRENT_DATE"
+            today_orders = await conn.fetchval(today_query)
+            
+            yesterday_query = "SELECT COUNT(*) FROM zayavki WHERE DATE(created_at) = CURRENT_DATE - INTERVAL '1 day'"
+            yesterday_orders = await conn.fetchval(yesterday_query)
+            
+            return {
+                'total_orders': total_orders,
+                'new_orders': status_dict.get('new', 0),
+                'assigned_orders': status_dict.get('assigned', 0),
+                'in_progress_orders': status_dict.get('in_progress', 0),
+                'completed_orders': status_dict.get('completed', 0),
+                'cancelled_orders': status_dict.get('cancelled', 0),
+                'today_orders': today_orders,
+                'yesterday_orders': yesterday_orders
+            }
+    except Exception as e:
+        print(f"Error in get_junior_manager_reports: {e}")
+        return {
+            'total_orders': 0,
+            'new_orders': 0,
+            'assigned_orders': 0,
+            'in_progress_orders': 0,
+            'completed_orders': 0,
+            'cancelled_orders': 0,
+            'today_orders': 0,
+            'yesterday_orders': 0
+        }
+
+async def get_technician_by_id(technician_id: int, pool: asyncpg.Pool) -> Optional[Dict[str, Any]]:
+    """Texnik ma'lumotlarini ID bo'yicha olish"""
+    try:
+        async with pool.acquire() as conn:
+            query = """
+                SELECT id, full_name, phone_number, telegram_id
+                FROM users 
+                WHERE id = $1 AND role = 'technician'
+            """
+            result = await conn.fetchrow(query, technician_id)
+            return dict(result) if result else None
+    except Exception as e:
+        print(f"Error in get_technician_by_id: {e}")
+        return None
+
+async def get_order_address(order_id: int, pool: asyncpg.Pool) -> Optional[str]:
+    """Zayavka manzilini olish"""
+    try:
+        async with pool.acquire() as conn:
+            query = "SELECT address FROM zayavki WHERE id = $1"
+            result = await conn.fetchval(query, order_id)
+            return result
+    except Exception as e:
+        print(f"Error in get_order_address: {e}")
+        return None 

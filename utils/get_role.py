@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 ROLE_HIERARCHY = {
     'admin': 100,
     'manager': 80,
+    'junior_manager': 70,
     'controller': 70,
     'call_center': 60,
     'warehouse': 50,
@@ -28,6 +29,9 @@ ROLE_PERMISSIONS = {
     'manager': [
         'view_all_zayavkas', 'manage_zayavkas', 'assign_tasks', 'view_statistics',
         'manage_technicians', 'view_reports', 'approve_requests'
+    ],
+    'junior_manager': [
+        'create_zayavka', 'view_all_zayavkas', 'filter_zayavkas'
     ],
     'controller': [
         'view_all_zayavkas', 'quality_control', 'view_statistics', 'view_reports',
@@ -223,7 +227,7 @@ def get_staff_roles() -> List[str]:
 
 def get_management_roles() -> List[str]:
     """Get management roles"""
-    return ['admin', 'manager', 'controller']
+    return ['admin', 'manager', 'junior_manager', 'controller']
 
 def get_operational_roles() -> List[str]:
     """Get operational roles"""

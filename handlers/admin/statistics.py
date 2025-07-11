@@ -10,7 +10,7 @@ from database.admin_queries import (
 )
 from database.base_queries import get_system_statistics, get_user_by_telegram_id, get_user_lang
 from keyboards.admin_buttons import get_statistics_keyboard
-from states.admin_states import AdminStates
+from states.admin_states import AdminStatisticsStates, AdminMainMenuStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
@@ -24,7 +24,7 @@ logger = setup_logger('bot.admin.statistics')
 def get_admin_statistics_router():
     router = get_role_router("admin")
 
-    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📊 Statistika", "📊 Статистика"]))
+    @router.message(StateFilter(AdminMainMenuStates.main_menu), F.text.in_(["📊 Statistika", "📊 Статистика"]))
     @admin_only
     async def statistics_menu(message: Message, state: FSMContext):
         """Statistics main menu"""
@@ -34,7 +34,7 @@ def get_admin_statistics_router():
             text = "Statistika bo'limini tanlang:" if lang == 'uz' else "Выберите раздел статистики:"
             sent_message = await message.answer(text, reply_markup=get_statistics_keyboard(lang))
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.statistics_menu)
+            await state.set_state(AdminStatisticsStates.statistics_menu)
         except Exception as e:
             logger.error(f"Error in statistics menu: {e}")
             lang = await get_user_lang(message.from_user.id)

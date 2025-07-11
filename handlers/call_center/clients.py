@@ -8,7 +8,7 @@ from database.call_center_queries import (
     search_clients, get_client_history, update_client_info
 )
 from keyboards.call_center_buttons import client_search_menu, new_order_reply_menu, get_client_actions_reply, call_center_main_menu_reply
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterClientStates, CallCenterChatStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -25,7 +25,7 @@ def get_call_center_clients_router():
             await message.answer(text)
             return
         
-        await state.set_state(CallCenterStates.client_search)
+        await state.set_state(CallCenterClientStates.client_search)
         lang = user.get('language', 'uz')
         text = " Mijoz qidirish" if lang == 'uz' else " Поиск клиента"
         await message.answer(
@@ -43,7 +43,7 @@ def get_call_center_clients_router():
         
         lang = user.get('language', 'uz')
         
-        await state.set_state(CallCenterStates.client_search)
+        await state.set_state(CallCenterClientStates.client_search)
         text = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
         await callback.message.edit_text(
             text,
@@ -51,7 +51,7 @@ def get_call_center_clients_router():
         )
         await callback.answer()
 
-    @router.callback_query(CallCenterStates.client_search, F.data.in_(['search_by_name', 'search_by_phone', 'search_by_id', 'back']))
+    @router.callback_query(CallCenterClientStates.client_search, F.data.in_(['search_by_name', 'search_by_phone', 'search_by_id', 'back']))
     async def handle_search_method(callback: CallbackQuery, state: FSMContext):
         """Handle search method selection"""
         user = await get_user_by_telegram_id(callback.from_user.id)
@@ -92,7 +92,7 @@ def get_call_center_clients_router():
         )
         await callback.answer()
 
-    @router.message(CallCenterStates.client_search)
+    @router.message(CallCenterClientStates.client_search)
     async def handle_search_method(message: Message, state: FSMContext):
         """Handle search method selection and full info request"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -302,7 +302,7 @@ def get_call_center_clients_router():
                 reply_markup=client_search_menu(lang)
             )
 
-    @router.message(CallCenterStates.client_search)
+    @router.message(CallCenterClientStates.client_search)
     async def process_search(message: Message, state: FSMContext):
         """Process the actual search after method selection"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -367,7 +367,7 @@ def get_call_center_clients_router():
                 reply_markup=client_search_menu(lang)
             )
 
-    @router.callback_query(CallCenterStates.client_search, F.data.in_(['open_order', 'call', 'chat', 'details', 'back']))
+    @router.callback_query(CallCenterClientStates.client_search, F.data.in_(['open_order', 'call', 'chat', 'details', 'back']))
     async def handle_client_action(callback: CallbackQuery, state: FSMContext):
         """Handle client actions"""
         user = await get_user_by_telegram_id(callback.from_user.id)
@@ -408,7 +408,7 @@ def get_call_center_clients_router():
         
         await callback.answer()
 
-    @router.message(StateFilter(CallCenterStates.client_search))
+    @router.message(StateFilter(CallCenterClientStates.client_search))
     async def search_client(message: Message, state: FSMContext):
         """Search for client"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -445,7 +445,7 @@ def get_call_center_clients_router():
                 select_text = "Mijozni tanlash uchun raqamini yuboring (1-10)" if lang == 'uz' else "Отправьте номер для выбора клиента (1-10)"
                 text += f"📌 {select_text}"
                 
-                await state.set_state(CallCenterStates.client_details)
+                await state.set_state(CallCenterClientStates.client_details)
                 
             else:
                 text = "❌ Mijozlar topilmadi." if lang == 'uz' else "❌ Клиенты не найдены."
@@ -457,7 +457,7 @@ def get_call_center_clients_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(CallCenterStates.client_details))
+    @router.message(StateFilter(CallCenterClientStates.client_details))
     async def select_client_by_number(message: Message, state: FSMContext):
         """Select client by number from search results"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -523,7 +523,7 @@ def get_call_center_clients_router():
                 text += f"⭐ O'rtacha: {avg_rating:.1f}/5 ({len(feedback)} ta baholash)\n"
             
             await state.update_data(selected_client_id=client_id)
-            await state.set_state(CallCenterStates.client_history)
+            await state.set_state(CallCenterClientStates.client_history)
             await message.answer(text)
             
         except ValueError:
@@ -534,7 +534,7 @@ def get_call_center_clients_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(CallCenterStates.client_history))
+    @router.message(StateFilter(CallCenterClientStates.client_history))
     async def handle_client_actions(message: Message, state: FSMContext):
         """Handle actions on selected client"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -553,7 +553,7 @@ def get_call_center_clients_router():
             if action in ['yangi buyurtma', 'новый заказ', 'order']:
                 # Start new order for this client
                 await state.update_data(client_id=client_id)
-                await state.set_state(CallCenterStates.select_service_type)
+                await state.set_state(CallCenterClientStates.select_service_type)
                 
                 from keyboards.call_center_buttons import order_types_keyboard
                 text = "🔧 Xizmat turini tanlang:" if lang == 'uz' else "🔧 Выберите тип услуги:"
@@ -565,7 +565,7 @@ def get_call_center_clients_router():
             elif action in ['chat', 'чат']:
                 # Start chat with client
                 await state.update_data(client_id=client_id)
-                await state.set_state(CallCenterStates.in_chat)
+                await state.set_state(CallCenterChatStates.in_chat)
                 
                 text = "💬 Chat boshlandi. Xabaringizni yuboring:" if lang == 'uz' else "💬 Чат начат. Отправьте ваше сообщение:"
                 await message.answer(text)

@@ -13,7 +13,7 @@ from keyboards.support_chat_buttons import (
     get_chat_actions_keyboard,
     get_chat_close_confirm_keyboard
 )
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterChatStates, CallCenterMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -56,7 +56,7 @@ def get_call_center_chat_router():
             
             if chat_id:
                 await state.update_data(chat_id=chat_id)
-                await state.set_state(CallCenterStates.in_chat)
+                await state.set_state(CallCenterChatStates.in_chat)
                 text = "💬 Chat sessiyasi boshlandi. Xabaringizni yuboring:" if lang == 'uz' else "💬 Сессия чата начата. Отправьте ваше сообщение:"
                 await message.answer(
                     text,
@@ -105,7 +105,7 @@ def get_call_center_chat_router():
             
             if chat_id:
                 await state.update_data(chat_id=chat_id)
-                await state.set_state(CallCenterStates.in_chat)
+                await state.set_state(CallCenterChatStates.in_chat)
                 text = "💬 Chat sessiyasi boshlandi" if lang == 'uz' else "💬 Сессия чата начата"
                 await callback.message.edit_text(
                     text,
@@ -123,7 +123,7 @@ def get_call_center_chat_router():
             await callback.message.edit_text(error_text)
             await callback.answer()
 
-    @router.message(StateFilter(CallCenterStates.in_chat))
+    @router.message(StateFilter(CallCenterChatStates.in_chat))
     async def process_chat_message(message: Message, state: FSMContext):
         """Process chat message"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -201,7 +201,7 @@ def get_call_center_chat_router():
             success = await close_chat_session(int(chat_id))
             
             if success:
-                await state.set_state(CallCenterStates.main_menu)
+                await state.set_state(CallCenterMainMenuStates.main_menu)
                 text = "✅ Chat yopildi" if lang == 'uz' else "✅ Чат закрыт"
                 await callback.message.edit_text(text)
                 

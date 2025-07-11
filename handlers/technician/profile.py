@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.technician_buttons import get_back_technician_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianProfileStates
 from database.technician_queries import get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import cleanup_user_inline_messages
@@ -55,7 +55,7 @@ def get_technician_profile_router():
                   f"📱 Telefon raqam: {phone}"
             
             await message.answer(text, reply_markup=get_back_technician_keyboard(lang))
-            await state.set_state(TechnicianStates.profile)
+            await state.set_state(TechnicianProfileStates.profile)
         except Exception as e:
             logger.error(f"Error in show_profile: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)

@@ -830,21 +830,33 @@ async def update_user_language(telegram_id: int, language: str, pool: asyncpg.Po
         logger.error(f"Error updating user language: {str(e)}")
         return False
 
-async def update_user_phone(telegram_id: int, phone_number: str, pool: asyncpg.Pool = None) -> bool:
-    """Update user phone number"""
+async def update_user_full_name(telegram_id: int, full_name: str, pool: asyncpg.Pool = None) -> bool:
+    """Update user's full name"""
     if not pool:
         from loader import bot
         pool = bot.db
     
-    # Log user data before update
-    from database.base_queries import get_user_by_telegram_id as _get_user_by_telegram_id
-    before_update = None
+    query = """
+        UPDATE users 
+        SET full_name = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE telegram_id = $1
+    """
+    
     try:
-        before_update = await _get_user_by_telegram_id(telegram_id, pool)
+        async with pool.acquire() as conn:
+            await conn.execute(query, telegram_id, full_name)
+            logger.info(f"Updated full name for user {telegram_id} to {full_name}")
+            return True
     except Exception as e:
-        logger.error(f"Error fetching user before update: {str(e)}")
-    logger.info(f"Before update, user data: {before_update}")
+        logger.error(f"Error updating user full name: {str(e)}")
+        return False
 
+async def update_user_phone(telegram_id: int, phone_number: str, pool: asyncpg.Pool = None) -> bool:
+    """Update user's phone number"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
     query = """
         UPDATE users 
         SET phone_number = $2, updated_at = CURRENT_TIMESTAMP
@@ -853,18 +865,32 @@ async def update_user_phone(telegram_id: int, phone_number: str, pool: asyncpg.P
     
     try:
         async with pool.acquire() as conn:
-            result = await conn.execute(query, telegram_id, phone_number)
-            logger.info(f"Updated phone for user {telegram_id}, result: {result}")
-            # Log user data after update
-            after_update = None
-            try:
-                after_update = await _get_user_by_telegram_id(telegram_id, pool)
-            except Exception as e:
-                logger.error(f"Error fetching user after update: {str(e)}")
-            logger.info(f"After update, user data: {after_update}")
+            await conn.execute(query, telegram_id, phone_number)
+            logger.info(f"Updated phone for user {telegram_id} to {phone_number}")
             return True
     except Exception as e:
         logger.error(f"Error updating user phone: {str(e)}")
+        return False
+
+async def update_user_address(telegram_id: int, address: str, pool: asyncpg.Pool = None) -> bool:
+    """Update user's address"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        UPDATE users 
+        SET address = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE telegram_id = $1
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(query, telegram_id, address)
+            logger.info(f"Updated address for user {telegram_id} to {address}")
+            return True
+    except Exception as e:
+        logger.error(f"Error updating user address: {str(e)}")
         return False
 
 # Zayavka management functions
@@ -872,30 +898,39 @@ async def create_zayavka(user_id: int, description: str, address: str = None,
                         phone_number: str = None, media: str = None, 
                         zayavka_type: str = None, latitude: float = None, 
                         longitude: float = None, created_by: int = None,
-                        created_by_role: str = None, pool: asyncpg.Pool = None) -> Optional[int]:
-    """Create new zayavka"""
+                        created_by_role: str = None, tariff: str = None, pool: asyncpg.Pool = None) -> Optional[int]:
+    """Create new zayavka with public_id"""
     if not pool:
         from loader import bot
         pool = bot.db
-    
-    query = """
-        INSERT INTO zayavki (user_id, description, address, phone_number, media, 
-                           zayavka_type, latitude, longitude, created_by, created_by_role)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        RETURNING id
-    """
-    
-    try:
-        async with pool.acquire() as conn:
-            zayavka_id = await conn.fetchval(
-                query, user_id, description, address, phone_number, media,
-                zayavka_type, latitude, longitude, created_by, created_by_role
+
+    async with pool.acquire() as conn:
+        query = """
+            INSERT INTO zayavki (
+                user_id, description, address, phone_number, media, 
+                zayavka_type, latitude, longitude, created_by, created_by_role, tariff,
+                status, priority, ready_to_install
+            ) VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9, $10, $11,
+                'new', 1, false
             )
-            logger.info(f"Created zayavka {zayavka_id} for user {user_id}")
-            return zayavka_id
-    except Exception as e:
-        logger.error(f"Error creating zayavka: {str(e)}")
-        return None
+            RETURNING id
+        """
+        try:
+            zayavka_id = await conn.fetchval(
+                query, 
+                user_id, description, address, phone_number, media,
+                zayavka_type, latitude, longitude, created_by, created_by_role, tariff
+            )
+            # Use the auto-generated id for public_id
+            prefix = "TX" if zayavka_type == "service" else "UL"
+            public_id = f"{prefix}-{zayavka_id}"
+            logger.info(f"Created zayavka {zayavka_id} for user {user_id} (public_id={public_id})")
+            return zayavka_id, public_id
+        except Exception as e:
+            logger.error(f"Error creating zayavka: {str(e)}")
+            return None, None
 
 async def get_zayavka_by_id(zayavka_id: int, pool: asyncpg.Pool = None) -> Optional[Dict[str, Any]]:
     """Get zayavka by ID"""
@@ -1245,3 +1280,20 @@ async def get_staff_members(pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
 
 # Alias for compatibility with handler imports
 get_application_by_id = get_zayavka_by_id
+
+async def set_user_language(telegram_id: int, language: str, pool: asyncpg.Pool = None) -> bool:
+    """Set user language in database (wrapper for update_user_language)"""
+    from utils.logger import setup_module_logger
+    logger = setup_module_logger("base_queries")
+    from utils.get_lang import is_supported_language
+    if not is_supported_language(language):
+        logger.warning(f"Unsupported language: {language}")
+        return False
+    try:
+        success = await update_user_language(telegram_id, language, pool)
+        if success:
+            logger.info(f"Updated language for user {telegram_id} to {language}")
+        return success
+    except Exception as e:
+        logger.error(f"Error setting user language: {str(e)}")
+        return False

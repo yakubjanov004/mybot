@@ -9,7 +9,7 @@ from database.call_center_queries import (
 from keyboards.call_center_buttons import (
     order_types_keyboard, call_status_keyboard, new_order_reply_menu
 )
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterOrderStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -26,7 +26,7 @@ def get_call_center_orders_router():
             await message.answer(text)
             return
         
-        await state.set_state(CallCenterStates.new_order_phone)
+        await state.set_state(CallCenterOrderStates.new_order_phone)
         lang = user.get('language', 'uz')
         text = "📞 Mijoz telefon raqamini kiriting:" if lang == 'uz' else "📞 Введите номер телефона клиента:"
         await message.answer(
@@ -44,14 +44,14 @@ def get_call_center_orders_router():
         
         lang = user.get('language', 'uz')
         
-        await state.set_state(CallCenterStates.new_order_phone)
+        await state.set_state(CallCenterOrderStates.new_order_phone)
         text = "📞 Mijoz telefon raqamini kiriting:" if lang == 'uz' else "📞 Введите номер телефона клиента:"
         await callback.message.edit_text(
             text,
             reply_markup=new_order_reply_menu(user['language'])
         )
 
-    @router.message(StateFilter(CallCenterStates.new_order_phone))
+    @router.message(StateFilter(CallCenterOrderStates.new_order_phone))
     async def get_client_phone(message: Message, state: FSMContext):
         """Get client phone and check if exists"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -87,7 +87,7 @@ def get_call_center_orders_router():
                         status_emoji = "✅" if order['status'] == 'completed' else "⏳" if order['status'] in ['new', 'pending'] else "🔧"
                         text += f"{status_emoji} {order.get('zayavka_type', 'Xizmat')} - {order['status']}\n"
                 
-                await state.set_state(CallCenterStates.select_service_type)
+                await state.set_state(CallCenterOrderStates.select_service_type)
                 await message.answer(
                     text,
                     reply_markup=order_types_keyboard(user['language'])
@@ -95,7 +95,7 @@ def get_call_center_orders_router():
             else:
                 # New client
                 await state.update_data(client_phone=phone)
-                await state.set_state(CallCenterStates.new_client_name)
+                await state.set_state(CallCenterOrderStates.new_client_name)
                 text = "👤 Yangi mijoz. Ismini kiriting:" if lang == 'uz' else "👤 Новый клиент. Введите имя:"
                 await message.answer(text)
                 
@@ -104,18 +104,18 @@ def get_call_center_orders_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(CallCenterStates.new_client_name))
+    @router.message(StateFilter(CallCenterOrderStates.new_client_name))
     async def get_client_name(message: Message, state: FSMContext):
         """Get new client name"""
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         
         await state.update_data(client_name=message.text.strip())
-        await state.set_state(CallCenterStates.new_client_address)
+        await state.set_state(CallCenterOrderStates.new_client_address)
         text = "📍 Mijoz manzilini kiriting:" if lang == 'uz' else "📍 Введите адрес клиента:"
         await message.answer(text)
 
-    @router.message(StateFilter(CallCenterStates.new_client_address))
+    @router.message(StateFilter(CallCenterOrderStates.new_client_address))
     async def get_client_address(message: Message, state: FSMContext):
         """Get client address and create client"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -134,7 +134,7 @@ def get_call_center_orders_router():
             
             if client_id:
                 await state.update_data(client_id=client_id)
-                await state.set_state(CallCenterStates.select_service_type)
+                await state.set_state(CallCenterOrderStates.select_service_type)
                 text = "✅ Mijoz muvaffaqiyatli yaratildi!\n\n🔧 Xizmat turini tanlang:" if lang == 'uz' else "✅ Клиент успешно создан!\n\n🔧 Выберите тип услуги:"
                 await message.answer(
                     text,
@@ -157,18 +157,18 @@ def get_call_center_orders_router():
         lang = user.get('language', 'uz')
         
         await state.update_data(service_type=service_type)
-        await state.set_state(CallCenterStates.order_description)
+        await state.set_state(CallCenterOrderStates.order_description)
         text = "📝 Buyurtma tavsifini kiriting:" if lang == 'uz' else "📝 Введите описание заказа:"
         await callback.message.edit_text(text)
 
-    @router.message(StateFilter(CallCenterStates.order_description))
+    @router.message(StateFilter(CallCenterOrderStates.order_description))
     async def get_order_description(message: Message, state: FSMContext):
         """Get order description"""
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         
         await state.update_data(description=message.text.strip())
-        await state.set_state(CallCenterStates.order_priority)
+        await state.set_state(CallCenterOrderStates.order_priority)
         text = "🎯 Buyurtma ustuvorligini tanlang:" if lang == 'uz' else "🎯 Выберите приоритет заказа:"
         await message.answer(
             text,
@@ -225,7 +225,7 @@ def get_call_center_orders_router():
                 text = "❌ Buyurtmani yaratishda xatolik yuz berdi." if lang == 'uz' else "❌ Ошибка при создании заказа."
                 await callback.message.edit_text(text)
             
-            await state.set_state(CallCenterStates.main_menu)
+            await state.set_state(CallCenterOrderStates.main_menu)
             await callback.answer()
             
         except Exception as e:

@@ -367,7 +367,7 @@ class CommonValidators:
         'new', 'pending', 'assigned', 'in_progress', 'completed', 'cancelled'
     ])
     ROLE = ChoiceValidator([
-        'client', 'technician', 'manager', 'admin', 'call_center', 'warehouse', 'controller'
+        'client', 'technician', 'manager', 'junior_manager', 'admin', 'call_center', 'warehouse', 'controller'
     ])
     LANGUAGE = ChoiceValidator(['uz', 'ru'])
     PRIORITY = ChoiceValidator(['low', 'medium', 'high', 'urgent'])
@@ -558,7 +558,7 @@ TELEGRAM_ID_PATTERN = re.compile(r'^\d{5,12}$')
 
 # Valid roles
 VALID_ROLES = [
-    'admin', 'manager', 'controller', 'call_center', 
+    'admin', 'manager', 'junior_manager', 'controller', 'call_center', 
     'warehouse', 'technician', 'client', 'blocked'
 ]
 

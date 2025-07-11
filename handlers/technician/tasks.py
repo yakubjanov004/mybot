@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from keyboards.technician_buttons import get_back_technician_keyboard, get_task_action_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianTasksStates
 from database.technician_queries import (
     get_technician_by_telegram_id, get_technician_tasks, accept_task, 
     start_task, complete_task, request_task_transfer, get_managers_telegram_ids
@@ -339,13 +339,13 @@ def get_technician_tasks_router():
         
         zayavka_id = int(callback.data.split("_")[-1])
         await state.update_data(completing_zayavka_id=zayavka_id)
-        await state.set_state(TechnicianStates.waiting_for_completion_comment)
+        await state.set_state(TechnicianTasksStates.waiting_for_completion_comment)
         
         lang = await get_user_lang(callback.from_user.id)
         completion_text = "📝 Bajarilgan ish haqida izoh yozing:" if lang == 'uz' else "📝 Напишите комментарий о выполненной работе:"
         await callback.message.edit_text(completion_text)
 
-    @router.message(TechnicianStates.waiting_for_completion_comment)
+    @router.message(TechnicianTasksStates.waiting_for_completion_comment)
     @require_technician
     async def process_completion_comment(message: Message, state: FSMContext):
         """Process completion comment"""
@@ -465,13 +465,13 @@ def get_technician_tasks_router():
         user = await get_technician_by_telegram_id(callback.from_user.id)
         zayavka_id = int(callback.data.split("_")[-1])
         await state.update_data(transferring_zayavka_id=zayavka_id)
-        await state.set_state(TechnicianStates.waiting_for_transfer_reason)
+        await state.set_state(TechnicianTasksStates.waiting_for_transfer_reason)
         
         lang = await get_user_lang(callback.from_user.id)
         transfer_reason_text = "📝 O'tkazish sababini yozing:" if lang == 'uz' else "📝 Напишите причину передачи:"
         await callback.message.edit_text(transfer_reason_text)
 
-    @router.message(TechnicianStates.waiting_for_transfer_reason)
+    @router.message(TechnicianTasksStates.waiting_for_transfer_reason)
     @require_technician
     async def process_transfer_reason(message: Message, state: FSMContext):
         """Process transfer reason"""

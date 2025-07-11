@@ -10,27 +10,6 @@ logger = setup_logger('bot.manager.orders')
 def get_manager_orders_router():
     router = get_role_router("manager")
     
-    @router.message(F.text.in_(["📝 Ariza yaratish", "📝 Создать заявку"]))
-    async def manager_create_order(message: Message):
-        """Manager create order"""
-        try:
-            lang = await get_user_lang(message.from_user.id)
-            text = "📝 Manager: Ariza yaratish oynasi" if lang == 'uz' else "📝 Менеджер: Окно создания заявки"
-            await message.answer(text)
-        except Exception as e:
-            logger.error(f"Error in manager_create_order: {e}")
-    
-
-    # @router.message(F.text.in_(["👨‍🔧 Texnik biriktirish", "👨‍🔧 Назначить техника"]))
-    # async def manager_assign_technician(message: Message):
-    #     """Manager assign technician"""
-    #     try:
-    #         lang = await get_user_lang(message.from_user.id)
-    #         text = "👨‍🔧 Manager: Texnik biriktirish oynasi" if lang == 'uz' else "👨‍🔧 Менеджер: Окно назначения техника"
-    #         await message.answer(text)
-    #     except Exception as e:
-    #         logger.error(f"Error in manager_assign_technician: {e}")
-
     @router.message(F.text.in_(["📊 Hisobot yaratish", "📊 Создать отчет"]))
     async def manager_create_report(message: Message):
         """Manager create report"""
@@ -51,24 +30,24 @@ def get_manager_orders_router():
         except Exception as e:
             logger.error(f"Error in manager_give_equipment: {e}")
 
-    @router.message(F.text.in_(["👥 Xodimlar faoliyati", "👥 Активность сотрудников"]))
-    async def manager_staff_activity(message: Message):
-        """Manager staff activity"""
+    @router.message(F.text.in_(["✅ O'rnatishga tayyor", "✅ Готов к установке"]))
+    async def manager_ready_for_installation(message: Message):
+        """Manager ready for installation"""
         try:
             lang = await get_user_lang(message.from_user.id)
-            text = "👥 Manager: Xodimlar faoliyati oynasi" if lang == 'uz' else "👥 Менеджер: Окно активности сотрудников"
+            text = "✅ Manager: O'rnatishga tayyor arizalar" if lang == 'uz' else "✅ Менеджер: Заявки готовые к установке"
             await message.answer(text)
         except Exception as e:
-            logger.error(f"Error in manager_staff_activity: {e}")
+            logger.error(f"Error in manager_ready_for_installation: {e}")
 
-    @router.message(F.text.in_(["🔔 Bildirishnomalar", "🔔 Уведомления"]))
-    async def manager_notifications(message: Message):
-        """Manager notifications"""
+    @router.message(F.text.in_(["🌐 Tilni o'zgartirish", "🌐 Изменить язык"]))
+    async def manager_change_language(message: Message):
+        """Manager change language"""
         try:
             lang = await get_user_lang(message.from_user.id)
-            text = "🔔 Manager: Bildirishnomalar oynasi" if lang == 'uz' else "🔔 Менеджер: Окно уведомлений"
+            text = "🌐 Manager: Tilni o'zgartirish" if lang == 'uz' else "🌐 Менеджер: Изменить язык"
             await message.answer(text)
         except Exception as e:
-            logger.error(f"Error in manager_notifications: {e}")
+            logger.error(f"Error in manager_change_language: {e}")
 
     return router

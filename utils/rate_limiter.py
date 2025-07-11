@@ -271,6 +271,7 @@ class RoleBasedRateLimiter:
             'technician': UserRateLimiter(),
             'admin': AdminRateLimiter(),
             'manager': AdminRateLimiter(),
+            'junior_manager': AdminRateLimiter(),
             'call_center': UserRateLimiter(),
             'warehouse': UserRateLimiter(),
             'controller': UserRateLimiter()

@@ -5,7 +5,7 @@ from aiogram.filters import StateFilter
 from database.base_queries import get_user_by_telegram_id
 from database.call_center_queries import get_call_center_dashboard_stats
 from keyboards.call_center_buttons import call_center_main_menu_reply
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -22,7 +22,7 @@ def get_call_center_main_menu_router():
             await message.answer(text)
             return
         
-        await state.set_state(CallCenterStates.main_menu)
+        await state.set_state(CallCenterMainMenuStates.main_menu)
         lang = user.get('language', 'uz')
         
         # Get dashboard statistics
@@ -66,7 +66,7 @@ def get_call_center_main_menu_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(CallCenterStates.main_menu)
+        await state.set_state(CallCenterMainMenuStates.main_menu)
         
         try:
             stats = await get_call_center_dashboard_stats()
@@ -106,7 +106,7 @@ def get_call_center_main_menu_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(CallCenterStates.main_menu)
+        await state.set_state(CallCenterMainMenuStates.main_menu)
         
         try:
             stats = await get_call_center_dashboard_stats()

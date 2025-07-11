@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 from keyboards.technician_buttons import get_technician_main_menu_keyboard, get_back_technician_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianMainMenuStates
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
@@ -63,7 +63,7 @@ def get_technician_main_menu_router():
                 text = "Iltimos, kontaktingizni ulashing." if lang == 'uz' else "Пожалуйста, предоставьте свой контактный номер."
                 from keyboards.technician_buttons import get_contact_keyboard
                 await message.answer(text, reply_markup=get_contact_keyboard(lang))
-                await state.set_state(TechnicianStates.waiting_for_phone_number)
+                await state.set_state(TechnicianMainMenuStates.waiting_for_phone_number)
             else:
                 await cleanup_user_inline_messages(message.from_user.id)
                 text = "Xush kelibsiz! Montajchi paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать! Добро пожаловать в панель монтажника!"
@@ -71,7 +71,7 @@ def get_technician_main_menu_router():
                     text=text,
                     reply_markup=get_technician_main_menu_keyboard(lang)
                 )
-                await state.set_state(TechnicianStates.main_menu)
+                await state.set_state(TechnicianMainMenuStates.main_menu)
             
             logger.info(f"Technician start command completed successfully: {message.from_user.id}")
         except Exception as e:
@@ -94,7 +94,7 @@ def get_technician_main_menu_router():
                 main_menu_text,
                 reply_markup=get_technician_main_menu_keyboard(lang)
             )
-            await state.set_state(TechnicianStates.main_menu)
+            await state.set_state(TechnicianMainMenuStates.main_menu)
         except Exception as e:
             logger.error(f"Error in handle_back: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
@@ -115,7 +115,7 @@ def get_technician_main_menu_router():
                 main_menu_text,
                 reply_markup=get_technician_main_menu_keyboard(lang)
             )
-            await state.set_state(TechnicianStates.main_menu)
+            await state.set_state(TechnicianMainMenuStates.main_menu)
         except Exception as e:
             logger.error(f"Error in main menu handler: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
@@ -137,7 +137,7 @@ def get_technician_main_menu_router():
                 main_menu_text,
                 reply_markup=get_technician_main_menu_keyboard(lang)
             )
-            await state.set_state(TechnicianStates.main_menu)
+            await state.set_state(TechnicianMainMenuStates.main_menu)
         except Exception as e:
             logger.error(f"Error going back to main menu: {str(e)}", exc_info=True)
             await callback.answer("Xatolik yuz berdi")

@@ -7,7 +7,7 @@ from database.admin_queries import (
 )
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from keyboards.admin_buttons import get_user_management_keyboard, roles_keyboard, search_user_method_keyboard, get_admin_main_menu
-from states.admin_states import AdminStates
+from states.admin_states import AdminUserStates, AdminMainMenuStates
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup
 from utils.logger import setup_logger
 from utils.role_checks import admin_only
@@ -20,7 +20,7 @@ logger = setup_logger('bot.admin.users')
 def get_admin_users_router():
     router = get_role_router("admin")
 
-    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(['👥 Foydalanuvchilar', '👥 Пользователи']))
+    @router.message(StateFilter(AdminMainMenuStates.main_menu), F.text.in_(['👥 Foydalanuvchilar', '👥 Пользователи']))
     @admin_only
     async def user_management_menu(message: Message, state: FSMContext):
         """User management main menu"""
@@ -66,7 +66,7 @@ def get_admin_users_router():
                 reply_markup=get_user_management_keyboard(lang)
             )
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.user_management)
+            await state.set_state(AdminUserStates.user_management)
             return sent_message
         except Exception as e:
             logger.error(f"Error in user management menu: {e}", exc_info=True)
@@ -89,9 +89,9 @@ def get_admin_users_router():
             [InlineKeyboardButton(text="📱 Telefon" if lang == 'uz' else "📱 Телефон", callback_data="block_search_by_phone")]
         ])
         await message.answer(text, reply_markup=keyboard)
-        await state.set_state(AdminStates.blocking)
+        await state.set_state(AdminUserStates.blocking)
 
-    @router.callback_query(F.data.startswith("block_search_by_"), AdminStates.blocking)
+    @router.callback_query(F.data.startswith("block_search_by_"), AdminUserStates.blocking)
     @admin_only
     async def block_search_method_selected(call: CallbackQuery, state: FSMContext):
         lang = await get_user_lang(call.from_user.id)
@@ -104,9 +104,9 @@ def get_admin_users_router():
         else:
             text = "Noto'g'ri qidiruv turi." if lang == 'uz' else "Неверный тип поиска."
         await call.message.edit_text(text)
-        await state.set_state(AdminStates.blocking)
+        await state.set_state(AdminUserStates.blocking)
 
-    @router.message(AdminStates.blocking)
+    @router.message(AdminUserStates.blocking)
     @admin_only
     async def process_block_unblock_id(message: Message, state: FSMContext):
         lang = await get_user_lang(message.from_user.id)
@@ -398,7 +398,7 @@ def get_admin_users_router():
                 text,
                 reply_markup=search_user_method_keyboard(lang)
             )
-            await state.set_state(AdminStates.waiting_for_search_method)
+            await state.set_state(AdminUserStates.waiting_for_search_method)
         except Exception as e:
             logger.error(f"Error in search user menu: {e}")
             lang = await get_user_lang(message.from_user.id)
@@ -495,7 +495,7 @@ def get_admin_users_router():
             text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
             await call.message.edit_text(text)
 
-    @router.message(AdminStates.waiting_for_role_change_id)
+    @router.message(AdminUserStates.waiting_for_role_change_id)
     @admin_only
     async def process_role_change_id(message: Message, state: FSMContext):
         lang = await get_user_lang(message.from_user.id)
@@ -523,7 +523,7 @@ def get_admin_users_router():
         except Exception as e:
             await message.answer("Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка.")
 
-    @router.message(AdminStates.waiting_for_role_change_phone)
+    @router.message(AdminUserStates.waiting_for_role_change_phone)
     @admin_only
     async def process_role_change_phone(message: Message, state: FSMContext):
         lang = await get_user_lang(message.from_user.id)
@@ -549,12 +549,12 @@ def get_admin_users_router():
         user = users[0]
         text = (
             f"👤 <b>Foydalanuvchi:</b> {user.get('full_name', 'N/A')}\n"
-            f"�� <b>Telegram ID:</b> {user['telegram_id']}\n"
-            f"📱 <b>Telefon:</b> {user.get('phone_number', 'N/A')}\n"
+            f"📱 <b>Telegram ID:</b> {user['telegram_id']}\n"
+            f"📱 <b>Teleфон:</b> {user.get('phone_number', 'N/A')}\n"
             f"🏷️ <b>Joriy rol:</b> {user.get('role', 'N/A')}\n\n"
             f"Yangi rolni tanlang:" if lang == 'uz' else
             f"👤 <b>Пользователь:</b> {user.get('full_name', 'N/A')}\n"
-            f"🆔 <b>Telegram ID:</b> {user['telegram_id']}\n"
+            f"📱 <b>Telegram ID:</b> {user['telegram_id']}\n"
             f"📱 <b>Телефон:</b> {user.get('phone_number', 'N/A')}\n"
             f"🏷️ <b>Текущая роль:</b> {user.get('role', 'N/A')}\n\n"
             f"Выберите новую роль:"
@@ -568,7 +568,7 @@ def get_admin_users_router():
         lang = await get_user_lang(message.from_user.id)
         text = "Asosiy admin menyuga qaytdingiz." if lang == 'uz' else "Вы вернулись в главное меню администратора."
         await message.answer(text, reply_markup=get_admin_main_menu(lang))
-        await state.set_state(AdminStates.main_menu)
+        await state.set_state(AdminMainMenuStates.main_menu)
 
     @router.message(F.text.in_(["🔄 Rolni o'zgartirish", "🔄 Изменить роль"]))
     @admin_only
@@ -576,24 +576,24 @@ def get_admin_users_router():
         lang = await get_user_lang(message.from_user.id)
         text = "Rolni o'zgartirish usulini tanlang:" if lang == 'uz' else "Выберите способ смены роли:"
         await message.answer(text, reply_markup=search_user_method_keyboard(lang))
-        await state.set_state(AdminStates.waiting_for_search_method)
+        await state.set_state(AdminUserStates.waiting_for_search_method)
 
-    @router.callback_query(F.data == "search_by_telegram_id", AdminStates.waiting_for_search_method)
+    @router.callback_query(F.data == "search_by_telegram_id", AdminUserStates.waiting_for_search_method)
     @admin_only
     async def role_change_by_telegram_id(call: CallbackQuery, state: FSMContext):
         lang = await get_user_lang(call.from_user.id)
         text = "Foydalanuvchi Telegram ID sini kiriting:" if lang == 'uz' else "Введите Telegram ID пользователя:"
         await call.message.edit_text(text)
-        await state.set_state(AdminStates.waiting_for_role_change_id)
+        await state.set_state(AdminUserStates.waiting_for_role_change_id)
         await call.answer()
 
-    @router.callback_query(F.data == "search_by_phone", AdminStates.waiting_for_search_method)
+    @router.callback_query(F.data == "search_by_phone", AdminUserStates.waiting_for_search_method)
     @admin_only
     async def role_change_by_phone(call: CallbackQuery, state: FSMContext):
         lang = await get_user_lang(call.from_user.id)
         text = "Foydalanuvchi telefon raqamini kiriting:" if lang == 'uz' else "Введите номер телефона пользователя:"
         await call.message.edit_text(text)
-        await state.set_state(AdminStates.waiting_for_role_change_phone)
+        await state.set_state(AdminUserStates.waiting_for_role_change_phone)
         await call.answer()
 
     return router

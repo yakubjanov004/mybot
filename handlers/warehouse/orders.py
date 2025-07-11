@@ -7,7 +7,7 @@ from database.warehouse_queries import (
     update_order_status_warehouse, mark_order_ready_for_installation
 )
 from keyboards.warehouse_buttons import warehouse_orders_menu, order_status_keyboard
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseOrdersStates, WarehouseMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -29,7 +29,7 @@ def get_warehouse_orders_router():
                 orders_text,
                 reply_markup=warehouse_orders_menu(lang)
             )
-            await state.set_state(WarehouseStates.orders_menu)
+            await state.set_state(WarehouseOrdersStates.orders_menu)
             
         except Exception as e:
             logger.error(f"Error in orders management: {str(e)}")
@@ -56,7 +56,7 @@ def get_warehouse_orders_router():
         else:
             text = "📭 Kutilayotgan buyurtmalar yo'q"
         await message.answer(text, reply_markup=warehouse_orders_menu(lang))
-        await state.set_state(WarehouseStates.orders_menu)
+        await state.set_state(WarehouseOrdersStates.orders_menu)
 
     @router.message(F.text.in_(["🔄 Jarayondagi buyurtmalar"]))
     async def in_progress_orders_reply_handler(message: Message, state: FSMContext):
@@ -81,7 +81,7 @@ def get_warehouse_orders_router():
         else:
             text = "📭 Jarayondagi buyurtmalar yo'q"
         await message.answer(text, reply_markup=warehouse_orders_menu(lang))
-        await state.set_state(WarehouseStates.orders_menu)
+        await state.set_state(WarehouseOrdersStates.orders_menu)
 
     @router.message(F.text.in_(["✅ Bajarilgan buyurtmalar"]))
     async def completed_orders_reply_handler(message: Message, state: FSMContext):
@@ -106,7 +106,7 @@ def get_warehouse_orders_router():
         else:
             text = "📭 Bajarilgan buyurtmalar yo'q"
         await message.answer(text, reply_markup=warehouse_orders_menu(lang))
-        await state.set_state(WarehouseStates.orders_menu)
+        await state.set_state(WarehouseOrdersStates.orders_menu)
 
     @router.message(F.text.in_(["◀️ Orqaga"]))
     async def orders_back_reply_handler(message: Message, state: FSMContext):
@@ -115,7 +115,7 @@ def get_warehouse_orders_router():
         lang = user.get('language', 'uz')
         from keyboards.warehouse_buttons import warehouse_main_menu
         await message.answer("Ombor bosh menyusi", reply_markup=warehouse_main_menu(lang))
-        await state.set_state(WarehouseStates.main_menu)
+        await state.set_state(WarehouseMainMenuStates.main_menu)
 
     @router.callback_query(F.data == "pending_orders")
     async def pending_orders_handler(callback: CallbackQuery, state: FSMContext):

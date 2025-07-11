@@ -7,7 +7,7 @@ from database.base_queries import get_user_by_telegram_id, assign_zayavka_to_tec
 from keyboards.controllers_buttons import (
     technicians_menu, technician_assignment_keyboard, back_to_controllers_menu
 )
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerTechnicianStates
 from utils.logger import logger
 
 def get_controller_technician_router():
@@ -21,7 +21,7 @@ def get_controller_technician_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.technicians_control)
+        await state.set_state(ControllerTechnicianStates.technicians_control)
         
         # Texniklar ro'yxatini olish
         technicians = await get_all_technicians()
@@ -146,7 +146,7 @@ Kerakli amalni tanlang:"""
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.assign_technicians)
+        await state.set_state(ControllerTechnicianStates.assign_technicians)
         
         # Tayinlanmagan buyurtmalarni olish
         unassigned_orders = await get_orders_by_status(['new', 'pending'])

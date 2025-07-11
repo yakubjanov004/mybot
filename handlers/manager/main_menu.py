@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from keyboards.manager_buttons import get_manager_main_keyboard
-from states.manager_states import ManagerStates
+from states.manager_states import ManagerMainMenuStates
 from database.base_queries import get_user_by_telegram_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
@@ -34,7 +34,7 @@ def get_manager_main_menu_router():
                 welcome_text,
                 reply_markup=get_manager_main_keyboard(lang)
             )
-            await state.set_state(ManagerStates.main_menu)
+            await state.set_state(ManagerMainMenuStates.main_menu)
             
             logger.info(f"Manager {user['id']} accessed main menu")
             
@@ -59,12 +59,44 @@ def get_manager_main_menu_router():
                 reply_markup=get_manager_main_keyboard(lang)
             )
             if state is not None:
-                await state.set_state(ManagerStates.main_menu)
+                await state.set_state(ManagerMainMenuStates.main_menu)
             
         except Exception as e:
             logger.error(f"Error in manager main menu handler: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
+
+    @router.message(F.text.in_(["👥 Xodimlar faoliyati", "👥 Активность сотрудников"]))
+    async def manager_staff_activity(message: Message, state: FSMContext):
+        """Manager staff activity - redirect to staff activity handler"""
+        try:
+            # Bu tugma staff_activity handler tomonidan boshqariladi
+            # Bu yerda faqat log qilamiz
+            logger.info(f"Manager {message.from_user.id} accessed staff activity")
+            
+        except Exception as e:
+            logger.error(f"Error in manager_staff_activity: {str(e)}", exc_info=True)
+
+    @router.message(F.text.in_(["📥 Kiruvchi xabarlar", "📥 Входящие сообщения"]))
+    async def manager_inbox(message: Message, state: FSMContext):
+        """Manager inbox - redirect to inbox handler"""
+        try:
+            # Bu tugma inbox handler tomonidan boshqariladi
+            # Bu yerda faqat log qilamiz
+            logger.info(f"Manager {message.from_user.id} accessed inbox")
+            
+        except Exception as e:
+            logger.error(f"Error in manager_inbox: {str(e)}", exc_info=True)
+
+    @router.message(F.text.in_(["🔔 Bildirishnomalar", "🔔 Уведомления"]))
+    async def manager_notifications(message: Message, state: FSMContext):
+        """Manager notifications"""
+        try:
+            lang = await get_user_lang(message.from_user.id)
+            text = "🔔 Manager: Bildirishnomalar oynasi" if lang == 'uz' else "🔔 Менеджер: Окно уведомлений"
+            await message.answer(text)
+        except Exception as e:
+            logger.error(f"Error in manager_notifications: {e}")
 
     return router

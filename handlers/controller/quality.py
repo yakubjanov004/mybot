@@ -5,7 +5,7 @@ from filters.role_filter import RoleFilter
 from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, get_service_quality_metrics, get_unresolved_issues
 from keyboards.controllers_buttons import quality_control_menu, back_to_controllers_menu
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerQualityStates
 from utils.logger import logger
 from datetime import datetime
 from database.controller_queries import get_recent_feedback, get_quality_trends
@@ -21,7 +21,7 @@ def get_controller_quality_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.quality_control)
+        await state.set_state(ControllerQualityStates.quality_control)
         
         # Sifat ko'rsatkichlarini olish
         quality_metrics = await get_service_quality_metrics()

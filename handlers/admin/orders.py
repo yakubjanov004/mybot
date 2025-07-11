@@ -19,7 +19,7 @@ from keyboards.admin_buttons import (
     get_zayavka_filter_menu_keyboard,
     get_zayavka_section_keyboard
 )
-from states.admin_states import AdminStates
+from states.admin_states import AdminOrderStates, AdminMainMenuStates
 from utils.inline_cleanup import (
     answer_and_cleanup, safe_delete_message, cleanup_user_inline_messages
 )
@@ -51,7 +51,7 @@ logger = setup_logger('bot.admin.orders')
 def get_admin_orders_router():
     router = get_role_router("admin")
     
-    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["📝 Zayavkalar", "📝 Заявки"]))
+    @router.message(StateFilter(AdminMainMenuStates.main_menu), F.text.in_(["📝 Zayavkalar", "📝 Заявки"]))
     @admin_only
     async def orders_menu(message: Message, state: FSMContext):
         """Show orders menu"""
@@ -271,9 +271,9 @@ def get_admin_orders_router():
         
             # Set state based on filter type
             if action in ["date", "category"]:
-                await state.set_state(AdminStates.filtering_selected)
+                await state.set_state(AdminOrderStates.filtering_selected)
             else:
-                await state.set_state(AdminStates.filtering)
+                await state.set_state(AdminOrderStates.filtering)
         
             await callback.message.edit_text(text)
             
@@ -514,7 +514,7 @@ def get_admin_orders_router():
             text = "Zayavka ID sini kiriting:" if lang == 'uz' else "Введите ID заявки:"
             
             await message.answer(text)
-            await state.set_state(AdminStates.waiting_for_order_id)
+            await state.set_state(AdminOrderStates.waiting_for_order_id)
         
         except Exception as e:
             logger.error(f"Error in search orders menu: {e}")
@@ -522,7 +522,7 @@ def get_admin_orders_router():
             error_text = "Xatolik yuz berdi." if lang == 'uz' else "Произошла ошибка."
             await message.answer(error_text)
 
-    @router.message(AdminStates.waiting_for_order_id)
+    @router.message(AdminOrderStates.waiting_for_order_id)
     @admin_only
     async def process_order_search(message: Message, state: FSMContext):
         """Process order search"""

@@ -7,7 +7,7 @@ from database.warehouse_queries import (
     get_inventory_turnover_statistics, get_low_stock_inventory_items
 )
 from keyboards.warehouse_buttons import warehouse_main_menu, warehouse_statistics_menu, statistics_period_menu
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseStatisticsStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 from aiogram.fsm.state import State
@@ -272,7 +272,7 @@ def get_warehouse_statistics_router():
         else:
             text = "❌ Statistika ma'lumotlari topilmadi" if lang == 'uz' else "❌ Статистические данные не найдены"
         await message.answer(text, reply_markup=warehouse_statistics_menu(lang))
-        await state.set_state(WarehouseStates.statistics_menu)
+        await state.set_state(WarehouseStatisticsStates.statistics_menu)
 
     @router.message(F.text.in_(["📋 Buyurtmalar statistikasi", "📋 Статистика заказов"]))
     async def orders_stats_reply_handler(message: Message, state: FSMContext):
@@ -301,7 +301,7 @@ def get_warehouse_statistics_router():
         else:
             text = "❌ Statistika ma'lumotlari topilmadi" if lang == 'uz' else "❌ Статистические данные не найдены"
         await message.answer(text, reply_markup=warehouse_statistics_menu(lang))
-        await state.set_state(WarehouseStates.statistics_menu)
+        await state.set_state(WarehouseStatisticsStates.statistics_menu)
 
     @router.message(F.text.in_(["⚠️ Kam zaxira statistikasi", "⚠️ Статистика низкого запаса"]))
     async def low_stock_stats_reply_handler(message: Message, state: FSMContext):
@@ -320,7 +320,7 @@ def get_warehouse_statistics_router():
         else:
             text = "📦 Barcha mahsulotlar zaxirasi yetarli" if lang == 'uz' else "📦 Все товары в достаточном количестве"
         await message.answer(text, reply_markup=warehouse_statistics_menu(lang))
-        await state.set_state(WarehouseStates.statistics_menu)
+        await state.set_state(WarehouseStatisticsStates.statistics_menu)
 
     @router.message(F.text.in_(["💰 Moliyaviy hisobot", "💰 Финансовый отчет"]))
     async def financial_stats_reply_handler(message: Message, state: FSMContext):
@@ -345,7 +345,7 @@ def get_warehouse_statistics_router():
         else:
             text = "❌ Statistika ma'lumotlari topilmadi" if lang == 'uz' else "❌ Статистические данные не найдены"
         await message.answer(text, reply_markup=warehouse_statistics_menu(lang))
-        await state.set_state(WarehouseStates.statistics_menu)
+        await state.set_state(WarehouseStatisticsStates.statistics_menu)
 
     @router.message(F.text.in_(["📆 Vaqt oralig'idagi statistika", "📆 Статистика за период"]))
     async def period_stats_reply_handler(message: Message, state: FSMContext):

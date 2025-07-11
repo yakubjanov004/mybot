@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from database.warehouse_queries import get_warehouse_user_by_telegram_id
 from keyboards.warehouse_buttons import warehouse_main_menu
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -21,7 +21,7 @@ def get_warehouse_main_menu_router():
                 await message.answer(text)
                 return
             
-            await state.set_state(WarehouseStates.main_menu)
+            await state.set_state(WarehouseMainMenuStates.main_menu)
             lang = user.get('language', 'uz')
             
             welcome_text = "🏢 Ombor paneliga xush kelibsiz!" if lang == 'uz' else "🏢 Добро пожаловать в панель склада!"
@@ -46,7 +46,7 @@ def get_warehouse_main_menu_router():
                 await callback.answer("Ruxsat yo'q", show_alert=True)
                 return
             
-            await state.set_state(WarehouseStates.main_menu)
+            await state.set_state(WarehouseMainMenuStates.main_menu)
             lang = user.get('language', 'uz')
             
             welcome_text = "🏢 Ombor paneliga xush kelibsiz!" if lang == 'uz' else "🏢 Добро пожаловать в панель склада!"

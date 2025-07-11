@@ -9,7 +9,7 @@ from database.admin_queries import (
     get_notification_templates, update_notification_template, log_admin_action
 )
 from keyboards.admin_buttons import get_settings_keyboard
-from states.admin_states import AdminStates
+from states.admin_states import AdminSettingsStates, AdminMainMenuStates
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import safe_delete_message, answer_and_cleanup
 from utils.logger import setup_logger
@@ -24,7 +24,7 @@ logger = setup_logger('bot.admin.settings')
 def get_admin_settings_router():
     router = get_role_router("admin")
 
-    @router.message(StateFilter(AdminStates.main_menu), F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
+    @router.message(StateFilter(AdminMainMenuStates.main_menu), F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
     @admin_only
     async def settings_menu(message: Message, state: FSMContext):
         """Settings main menu"""
@@ -39,7 +39,7 @@ def get_admin_settings_router():
                 reply_markup=get_settings_keyboard(lang)
             )
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.settings)
+            await state.set_state(AdminSettingsStates.settings)
             
         except Exception as e:
             logger.error(f"Error in settings menu: {e}")
@@ -315,13 +315,13 @@ def get_admin_settings_router():
                 ])
             
             await call.message.edit_text(text, reply_markup=keyboard)
-            await state.set_state(AdminStates.editing_setting)
+            await state.set_state(AdminSettingsStates.editing_setting)
             
         except Exception as e:
             logger.error(f"Error showing edit system setting menu: {e}")
             await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
 
-    @router.callback_query(F.data.startswith("edit_setting_"), AdminStates.editing_setting)
+    @router.callback_query(F.data.startswith("edit_setting_"), AdminSettingsStates.editing_setting)
     @admin_only
     async def edit_setting_value(call: CallbackQuery, state: FSMContext):
         """Edit setting value"""
@@ -334,13 +334,13 @@ def get_admin_settings_router():
             text = f"'{setting_key}' sozlamasi uchun yangi qiymatni kiriting:" if lang == 'uz' else f"Введите новое значение для настройки '{setting_key}':"
             
             await call.message.edit_text(text)
-            await state.set_state(AdminStates.waiting_for_setting_value)
+            await state.set_state(AdminSettingsStates.waiting_for_setting_value)
             
         except Exception as e:
             logger.error(f"Error editing setting value: {e}")
             await call.answer("Xatolik yuz berdi!" if await get_user_lang(call.from_user.id) == 'uz' else "Произошла ошибка!")
 
-    @router.message(AdminStates.waiting_for_setting_value)
+    @router.message(AdminSettingsStates.waiting_for_setting_value)
     @admin_only
     async def process_setting_value(message: Message, state: FSMContext):
         """Process new setting value"""

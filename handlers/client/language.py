@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.client_buttons import get_language_keyboard, get_main_menu_keyboard
-from states.user_states import UserStates
+from states.client_states import LanguageStates
 from database.base_queries import get_user_by_telegram_id, update_user_language, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
@@ -18,10 +18,9 @@ def get_client_language_router():
         try:
             user = await get_user_by_telegram_id(message.from_user.id)
             lang = user.get('language', 'uz')
-            # Til tanlash oynasini ko'rsatish va message_id ni saqlash
             sent_message = await show_language_selection(message, lang, role='client')
-            await state.update_data(last_message_id=sent_message.message_id)  # Message_id saqlash
-            await state.set_state(UserStates.language_settings)
+            await state.update_data(last_message_id=sent_message.message_id)  
+            await state.set_state(LanguageStates.language_settings)
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
         except Exception as e:
             logger.error(f"Error in client_change_language: {str(e)}", exc_info=True)

@@ -7,7 +7,7 @@ from database.admin_queries import (
 )
 from database.base_queries import get_user_lang, get_zayavka_by_id
 from database.technician_queries import get_available_technicians
-from states.admin_states import AdminStates
+from states.admin_states import AdminCallbackStates, AdminMainMenuStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
@@ -30,11 +30,11 @@ def get_admin_callbacks_router():
             if search_type == "telegram_id":
                 text = "Telegram ID ni kiriting:" if lang == 'uz' else "Введите Telegram ID:"
                 await call.message.edit_text(text)
-                await state.set_state(AdminStates.waiting_for_search_value)
+                await state.set_state(AdminCallbackStates.waiting_for_search_value)
             elif search_type == "phone":
                 text = "Telefon raqamini kiriting:" if lang == 'uz' else "Введите номер телефона:"
                 await call.message.edit_text(text)
-                await state.set_state(AdminStates.waiting_for_search_value)
+                await state.set_state(AdminCallbackStates.waiting_for_search_value)
             else:
                 text = "Noto'g'ri qidiruv turi." if lang == 'uz' else "Неверный тип поиска."
                 await call.message.edit_text(text)
@@ -271,7 +271,7 @@ def get_admin_callbacks_router():
         lang = await get_user_lang(call.from_user.id)
         text = "Admin paneliga xush kelibsiz!" if lang == 'uz' else "Добро пожаловать в админ-панель!"
         await call.message.edit_text(text, reply_markup=get_admin_main_menu(lang))
-        await state.set_state(AdminStates.main_menu)
+        await state.set_state(AdminMainMenuStates.main_menu)
         await call.answer()
 
     return router

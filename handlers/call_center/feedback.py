@@ -12,7 +12,7 @@ from keyboards.feedback_buttons import (
     get_feedback_comment_keyboard,
     get_feedback_complete_keyboard
 )
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterFeedbackStates, CallCenterMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -45,7 +45,7 @@ def get_call_center_feedback_router():
                 await message.answer(text)
                 return
             
-            await state.set_state(CallCenterStates.waiting_feedback)
+            await state.set_state(CallCenterFeedbackStates.waiting_feedback)
             text = "⭐ Mijozdan baholash so'raldi" if lang == 'uz' else "⭐ Запрошена оценка от клиента"
             await message.answer(
                 text,
@@ -81,7 +81,7 @@ def get_call_center_feedback_router():
                 await callback.answer(text, show_alert=True)
                 return
             
-            await state.set_state(CallCenterStates.waiting_feedback)
+            await state.set_state(CallCenterFeedbackStates.waiting_feedback)
             text = "⭐ Mijozdan baholash so'raldi" if lang == 'uz' else "⭐ Запрошена оценка от клиента"
             await callback.message.edit_text(
                 text,
@@ -132,7 +132,7 @@ def get_call_center_feedback_router():
         
         lang = user.get('language', 'uz')
         
-        await state.set_state(CallCenterStates.feedback_comment)
+        await state.set_state(CallCenterFeedbackStates.feedback_comment)
         text = "📝 Izohingizni kiriting:" if lang == 'uz' else "📝 Введите ваш комментарий:"
         await callback.message.edit_text(text)
 
@@ -158,7 +158,7 @@ def get_call_center_feedback_router():
             success = await create_feedback(feedback_data)
             
             if success:
-                await state.set_state(CallCenterStates.main_menu)
+                await state.set_state(CallCenterMainMenuStates.main_menu)
                 text = "✅ Rahmat! Baholash saqlandi" if lang == 'uz' else "✅ Спасибо! Оценка сохранена"
                 await callback.message.edit_text(
                     text,
@@ -176,7 +176,7 @@ def get_call_center_feedback_router():
             await callback.message.edit_text(error_text)
             await callback.answer()
 
-    @router.message(StateFilter(CallCenterStates.feedback_comment))
+    @router.message(StateFilter(CallCenterFeedbackStates.feedback_comment))
     async def save_feedback_comment(message: Message, state: FSMContext):
         """Save feedback with comment"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -194,7 +194,7 @@ def get_call_center_feedback_router():
             success = await create_feedback(feedback_data)
             
             if success:
-                await state.set_state(CallCenterStates.main_menu)
+                await state.set_state(CallCenterMainMenuStates.main_menu)
                 text = "✅ Rahmat! Fikr-mulohaza saqlandi" if lang == 'uz' else "✅ Спасибо! Отзыв сохранен"
                 await message.answer(
                     text,
@@ -220,7 +220,7 @@ def get_call_center_feedback_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(CallCenterStates.main_menu)
+        await state.set_state(CallCenterMainMenuStates.main_menu)
         
         text = "📞 Call center paneliga qaytdingiz" if lang == 'uz' else "📞 Вы вернулись в панель call center"
         await callback.message.edit_text(text)

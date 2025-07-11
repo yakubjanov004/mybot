@@ -3,18 +3,19 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, date, timedelta
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
-from keyboards.manager_buttons import get_staff_activity_menu
+from keyboards.manager_buttons import get_staff_activity_keyboard, get_junior_manager_work_keyboard
 from database.manager_queries import get_online_staff, get_staff_performance, get_staff_workload, get_staff_attendance
 from database.base_queries import get_user_by_telegram_id
 from database.base_queries import get_user_lang
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
+from loader import bot
 
 def get_manager_staff_activity_router():
     logger = setup_logger('bot.manager.staff_activity')
     router = get_role_router("manager")
 
-    @router.message(F.text.in_(['👥 Xodimlar faolligi', '👥 Активность сотрудников']))
+    @router.message(F.text.in_(['👥 Xodimlar faoliyati', '👥 Активность сотрудников']))
     async def show_staff_activity_menu(message: Message, state: FSMContext):
         """Show staff activity menu"""
         try:
@@ -24,7 +25,7 @@ def get_manager_staff_activity_router():
                 return
             
             lang = user.get('language', 'uz')
-            activity_text = "👥 Xodimlar faolligi:" if lang == 'uz' else "👥 Активность сотрудников:"
+            activity_text = "👥 Xodimlar faoliyati:" if lang == 'uz' else "👥 Активность сотрудников:"
             
             await message.answer(
                 activity_text,
@@ -55,6 +56,8 @@ def get_manager_staff_activity_router():
                 await show_staff_workload(callback, lang)
             elif action == "attendance":
                 await show_staff_attendance(callback, lang)
+            elif action == "junior_work":
+                await show_junior_manager_work(callback, lang)
             else:
                 unknown_text = "Noma'lum amal" if lang == 'uz' else "Неизвестное действие"
                 await callback.message.edit_text(unknown_text)
@@ -73,7 +76,7 @@ def get_manager_staff_activity_router():
                     '''SELECT u.*, 
                               EXTRACT(EPOCH FROM (NOW() - u.last_activity))/60 as minutes_ago
                      FROM users u
-                     WHERE u.role IN ('technician', 'manager', 'call_center', 'warehouse')
+                     WHERE u.role IN ('technician', 'manager', 'call_center', 'warehouse', 'junior_manager')
                      AND u.last_activity > NOW() - INTERVAL '30 minutes'
                      ORDER BY u.last_activity DESC'''
                 )
@@ -87,7 +90,8 @@ def get_manager_staff_activity_router():
                     'technician': '👨‍🔧',
                     'manager': '👨‍💼',
                     'call_center': '📞',
-                    'warehouse': '📦'
+                    'warehouse': '📦',
+                    'junior_manager': '👨‍💼'
                 }
                 
                 if lang == 'uz':
@@ -164,7 +168,7 @@ def get_manager_staff_activity_router():
                                THEN EXTRACT(EPOCH FROM (z.completed_at - z.created_at))/3600 END) as avg_completion_hours
                        FROM users u
                        LEFT JOIN zayavki z ON u.id = z.assigned_to
-                       WHERE u.role IN ('technician', 'manager', 'call_center')
+                       WHERE u.role IN ('technician', 'manager', 'call_center', 'junior_manager')
                        GROUP BY u.id, u.full_name, u.role, u.phone_number
                        ORDER BY completed_30d DESC, u.role'''
                 )
@@ -177,7 +181,8 @@ def get_manager_staff_activity_router():
                 role_emojis = {
                     'technician': '👨‍🔧',
                     'manager': '👨‍💼',
-                    'call_center': '📞'
+                    'call_center': '📞',
+                    'junior_manager': '👨‍💼'
                 }
                 
                 if lang == 'uz':
@@ -242,7 +247,7 @@ def get_manager_staff_activity_router():
                            COUNT(CASE WHEN z.status = 'in_progress' THEN 1 END) as in_progress_tasks
                        FROM users u
                        LEFT JOIN zayavki z ON u.id = z.assigned_to
-                       WHERE u.role IN ('technician', 'manager', 'call_center')
+                       WHERE u.role IN ('technician', 'manager', 'call_center', 'junior_manager')
                        GROUP BY u.id, u.full_name, u.role, u.phone_number
                        ORDER BY active_tasks DESC, u.role'''
                 )
@@ -255,7 +260,8 @@ def get_manager_staff_activity_router():
                 role_emojis = {
                     'technician': '👨‍🔧',
                     'manager': '👨‍💼',
-                    'call_center': '📞'
+                    'call_center': '📞',
+                    'junior_manager': '👨‍💼'
                 }
                 
                 if lang == 'uz':
@@ -348,7 +354,7 @@ def get_manager_staff_activity_router():
                            u.last_activity,
                            CASE WHEN u.last_activity::date = $1 THEN true ELSE false END as active_today
                        FROM users u
-                       WHERE u.role IN ('technician', 'manager', 'call_center', 'warehouse')
+                       WHERE u.role IN ('technician', 'manager', 'call_center', 'warehouse', 'junior_manager')
                        ORDER BY u.role, u.full_name''',
                     today
                 )
@@ -362,7 +368,8 @@ def get_manager_staff_activity_router():
                     'technician': '👨‍🔧',
                     'manager': '👨‍💼',
                     'call_center': '📞',
-                    'warehouse': '📦'
+                    'warehouse': '📦',
+                    'junior_manager': '👨‍💼'
                 }
                 
                 active_count = sum(1 for staff in attendance_data if staff['active_today'])
@@ -438,6 +445,78 @@ def get_manager_staff_activity_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await callback.message.edit_text(error_text)
 
+    async def show_junior_manager_work(callback, lang):
+        """Show junior manager work statistics"""
+        try:
+            conn = await bot.db.acquire()
+            try:
+                # Get junior manager work data
+                junior_data = await conn.fetch(
+                    '''SELECT 
+                           u.full_name, u.phone_number,
+                           COUNT(CASE WHEN z.status = 'completed' AND z.completed_at > NOW() - INTERVAL '7 days' THEN 1 END) as completed_week,
+                           COUNT(CASE WHEN z.status = 'in_progress' THEN 1 END) as in_progress,
+                           COUNT(CASE WHEN z.status = 'new' THEN 1 END) as new_tasks,
+                           AVG(CASE WHEN z.status = 'completed' AND z.completed_at > NOW() - INTERVAL '7 days' 
+                               THEN EXTRACT(EPOCH FROM (z.completed_at - z.created_at))/3600 END) as avg_completion_hours
+                       FROM users u
+                       LEFT JOIN zayavki z ON u.id = z.assigned_by
+                       WHERE u.role = 'junior_manager'
+                       GROUP BY u.id, u.full_name, u.phone_number
+                       ORDER BY completed_week DESC'''
+                )
+                
+                if not junior_data:
+                    no_data_text = "❌ Kichik menejerlar ishi topilmadi." if lang == 'uz' else "❌ Работа младших менеджеров не найдена."
+                    await callback.message.edit_text(no_data_text)
+                    return
+                
+                if lang == 'uz':
+                    junior_text = "👨‍💼 <b>Kichik menejerlar ishi (7 kun):</b>\n\n"
+                    
+                    for junior in junior_data:
+                        avg_hours = round(junior['avg_completion_hours'] or 0, 1)
+                        
+                        junior_text += (
+                            f"👨‍💼 <b>{junior['full_name']}</b>\n"
+                            f"   📞 {junior.get('phone_number', '-')}\n"
+                            f"   ✅ Bajarilgan: {junior['completed_week']}\n"
+                            f"   ⏳ Jarayonda: {junior['in_progress']}\n"
+                            f"   🆕 Yangi: {junior['new_tasks']}\n"
+                            f"   ⏱️ O'rtacha vaqt: {avg_hours} soat\n\n"
+                        )
+                else:
+                    junior_text = "👨‍💼 <b>Работа младших менеджеров (7 дней):</b>\n\n"
+                    
+                    for junior in junior_data:
+                        avg_hours = round(junior['avg_completion_hours'] or 0, 1)
+                        
+                        junior_text += (
+                            f"👨‍💼 <b>{junior['full_name']}</b>\n"
+                            f"   📞 {junior.get('phone_number', '-')}\n"
+                            f"   ✅ Выполнено: {junior['completed_week']}\n"
+                            f"   ⏳ В процессе: {junior['in_progress']}\n"
+                            f"   🆕 Новых: {junior['new_tasks']}\n"
+                            f"   ⏱️ Среднее время: {avg_hours} часов\n\n"
+                        )
+                
+                # Add back button
+                back_button = InlineKeyboardButton(
+                    text="🔙 Orqaga" if lang == 'uz' else "🔙 Назад",
+                    callback_data="staff_menu"
+                )
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[[back_button]])
+                
+                await callback.message.edit_text(junior_text, reply_markup=keyboard, parse_mode='HTML')
+                
+            finally:
+                await conn.release()
+                
+        except Exception as e:
+            logger.error(f"Error in show_junior_manager_work: {str(e)}", exc_info=True)
+            error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
+            await callback.message.edit_text(error_text)
+
     @router.callback_query(F.data == "staff_menu")
     async def back_to_staff_menu(callback: CallbackQuery, state: FSMContext):
         """Return to staff activity menu"""
@@ -446,7 +525,7 @@ def get_manager_staff_activity_router():
             user = await get_user_by_telegram_id(callback.from_user.id)
             lang = user.get('language', 'uz')
             
-            activity_text = "👥 Xodimlar faolligi:" if lang == 'uz' else "👥 Активность сотрудников:"
+            activity_text = "👥 Xodimlar faoliyati:" if lang == 'uz' else "👥 Активность сотрудников:"
             
             await callback.message.edit_text(
                 activity_text,

@@ -9,7 +9,7 @@ from database.warehouse_queries import (
     get_orders_export_data, get_issued_items_export_data
 )
 from keyboards.warehouse_buttons import warehouse_main_menu, export_menu, export_reply_menu
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseExportStates, WarehouseMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -21,35 +21,35 @@ def get_warehouse_export_router():
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer("Qaysi formatda eksport qilmoqchisiz?", reply_markup=export_reply_menu(lang))
-        await state.set_state(WarehouseStates.exporting_data)
+        await state.set_state(WarehouseExportStates.exporting_data)
 
     @router.message(F.text.in_(["Excelga export"]))
     async def export_excel_handler(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer("Excelga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
-        await state.set_state(WarehouseStates.exporting_data)
+        await state.set_state(WarehouseExportStates.exporting_data)
 
     @router.message(F.text.in_(["PDFga export"]))
     async def export_pdf_handler(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer("PDFga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
-        await state.set_state(WarehouseStates.exporting_data)
+        await state.set_state(WarehouseExportStates.exporting_data)
 
     @router.message(F.text.in_(["Wordga export"]))
     async def export_word_handler(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer("Wordga eksport qilish funksiyasi tez orada qo'shiladi.", reply_markup=export_reply_menu(lang))
-        await state.set_state(WarehouseStates.exporting_data)
+        await state.set_state(WarehouseExportStates.exporting_data)
 
     @router.message(F.text.in_(["◀️ Orqaga"]))
     async def export_back_handler(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         await message.answer("Ombor bosh menyusi", reply_markup=warehouse_main_menu(lang))
-        await state.set_state(WarehouseStates.main_menu)
+        await state.set_state(WarehouseMainMenuStates.main_menu)
 
     @router.message(F.text.in_(["📤 Export", "📤 Экспорт"]))
     async def export_handler(message: Message, state: FSMContext):
@@ -66,7 +66,7 @@ def get_warehouse_export_router():
                 export_text,
                 reply_markup=warehouse_main_menu(lang)
             )
-            await state.set_state(WarehouseStates.export_menu)
+            await state.set_state(WarehouseExportStates.export_menu)
             
         except Exception as e:
             logger.error(f"Error in export handler: {str(e)}")

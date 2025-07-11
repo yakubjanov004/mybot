@@ -12,6 +12,7 @@ class UserRole(Enum):
     WAREHOUSE = "warehouse"
     CONTROLLER = "controller"
     BLOCKED = "blocked"
+    JUNIOR_MANAGER = "junior_manager"
 
 class ZayavkaStatus(Enum):
     NEW = "new"
@@ -441,7 +442,8 @@ def get_role_display(role: str, language: str = 'ru') -> str:
         'call_center': {'uz': 'Call-markaz', 'ru': 'Call-центр'},
         'warehouse': {'uz': 'Ombor', 'ru': 'Склад'},
         'controller': {'uz': 'Nazoratchi', 'ru': 'Контролер'},
-        'blocked': {'uz': 'Bloklangan', 'ru': 'Заблокирован'}
+        'blocked': {'uz': 'Bloklangan', 'ru': 'Заблокирован'},
+        'junior_manager': {'uz': 'Kichik menejer', 'ru': 'Младший менеджер'}
     }
     
     return role_map.get(role, {}).get(language, role)

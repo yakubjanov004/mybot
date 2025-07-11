@@ -11,6 +11,7 @@ from .reports import get_manager_reports_router
 from .staff_activity import get_manager_staff_activity_router
 from .status_management import get_manager_status_management_router
 from .technician_assignment import get_manager_technician_assignment_router
+from .inbox import get_manager_inbox_router
 from utils.role_router import get_role_router
 from .orders import get_manager_orders_router
 from .statistics import get_manager_statistics_router
@@ -31,6 +32,7 @@ manager_router.include_router(get_manager_staff_activity_router())
 manager_router.include_router(get_manager_status_management_router())
 manager_router.include_router(get_manager_technician_assignment_router())
 manager_router.include_router(get_manager_filters_router())
+manager_router.include_router(get_manager_inbox_router())
 
 # Export the main router
 def get_manager_router() -> Router:

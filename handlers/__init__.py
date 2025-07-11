@@ -8,6 +8,7 @@ from handlers.client import get_client_router
 from handlers.call_center import get_call_center_router
 from handlers.controller import get_controller_router
 from handlers.warehouse import get_warehouse_router
+from handlers.junior_manager import get_junior_manager_router
 from handlers.global_navigation import get_global_navigation_router
 # Import any additional shared/global routers if needed
 
@@ -28,6 +29,7 @@ def setup_handlers(dp):
         dp.include_router(get_call_center_router())
         dp.include_router(get_controller_router())
         dp.include_router(get_warehouse_router())
+        dp.include_router(get_junior_manager_router())
 
         # Register global navigation router last
         dp.include_router(get_global_navigation_router())

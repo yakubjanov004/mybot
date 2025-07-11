@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianCommunicationStates
 from database.technician_queries import get_technician_chat_history, save_technician_message, get_technician_by_telegram_id, get_managers_telegram_ids
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
@@ -49,13 +49,13 @@ def get_technician_communication_router():
             
             location_text = "📍 Geolokatsiyangizni yuboring:" if lang == 'uz' else "📍 Отправьте вашу геолокацию:"
             await callback.message.edit_text(location_text)
-            await state.set_state(TechnicianStates.waiting_for_location)
+            await state.set_state(TechnicianCommunicationStates.waiting_for_location)
             await callback.answer()
         except Exception as e:
             logger.error(f"Error in tech send location: {str(e)}", exc_info=True)
             await callback.answer("Xatolik yuz berdi")
 
-    @router.message(TechnicianStates.waiting_for_location, F.location)
+    @router.message(TechnicianCommunicationStates.waiting_for_location, F.location)
     @require_technician
     async def process_technician_location(message: Message, state: FSMContext):
         """Process technician location and send to managers"""
@@ -121,7 +121,7 @@ def get_technician_communication_router():
             user = await get_technician_by_telegram_id(callback.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(TechnicianStates.waiting_for_manager_message)
+            await state.set_state(TechnicianCommunicationStates.waiting_for_manager_message)
             message_text = "Menejerga xabar yozing:" if lang == 'uz' else "Напишите сообщение менеджеру:"
             await callback.message.edit_text(message_text)
             await callback.answer()
@@ -129,7 +129,7 @@ def get_technician_communication_router():
             logger.error(f"Error in tech contact manager: {str(e)}", exc_info=True)
             await callback.answer("Xatolik yuz berdi")
 
-    @router.message(TechnicianStates.waiting_for_manager_message)
+    @router.message(TechnicianCommunicationStates.waiting_for_manager_message)
     @require_technician
     async def process_manager_message(message: Message, state: FSMContext):
         """Process message to manager"""

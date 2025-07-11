@@ -5,7 +5,7 @@ from filters.role_filter import RoleFilter
 from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, update_user_language
 from keyboards.controllers_buttons import language_keyboard, controllers_main_menu
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerSettingsStates
 from utils.logger import logger
 
 def get_controller_language_router():
@@ -19,7 +19,7 @@ def get_controller_language_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.selecting_language)
+        await state.set_state(ControllerSettingsStates.selecting_language)
         
         if lang == 'uz':
             text = """🌐 <b>Til tanlash</b>
@@ -61,7 +61,7 @@ Bosh menyuga qaytish uchun tugmani bosing."""
                 reply_markup=controllers_main_menu('uz'),
                 parse_mode='HTML'
             )
-            await state.set_state(ControllersStates.main_menu)
+            await state.set_state(ControllerSettingsStates.main_menu)
             logger.info(f"Controller {user['id']} changed language to Uzbek")
         else:
             text = "❌ Tilni o'zgartirishda xatolik yuz berdi."
@@ -88,7 +88,7 @@ Bosh menyuga qaytish uchun tugmani bosing."""
                 reply_markup=controllers_main_menu('ru'),
                 parse_mode='HTML'
             )
-            await state.set_state(ControllersStates.main_menu)
+            await state.set_state(ControllerSettingsStates.main_menu)
             logger.info(f"Controller {user['id']} changed language to Russian")
         else:
             text = "❌ Произошла ошибка при изменении языка."
@@ -102,7 +102,7 @@ Bosh menyuga qaytish uchun tugmani bosing."""
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.main_menu)
+        await state.set_state(ControllerSettingsStates.main_menu)
         
         if lang == 'uz':
             welcome_text = "🎛️ Nazoratchi paneliga xush kelibsiz!"

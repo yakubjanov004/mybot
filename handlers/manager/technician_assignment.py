@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
 from keyboards.manager_buttons import get_manager_main_keyboard
-from states.manager_states import ManagerStates
+from states.manager_states import ManagerTechnicianAssignmentStates
 from database.base_queries import assign_technician, get_technicians
 from loader import bot
 from database.base_queries import get_user_by_telegram_id, get_zayavka_by_id
@@ -30,7 +30,7 @@ def get_manager_technician_assignment_router():
             app_id_text = "Ariza raqamini kiriting (masalan, 123 yoki #123):" if lang == 'uz' else "Введите номер заявки (например, 123 или #123):"
             
             await message.answer(app_id_text, reply_markup=get_manager_main_keyboard(lang))
-            await state.set_state(ManagerStates.entering_application_id_for_assignment)
+            await state.set_state(ManagerTechnicianAssignmentStates.entering_application_id_for_assignment)
             
         except Exception as e:
             logger.error(f"Error in assign_technician_menu: {str(e)}", exc_info=True)
@@ -38,7 +38,7 @@ def get_manager_technician_assignment_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.entering_application_id_for_assignment))
+    @router.message(StateFilter(ManagerTechnicianAssignmentStates.entering_application_id_for_assignment))
     async def get_application_for_assignment(message: Message, state: FSMContext):
         """Get application ID and show technician list"""
         try:
@@ -126,7 +126,7 @@ def get_manager_technician_assignment_router():
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard),
                 parse_mode='HTML'
             )
-            await state.set_state(ManagerStates.selecting_technician)
+            await state.set_state(ManagerTechnicianAssignmentStates.selecting_technician)
             
         except ValueError:
             lang = await get_user_lang(message.from_user.id)

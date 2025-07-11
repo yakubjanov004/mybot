@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from database.admin_queries import get_admin_dashboard_stats, log_admin_action
 from database.base_queries import get_user_lang
 from keyboards.admin_buttons import get_admin_main_menu
-from states.admin_states import AdminStates
+from states.admin_states import AdminMainMenuStates
 from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.logger import setup_logger
 from utils.role_router import get_role_router
@@ -39,7 +39,7 @@ def get_admin_main_menu_router():
                 reply_markup=get_admin_main_menu(lang)
             )
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.main_menu)
+            await state.set_state(AdminMainMenuStates.main_menu)
             logger.info(f"Admin panel shown to user {message.from_user.id}")
         except Exception as e:
             logger.error(f"Error in admin_start: {e}")
@@ -129,7 +129,7 @@ def get_admin_main_menu_router():
             
             sent_message = await message.answer(dashboard_text)
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.main_menu)
+            await state.set_state(AdminMainMenuStates.main_menu)
             logger.info(f"Admin dashboard shown to user {message.from_user.id}")
             
         except Exception as e:
@@ -191,7 +191,7 @@ def get_admin_main_menu_router():
             
             sent_message = await message.answer(help_text)
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(AdminStates.main_menu)
+            await state.set_state(AdminMainMenuStates.main_menu)
             logger.info(f"Admin help shown to user {message.from_user.id}")
             
         except Exception as e:

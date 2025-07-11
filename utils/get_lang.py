@@ -90,25 +90,6 @@ def is_supported_language(language: str) -> bool:
     """Check if language is supported"""
     return language in config.AVAILABLE_LANGUAGES
 
-async def set_user_language(telegram_id: int, language: str) -> bool:
-    """Set user language in database"""
-    try:
-        if not is_supported_language(language):
-            logger.warning(f"Unsupported language: {language}")
-            return False
-        
-        from database.base_queries import update_user_language
-        success = await update_user_language(telegram_id, language)
-        
-        if success:
-            logger.info(f"Updated language for user {telegram_id} to {language}")
-        
-        return success
-        
-    except Exception as e:
-        logger.error(f"Error setting user language: {str(e)}")
-        return False
-
 # Language-specific text helpers
 class LanguageText:
     """Helper class for language-specific text"""

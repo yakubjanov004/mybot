@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message
 from keyboards.manager_buttons import get_notifications_keyboard, get_manager_main_keyboard
-from states.manager_states import ManagerStates
+from states.manager_states import ManagerNotificationStates
 from database.manager_queries import get_users_by_role
 from database.base_queries import get_user_by_telegram_id, get_user_by_id
 from database.base_queries import get_user_lang
@@ -79,7 +79,7 @@ def get_manager_notifications_router():
             
             await callback.message.edit_text(message_text)
             await state.update_data(notification_type="all")
-            await state.set_state(ManagerStates.sending_notification_message)
+            await state.set_state(ManagerNotificationStates.sending_notification_message)
             
         except Exception as e:
             logger.error(f"Error in start_send_notification_all: {str(e)}", exc_info=True)
@@ -157,7 +157,7 @@ def get_manager_notifications_router():
             
             await callback.message.edit_text(message_text)
             await state.update_data(notification_type="role", selected_role=role)
-            await state.set_state(ManagerStates.sending_notification_message)
+            await state.set_state(ManagerNotificationStates.sending_notification_message)
             await callback.answer()
             
         except Exception as e:
@@ -177,12 +177,12 @@ def get_manager_notifications_router():
             
             await callback.message.edit_text(message_text)
             await state.update_data(notification_type="individual")
-            await state.set_state(ManagerStates.sending_notification_user_id)
+            await state.set_state(ManagerNotificationStates.sending_notification_user_id)
             
         except Exception as e:
             logger.error(f"Error in start_send_notification_individual: {str(e)}", exc_info=True)
 
-    @router.message(StateFilter(ManagerStates.sending_notification_user_id))
+    @router.message(StateFilter(ManagerNotificationStates.sending_notification_user_id))
     async def get_notification_user_id(message: Message, state: FSMContext):
         """Get user ID for individual notification"""
         try:
@@ -218,7 +218,7 @@ def get_manager_notifications_router():
                 )
                 
                 await message.answer(message_text)
-                await state.set_state(ManagerStates.sending_notification_message)
+                await state.set_state(ManagerNotificationStates.sending_notification_message)
                 
             finally:
                 await conn.release()
@@ -234,7 +234,7 @@ def get_manager_notifications_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.sending_notification_message))
+    @router.message(StateFilter(ManagerNotificationStates.sending_notification_message))
     async def get_notification_message(message: Message, state: FSMContext):
         """Get notification message and send it"""
         try:

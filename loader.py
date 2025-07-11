@@ -1,5 +1,4 @@
 import asyncio
-
 import asyncpg
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -193,5 +192,14 @@ async def on_shutdown():
     except Exception as e:
         logger.error(f"Error during shutdown: {str(e)}", exc_info=True)
 
+# Global pool variable for easy access
+pool = None
 
-__all__ = ['bot', 'dp', 'inline_message_manager', 'db', 'cache', 'ZAYAVKA_GROUP_ID']
+async def get_pool():
+    """Get the database pool"""
+    global pool
+    if pool is None:
+        pool = await create_db_pool()
+    return pool
+
+__all__ = ['bot', 'dp', 'inline_message_manager', 'db', 'cache', 'ZAYAVKA_GROUP_ID', 'pool', 'get_pool']

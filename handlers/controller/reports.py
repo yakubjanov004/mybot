@@ -10,7 +10,7 @@ from database.queries import (
 )
 from database.base_queries import get_user_by_telegram_id, get_all_orders, get_service_quality_metrics, get_system_statistics, get_all_technicians
 from keyboards.controllers_buttons import reports_menu, back_to_controllers_menu
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerReportsStates
 from utils.logger import logger
 from datetime import datetime, timedelta
 
@@ -25,7 +25,7 @@ def get_controller_reports_router():
             return
         
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.reports_menu)
+        await state.set_state(ControllerReportsStates.reports_menu)
         
         if lang == 'uz':
             text = """📊 <b>Hisobotlar bo'limi</b>

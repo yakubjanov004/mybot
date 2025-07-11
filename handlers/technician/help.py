@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from datetime import datetime
 from keyboards.technician_buttons import get_technician_help_menu, get_help_request_types_keyboard, get_technician_main_menu_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianHelpStates
 from aiogram.fsm.state import State, StatesGroup
 from database.technician_queries import get_technician_by_telegram_id, get_managers_telegram_ids
 from database.base_queries import create_help_request
@@ -98,7 +98,7 @@ def get_technician_help_router():
             lang = user.get('language', 'uz')
             
             await state.update_data(help_type='equipment')
-            await state.set_state(TechnicianStates.waiting_for_help_description)
+            await state.set_state(TechnicianHelpStates.waiting_for_help_description)
             await message.answer("Muammo haqida batafsil yozing:")
         except Exception as e:
             logger.error(f"Error in tech equipment issue: {str(e)}", exc_info=True)
@@ -116,7 +116,7 @@ def get_technician_help_router():
             lang = user.get('language', 'uz')
             
             await state.update_data(help_type='parts')
-            await state.set_state(TechnicianStates.waiting_for_help_description)
+            await state.set_state(TechnicianHelpStates.waiting_for_help_description)
             await message.answer("Muammo haqida batafsil yozing:")
         except Exception as e:
             logger.error(f"Error in tech parts needed: {str(e)}", exc_info=True)
@@ -134,7 +134,7 @@ def get_technician_help_router():
             lang = user.get('language', 'uz')
             
             await state.update_data(help_type='question')
-            await state.set_state(TechnicianStates.waiting_for_help_description)
+            await state.set_state(TechnicianHelpStates.waiting_for_help_description)
             await message.answer("Muammo haqida batafsil yozing:")
         except Exception as e:
             logger.error(f"Error in tech technical question: {str(e)}", exc_info=True)
@@ -152,7 +152,7 @@ def get_technician_help_router():
             lang = user.get('language', 'uz')
             
             await state.update_data(help_type='emergency')
-            await state.set_state(TechnicianStates.waiting_for_help_description)
+            await state.set_state(TechnicianHelpStates.waiting_for_help_description)
             await message.answer("Muammo haqida batafsil yozing:")
         except Exception as e:
             logger.error(f"Error in tech emergency: {str(e)}", exc_info=True)
@@ -170,7 +170,7 @@ def get_technician_help_router():
             lang = user.get('language', 'uz')
             
             await state.update_data(help_type='client')
-            await state.set_state(TechnicianStates.waiting_for_help_description)
+            await state.set_state(TechnicianHelpStates.waiting_for_help_description)
             await message.answer("Muammo haqida batafsil yozing:")
         except Exception as e:
             logger.error(f"Error in tech client issue: {str(e)}", exc_info=True)
@@ -187,7 +187,7 @@ def get_technician_help_router():
             user = await get_technician_by_telegram_id(message.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(TechnicianStates.waiting_for_location)
+            await state.set_state(TechnicianHelpStates.waiting_for_location)
             await message.answer("Geolokatsiyani yuboring:")
         except Exception as e:
             logger.error(f"Error in tech send location: {str(e)}", exc_info=True)
@@ -195,7 +195,7 @@ def get_technician_help_router():
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(TechnicianStates.waiting_for_help_description)
+    @router.message(TechnicianHelpStates.waiting_for_help_description)
     @require_technician
     async def process_help_description(message: Message, state: FSMContext):
         """Process help description and send to managers"""
@@ -323,7 +323,7 @@ def get_technician_help_router():
             user = await get_technician_by_telegram_id(message.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(TechnicianStates.waiting_for_manager_message)
+            await state.set_state(TechnicianHelpStates.waiting_for_manager_message)
             message_text = "Menejerga xabar yozing:" if lang == 'uz' else "Напишите сообщение менеджеру:"
             await message.answer(message_text)
         except Exception as e:

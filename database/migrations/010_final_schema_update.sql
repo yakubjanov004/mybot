@@ -297,3 +297,6 @@ CREATE TRIGGER update_equipment_requests_updated_at BEFORE UPDATE ON equipment_r
 -- Grant permissions (adjust as needed for your setup)
 -- GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_bot_user;
 -- GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO your_bot_user;
+
+ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS type_seq_id INTEGER;
+ALTER TABLE zayavki ADD COLUMN IF NOT EXISTS public_id VARCHAR(20) UNIQUE;

@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.technician_buttons import get_language_keyboard, get_technician_main_menu_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianSettingsStates
 from database.technician_queries import get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang, update_user_language
 from utils.logger import setup_logger

@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKe
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from datetime import datetime
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianEquipmentStates
 from database.technician_queries import get_warehouse_staff, get_managers_telegram_ids, get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import cleanup_user_inline_messages
@@ -49,7 +49,7 @@ def get_technician_equipment_router():
             user = await get_technician_by_telegram_id(callback.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(TechnicianStates.waiting_for_equipment_request)
+            await state.set_state(TechnicianEquipmentStates.waiting_for_equipment_request)
             equipment_text = "Kerakli jihozlar ro'yxatini yozing:" if lang == 'uz' else "Напишите список необходимого оборудования:"
             await callback.message.edit_text(equipment_text)
             await callback.answer()
@@ -57,7 +57,7 @@ def get_technician_equipment_router():
             logger.error(f"Error in tech equipment request: {str(e)}", exc_info=True)
             await callback.answer("Xatolik yuz berdi")
 
-    @router.message(TechnicianStates.waiting_for_equipment_request)
+    @router.message(TechnicianEquipmentStates.waiting_for_equipment_request)
     @require_technician
     async def process_equipment_request(message: Message, state: FSMContext):
         """Process equipment request and send to warehouse"""

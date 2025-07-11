@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from database.call_center_queries import get_statistics
 from database.base_queries import get_user_by_telegram_id
 from keyboards.call_center_buttons import call_center_statistics_menu, call_center_main_menu_reply
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterReportsStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -26,9 +26,9 @@ def get_call_center_statistics_router():
             "📊 Statistikalar menyu",
             reply_markup=call_center_statistics_menu(lang)
         )
-        await state.set_state(CallCenterStates.statistics)
+        await state.set_state(CallCenterReportsStates.statistics)
 
-    @router.message(CallCenterStates.statistics, F.text == "📅 Bugungi ko'rsatkichlar")
+    @router.message(CallCenterReportsStates.statistics, F.text == "📅 Bugungi ko'rsatkichlar")
     async def handle_daily_stats(message: Message, state: FSMContext):
         """Handle daily statistics"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -77,7 +77,7 @@ def get_call_center_statistics_router():
             reply_markup=call_center_statistics_menu(lang)
         )
 
-    @router.message(CallCenterStates.statistics, F.text == "📊 Haftalik hisobot")
+    @router.message(CallCenterReportsStates.statistics, F.text == "📊 Haftalik hisobot")
     async def handle_weekly_stats(message: Message, state: FSMContext):
         """Handle weekly statistics"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -126,7 +126,7 @@ def get_call_center_statistics_router():
             reply_markup=call_center_statistics_menu(lang)
         )
 
-    @router.message(CallCenterStates.statistics, F.text == "📈 Oylik hisobot")
+    @router.message(CallCenterReportsStates.statistics, F.text == "📈 Oylik hisobot")
     async def handle_monthly_stats(message: Message, state: FSMContext):
         """Handle monthly statistics"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -175,7 +175,7 @@ def get_call_center_statistics_router():
             reply_markup=call_center_statistics_menu(lang)
         )
 
-    @router.message(CallCenterStates.statistics, F.text == "🎯 Mening samaradorligim")
+    @router.message(CallCenterReportsStates.statistics, F.text == "🎯 Mening samaradorligim")
     async def handle_performance(message: Message, state: FSMContext):
         """Handle personal performance statistics"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -224,7 +224,7 @@ def get_call_center_statistics_router():
             reply_markup=call_center_statistics_menu(lang)
         )
 
-    @router.message(CallCenterStates.statistics, F.text == "📈 Konversiya darajasi")
+    @router.message(CallCenterReportsStates.statistics, F.text == "📈 Konversiya darajasi")
     async def handle_conversion(message: Message, state: FSMContext):
         """Handle conversion statistics"""
         user = await get_user_by_telegram_id(message.from_user.id)
@@ -263,7 +263,7 @@ def get_call_center_statistics_router():
             reply_markup=call_center_statistics_menu(lang)
         )
 
-    @router.message(CallCenterStates.statistics, F.text == "🔄 Orqaga")
+    @router.message(CallCenterReportsStates.statistics, F.text == "🔄 Orqaga")
     async def handle_stats_back(message: Message, state: FSMContext):
         """Handle back from statistics"""
         await state.clear()

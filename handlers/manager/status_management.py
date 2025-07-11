@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from utils.inline_cleanup import safe_delete_message, answer_and_cleanup
 from keyboards.manager_buttons import get_status_keyboard, get_manager_main_keyboard
-from states.manager_states import ManagerStates
+from states.manager_states import ManagerStatusManagementStates
 from database.base_queries import get_user_by_telegram_id, update_zayavka_status
 from database.base_queries import get_user_lang, get_zayavka_by_id
 from utils.logger import setup_logger
@@ -24,14 +24,14 @@ def get_manager_status_management_router():
             lang = user.get('language', 'uz')
             app_id_text = "Ariza raqamini kiriting (masalan, 123 yoki #123):" if lang == 'uz' else "Введите номер заявки (например, 123 или #123):"
             await message.answer(app_id_text, reply_markup=get_manager_main_keyboard(lang))
-            await state.set_state(ManagerStates.entering_application_id_for_status)
+            await state.set_state(ManagerStatusManagementStates.entering_application_id_for_status)
         except Exception as e:
             logger.error(f"Error in change_status_menu: {str(e)}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
-    @router.message(StateFilter(ManagerStates.entering_application_id_for_status))
+    @router.message(StateFilter(ManagerStatusManagementStates.entering_application_id_for_status))
     async def get_application_for_status_change(message: Message, state: FSMContext):
         """Get application ID for status change, show full info in user's language with emoji"""
         try:
@@ -107,7 +107,7 @@ def get_manager_status_management_router():
                 ),
                 parse_mode='HTML'
             )
-            await state.set_state(ManagerStates.selecting_new_status)
+            await state.set_state(ManagerStatusManagementStates.selecting_new_status)
 
         except ValueError:
             lang = await get_user_lang(message.from_user.id)

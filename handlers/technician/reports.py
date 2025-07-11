@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from aiogram.fsm.context import FSMContext
 from datetime import datetime, timedelta
 from keyboards.technician_buttons import get_back_technician_keyboard, get_reports_keyboard
-from states.technician_states import TechnicianStates
+from states.technician_states import TechnicianReportsStates
 from database.technician_queries import get_technician_stats, get_zayavki_by_assigned, get_technician_by_telegram_id
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.inline_cleanup import cleanup_user_inline_messages, answer_and_cleanup

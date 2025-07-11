@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters.state import StateFilter
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from database.base_queries import create_feedback
-from states.user_states import UserStates
+from states.client_states import FeedbackStates
 from utils.logger import setup_logger
 from loader import inline_message_manager
 from utils.role_router import get_role_router
@@ -29,7 +29,7 @@ def get_client_feedback_router():
             reply_markup=get_rating_keyboard(lang)
         )
         await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-        await state.set_state(UserStates.waiting_for_rating)
+        await state.set_state(FeedbackStates.waiting_for_rating)
         await state.update_data(last_message_id=sent_message.message_id)  # Saqlash uchun message_id
 
     @router.callback_query(F.data.regexp(r"^feedback_rate_[1-5]$"))
@@ -43,10 +43,10 @@ def get_client_feedback_router():
         )
         await inline_message_manager.track(call.from_user.id, sent_message.message_id)
         await state.update_data(last_message_id=sent_message.message_id)  # Yangi message_id saqlash
-        await state.set_state(UserStates.waiting_for_comment)
+        await state.set_state(FeedbackStates.waiting_for_comment)
         await call.answer()
 
-    @router.message(StateFilter(UserStates.waiting_for_comment), F.text)
+    @router.message(StateFilter(FeedbackStates.waiting_for_comment), F.text)
     async def get_feedback_comment(message: Message, state: FSMContext):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
@@ -79,7 +79,7 @@ def get_client_feedback_router():
         await message.answer(text)
         await state.clear()
 
-    @router.message(StateFilter(UserStates.waiting_for_comment), F.text == "/skip")
+    @router.message(StateFilter(FeedbackStates.waiting_for_comment), F.text == "/skip")
     async def skip_feedback_comment(message: Message, state: FSMContext):
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')

@@ -3,29 +3,31 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 def get_manager_main_keyboard(lang='uz'):
     """Generate main keyboard for manager with locale support"""
-    create_application_text = "📝 Ariza yaratish" if lang == "uz" else "📝 Создать заявку"
+    service_order_text = "🆕 Texnik xizmat" if lang == "uz" else "🆕 Техническая поддержка"
+    connection_order_text = "🔌 Ulanish uchun ariza" if lang == "uz" else "🔌 Заявка на подключение"
     view_applications_text = "📋 Arizalarni ko'rish" if lang == "uz" else "📋 Просмотр заявок"
     filter_applications_text = "🔍 Filtrlar" if lang == "uz" else "🔍 Фильтры"
     change_status_text = "🔄 Status o'zgartirish" if lang == "uz" else "🔄 Изменить статус"
-    assign_responsible_text = "👨‍🔧 Texnik biriktirish" if lang == "uz" else "👨‍🔧 Назначить техника"
     generate_report_text = "📊 Hisobot yaratish" if lang == "uz" else "📊 Создать отчет"
     equipment_issuance_text = "📦 Jihozlar berish" if lang == "uz" else "📦 Выдача оборудования"
     ready_for_installation_text = "✅ O'rnatishga tayyor" if lang == "uz" else "✅ Готов к установке"
     staff_activity_text = "👥 Xodimlar faoliyati" if lang == "uz" else "👥 Активность сотрудников"
     notifications_text = "🔔 Bildirishnomalar" if lang == "uz" else "🔔 Уведомления"
     change_language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
+    inbox_text = "📥 Kiruvchi xabarlar" if lang == "uz" else "📥 Входящие сообщения"
     
     keyboard = [
-        [KeyboardButton(text=create_application_text),
-         KeyboardButton(text=view_applications_text)],
+        [KeyboardButton(text=service_order_text),
+         KeyboardButton(text=connection_order_text)],
+        [KeyboardButton(text=view_applications_text)],
         [KeyboardButton(text=filter_applications_text),
          KeyboardButton(text=change_status_text)],
-        [KeyboardButton(text=assign_responsible_text),
-         KeyboardButton(text=generate_report_text)],
+        [KeyboardButton(text=generate_report_text)],
         [KeyboardButton(text=equipment_issuance_text),
          KeyboardButton(text=ready_for_installation_text)],
         [KeyboardButton(text=staff_activity_text),
          KeyboardButton(text=notifications_text)],
+        [KeyboardButton(text=inbox_text)],
         [KeyboardButton(text=change_language_text)],
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -549,3 +551,181 @@ def get_manager_view_applications_keyboard(lang='uz'):
         ],
         resize_keyboard=True
     )
+
+def get_staff_activity_keyboard(lang='uz'):
+    """Xodimlar faoliyati uchun keyboard"""
+    online_text = "🟢 Onlayn xodimlar" if lang == "uz" else "🟢 Сотрудники онлайн"
+    performance_text = "📊 Samaradorlik" if lang == "uz" else "📊 Производительность"
+    workload_text = "📋 Ish yuki" if lang == "uz" else "📋 Рабочая нагрузка"
+    attendance_text = "📅 Davomat" if lang == "uz" else "📅 Посещаемость"
+    junior_work_text = "👨‍💼 Kichik menejerlar ishi" if lang == "uz" else "👨‍💼 Работа младших менеджеров"
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=online_text,
+                callback_data="staff_online"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=performance_text,
+                callback_data="staff_performance"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=workload_text,
+                callback_data="staff_workload"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=attendance_text,
+                callback_data="staff_attendance"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=junior_work_text,
+                callback_data="staff_junior_work"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="staff_menu"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_inbox_keyboard(lang='uz'):
+    """Kiruvchi xabarlar uchun keyboard"""
+    new_messages_text = "🆕 Yangi xabarlar" if lang == "uz" else "🆕 Новые сообщения"
+    read_messages_text = "✅ O'qilgan xabarlar" if lang == "uz" else "✅ Прочитанные сообщения"
+    urgent_messages_text = "🚨 Shoshilinch xabarlar" if lang == "uz" else "🚨 Срочные сообщения"
+    client_messages_text = "👤 Mijoz xabarlari" if lang == "uz" else "👤 Сообщения клиентов"
+    system_messages_text = "⚙️ Tizim xabarlari" if lang == "uz" else "⚙️ Системные сообщения"
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=new_messages_text,
+                callback_data="inbox_new"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=read_messages_text,
+                callback_data="inbox_read"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=urgent_messages_text,
+                callback_data="inbox_urgent"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=client_messages_text,
+                callback_data="inbox_client"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=system_messages_text,
+                callback_data="inbox_system"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="inbox_menu"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_junior_manager_work_keyboard(lang='uz'):
+    """Kichik menejerlar ishi uchun keyboard"""
+    today_work_text = "📅 Bugungi ishlar" if lang == "uz" else "📅 Работа сегодня"
+    week_work_text = "📊 Haftalik ishlar" if lang == "uz" else "📊 Работа за неделю"
+    assignments_text = "👨‍🔧 Texnik biriktirishlar" if lang == "uz" else "👨‍🔧 Назначения техников"
+    performance_text = "📈 Samaradorlik" if lang == "uz" else "📈 Производительность"
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=today_work_text,
+                callback_data="junior_today"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=week_work_text,
+                callback_data="junior_week"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=assignments_text,
+                callback_data="junior_assignments"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=performance_text,
+                callback_data="junior_performance"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="junior_menu"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_message_detail_keyboard(message_id: int, lang='uz'):
+    """Xabar tafsilotlari uchun keyboard"""
+    reply_text = "💬 Javob berish" if lang == "uz" else "💬 Ответить"
+    forward_text = "📤 O'tkazish" if lang == "uz" else "📤 Переслать"
+    mark_read_text = "✅ O'qilgan deb belgilash" if lang == "uz" else "✅ Отметить как прочитанное"
+    delete_text = "🗑️ O'chirish" if lang == "uz" else "🗑️ Удалить"
+    back_text = "🔙 Orqaga" if lang == "uz" else "🔙 Назад"
+    
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=reply_text,
+                callback_data=f"message_reply_{message_id}"
+            ),
+            InlineKeyboardButton(
+                text=forward_text,
+                callback_data=f"message_forward_{message_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=mark_read_text,
+                callback_data=f"message_read_{message_id}"
+            ),
+            InlineKeyboardButton(
+                text=delete_text,
+                callback_data=f"message_delete_{message_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=back_text,
+                callback_data="message_back"
+            )
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

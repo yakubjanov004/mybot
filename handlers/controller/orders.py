@@ -7,7 +7,7 @@ from database.base_queries import get_user_by_telegram_id, get_all_orders, get_o
 from keyboards.controllers_buttons import (
     orders_control_menu, order_priority_keyboard, back_to_controllers_menu
 )
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerOrdersStates
 from utils.logger import logger
 
 def get_controller_orders_router():
@@ -20,7 +20,7 @@ def get_controller_orders_router():
         if not user or user['role'] != 'controller':
             return
         lang = user.get('language', 'uz')
-        await state.set_state(ControllersStates.orders_control)
+        await state.set_state(ControllerOrdersStates.orders_control)
         orders = await get_all_orders(limit=50)
         status_counts = {}
         for order in orders:

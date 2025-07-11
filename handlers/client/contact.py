@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from keyboards.client_buttons import get_contact_keyboard, get_main_menu_keyboard, zayavka_type_keyboard
-from states.user_states import UserStates
+from states.client_states import ContactStates, OrderStates, ProfileStates, MainMenuStates
 from database.base_queries import get_user_by_telegram_id, update_user_phone, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
@@ -14,7 +14,7 @@ def get_client_contact_router():
     logger = setup_logger('bot.client')
     router = get_role_router("client")
 
-    @router.message(StateFilter(UserStates.waiting_for_contact), F.contact)
+    @router.message(StateFilter(ContactStates.waiting_for_contact), F.contact)
     async def process_contact(message: Message, state: FSMContext):
         """Kontakt ulashishni qayta ishlash"""
         try:
@@ -48,7 +48,7 @@ def get_client_contact_router():
                     reply_markup=zayavka_type_keyboard(lang)
                 )
                 await state.update_data(order_in_progress=None)  # Clear the flag
-                await state.set_state(UserStates.selecting_order_type)
+                await state.set_state(OrderStates.selecting_order_type)
                 logger.info(f"Mijoz kontakti yangilandi va buyurtma jarayoni davom etmoqda: {message.from_user.id}")
                 await inline_message_manager.track(message.from_user.id, sent_message.message_id)
                 return
@@ -64,7 +64,7 @@ def get_client_contact_router():
                 success_text,
                 reply_markup=get_main_menu_keyboard(lang)
             )
-            await state.set_state(UserStates.main_menu)
+            await state.set_state(MainMenuStates.main_menu)
             
             logger.info(f"Mijoz kontakti yangilandi: {message.from_user.id}")
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
@@ -89,10 +89,10 @@ def get_client_contact_router():
                 "Отправьте новый контакт."
             )
             sent_message = await callback.message.edit_text(contact_text, reply_markup=None)
-            await state.set_state(UserStates.updating_contact)
+            await state.set_state(ContactStates.updating_contact)
             
             # Foydalanuvchi kontakt yuborganida inline tugmalarni o‘chirish
-            @router.message(StateFilter(UserStates.updating_contact), F.contact)
+            @router.message(StateFilter(ContactStates.updating_contact), F.contact)
             async def clear_inline_on_contact(message: Message, state: FSMContext):
                 try:
                     # Oxirgi xabarning inline tugmalarni o‘chirish
@@ -118,7 +118,7 @@ def get_client_contact_router():
                         success_text,
                         reply_markup=get_main_menu_keyboard(lang)
                     )
-                    await state.set_state(UserStates.main_menu)
+                    await state.set_state(MainMenuStates.main_menu)
                     logger.info(f"Mijoz kontakti yangilandi: {message.from_user.id}")
                     await inline_message_manager.track(message.from_user.id, sent_message.message_id)
                 except Exception as e:
@@ -131,7 +131,7 @@ def get_client_contact_router():
             logger.error(f"client_update_contact_handler da xatolik: {str(e)}", exc_info=True)
             await callback.answer("Xatolik yuz berdi")
 
-    @router.message(StateFilter(UserStates.updating_contact), F.contact)
+    @router.message(StateFilter(ContactStates.updating_contact), F.contact)
     async def process_contact_update(message: Message, state: FSMContext):
         """Mijozdan yangilangan kontaktni qayta ishlash"""
         try:
@@ -151,7 +151,7 @@ def get_client_contact_router():
                 success_text,
                 reply_markup=get_main_menu_keyboard(lang)
             )
-            await state.set_state(UserStates.main_menu)
+            await state.set_state(MainMenuStates.main_menu)
             logger.info(f"Mijoz kontakti yangilandi: {message.from_user.id}")
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
         except Exception as e:

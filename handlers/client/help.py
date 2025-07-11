@@ -2,7 +2,7 @@ from aiogram import F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from keyboards.client_buttons import get_client_help_menu, get_client_help_back_inline, get_main_menu_keyboard
-from states.user_states import UserStates
+from states.client_states import HelpStates, MainMenuStates
 from database.base_queries import get_user_by_telegram_id, get_user_lang
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup
@@ -27,7 +27,7 @@ def get_client_help_router():
             # Yangi xabar yuborish va uni saqlash
             sent_message = await message.answer(help_text, reply_markup=get_client_help_menu(lang))
             await inline_message_manager.track(message.from_user.id, sent_message.message_id)
-            await state.set_state(UserStates.help_menu)
+            await state.set_state(HelpStates.help_menu)
             
         except Exception as e:
             logger.error(f"client_help_handler da xatolik: {str(e)}", exc_info=True)
@@ -36,7 +36,7 @@ def get_client_help_router():
             await message.answer(error_text)
 
     # Foydalanuvchi matn yuborganida inline tugmalarni o'chirish
-    @router.message(UserStates.help_menu, F.text)
+    @router.message(HelpStates.help_menu, F.text)
     async def clear_inline_on_text(message: Message, state: FSMContext):
         """Inline tugmalarni o'chirish va holatni tiklash"""
         try:
@@ -55,11 +55,11 @@ def get_client_help_router():
                 except Exception as e:
                     logger.debug(f"Xabar o'zgartirishda xatolik: {str(e)}")
             
-            await state.set_state(UserStates.main_menu)  # Holatni tiklash
+            await state.set_state(MainMenuStates.main_menu)  # Holatni tiklash
             
         except Exception as e:
             logger.error(f"clear_inline_on_text da xatolik: {str(e)}", exc_info=True)
-            await state.set_state(UserStates.main_menu)  # Xatolik bo'lsa ham holatni tiklash
+            await state.set_state(MainMenuStates.main_menu)  # Xatolik bo'lsa ham holatni tiklash
 
     @router.callback_query(F.data == "client_faq")
     async def client_faq_handler(callback: CallbackQuery, state: FSMContext):

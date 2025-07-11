@@ -339,6 +339,7 @@ def roles_keyboard(telegram_id: int, lang="uz"):
     warehouse_text = "Sklad" if lang == "uz" else "Склад"
     client_text = "Abonent" if lang == "uz" else "Абонент"
     blocked_text = "Bloklangan" if lang == "uz" else "Заблокирован"
+    junior_manager_text = "Kichik menejer" if lang == "uz" else "Младший менеджер"
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -351,7 +352,10 @@ def roles_keyboard(telegram_id: int, lang="uz"):
                 InlineKeyboardButton(text=manager_text, callback_data=f"set_role:manager:{telegram_id}")
             ],
             [
-                InlineKeyboardButton(text=controller_text, callback_data=f"set_role:controller:{telegram_id}"),
+                InlineKeyboardButton(text=junior_manager_text, callback_data=f"set_role:junior_manager:{telegram_id}"),
+                InlineKeyboardButton(text=controller_text, callback_data=f"set_role:controller:{telegram_id}")
+            ],
+            [
                 InlineKeyboardButton(text=warehouse_text, callback_data=f"set_role:warehouse:{telegram_id}")
             ],
             [

@@ -10,7 +10,7 @@ from database.warehouse_queries import (
     get_inventory_item_by_id
 )
 from keyboards.warehouse_buttons import warehouse_inventory_menu, inventory_actions_keyboard, inventory_actions_inline, update_item_fields_inline
-from states.warehouse_states import WarehouseStates
+from states.warehouse_states import WarehouseInventoryStates, WarehouseMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 from aiogram.utils.keyboard import InlineKeyboardBuilder
@@ -46,7 +46,7 @@ def get_warehouse_inventory_router():
             inventory_text,
             reply_markup=warehouse_inventory_menu(lang)
         )
-        await state.set_state(WarehouseStates.inventory_menu)
+        await state.set_state(WarehouseInventoryStates.inventory_menu)
 
     @router.callback_query(F.data == "view_inventory_list")
     async def view_inventory_list(callback: CallbackQuery, state: FSMContext):
@@ -95,7 +95,7 @@ def get_warehouse_inventory_router():
             user = await get_warehouse_user_by_telegram_id(callback.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(WarehouseStates.adding_item_name)
+            await state.set_state(WarehouseInventoryStates.adding_item_name)
             text = "📝 Mahsulot nomini kiriting:" if lang == 'uz' else "📝 Введите название товара:"
             await callback.message.edit_text(text)
             await callback.answer()
@@ -103,25 +103,25 @@ def get_warehouse_inventory_router():
         except Exception as e:
             logger.error(f"Error in add inventory item: {str(e)}")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_name))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_name))
     async def get_item_name(message: Message, state: FSMContext):
         await state.update_data(item_name=message.text)
-        await state.set_state(WarehouseStates.adding_item_quantity)
+        await state.set_state(WarehouseInventoryStates.adding_item_quantity)
         await message.answer("🔢 Miqdorni kiriting:")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_quantity))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_quantity))
     async def get_item_quantity(message: Message, state: FSMContext):
         try:
             quantity = int(message.text)
             if quantity < 0:
                 raise ValueError
             await state.update_data(item_quantity=quantity)
-            await state.set_state(WarehouseStates.adding_item_price)
+            await state.set_state(WarehouseInventoryStates.adding_item_price)
             await message.answer("💰 Narxni kiriting (so'm):")
         except ValueError:
             await message.answer("❌ Noto'g'ri miqdor. Musbat raqam kiriting.")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_price))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_price))
     async def get_item_price(message: Message, state: FSMContext):
         try:
             price = float(message.text)
@@ -130,16 +130,16 @@ def get_warehouse_inventory_router():
             await state.update_data(item_price=price)
             data = await state.get_data()
             lang = data.get('lang', 'uz')
-            await state.set_state(WarehouseStates.adding_item_description)
+            await state.set_state(WarehouseInventoryStates.adding_item_description)
             await message.answer(
-                "📝 Mahsulot tavsifini kiriting (ixtiyoriy, o'tkazib yuborish uchun -)" if lang == 'uz' else "📝 Введите описание товара (необязательно, для пропуска -)"
+                "�� Mahsulot tavsifini kiriting (ixtiyoriy, o'tkazib yuborish uchun -)" if lang == 'uz' else "📝 Введите описание товара (необязательно, для пропуска -)"
             )
         except ValueError:
             data = await state.get_data()
             lang = data.get('lang', 'uz')
             await message.answer("❌ Noto'g'ri narx. Musbat raqam kiriting." if lang == 'uz' else "❌ Неверная цена. Введите положительное число.")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_description))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_description))
     async def get_item_description(message: Message, state: FSMContext):
         data = await state.get_data()
         lang = data.get('lang', 'uz')
@@ -157,7 +157,7 @@ def get_warehouse_inventory_router():
             await message.answer(f"✅ Mahsulot muvaffaqiyatli qo'shildi!\n📦 Nom: {item_data['name']}\n🔢 Miqdor: {item_data['quantity']}\n💰 Narx: {item_data['price']:,} so'm" if lang == 'uz' else f"✅ Товар успешно добавлен!\n📦 Название: {item_data['name']}\n🔢 Количество: {item_data['quantity']}\n💰 Цена: {item_data['price']:,} сум")
         else:
             await message.answer("❌ Mahsulot qo'shishda xatolik" if lang == 'uz' else "❌ Ошибка при добавлении товара")
-        await state.set_state(WarehouseStates.inventory_menu)
+        await state.set_state(WarehouseInventoryStates.inventory_menu)
         await message.answer(
             "📦 Inventarizatsiya menyusi:" if lang == 'uz' else "📦 Меню инвентаризации:",
             reply_markup=warehouse_inventory_menu(lang)
@@ -182,9 +182,9 @@ def get_warehouse_inventory_router():
                 
                 await callback.message.edit_text(text, parse_mode="Markdown")
                 await state.update_data(available_items=items)
-                await state.set_state(WarehouseStates.selecting_item_to_update)
+                await state.set_state(WarehouseInventoryStates.selecting_item_to_update)
             else:
-                text = "📭 Yangilanadigan mahsulotlar yo'q" if lang == 'uz' else "📭 Нет товаров для обновления"
+                text = "�� Yangilanadigan mahsulotlar yo'q" if lang == 'uz' else "📭 Нет товаров для обновления"
                 await callback.message.edit_text(text)
             
             await callback.answer()
@@ -202,7 +202,7 @@ def get_warehouse_inventory_router():
         return text
 
     # Yangilash uchun tanlash bosqichida mahsulot ma'lumotlarini chiqarish
-    @router.message(StateFilter(WarehouseStates.selecting_item_to_update))
+    @router.message(StateFilter(WarehouseInventoryStates.selecting_item_to_update))
     async def select_item_to_update(message: Message, state: FSMContext):
         try:
             item_number = int(message.text)
@@ -218,13 +218,13 @@ def get_warehouse_inventory_router():
                     f"🛠️ Qaysi maydonni yangilamoqchisiz?" if lang == 'uz' else "🛠️ Какое поле хотите обновить?",
                     reply_markup=update_item_fields_inline(selected_item['id'], lang)
                 )
-                await state.set_state(WarehouseStates.updating_item_info)
+                await state.set_state(WarehouseInventoryStates.updating_item_info)
             else:
                 await message.answer("❌ Noto'g'ri raqam. Qaytadan kiriting.")
         except ValueError:
             await message.answer("❌ Noto'g'ri format. Raqam kiriting.")
 
-    @router.message(StateFilter(WarehouseStates.updating_item_quantity))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_quantity))
     async def update_item_quantity(message: Message, state: FSMContext):
         try:
             quantity = int(message.text)
@@ -238,7 +238,7 @@ def get_warehouse_inventory_router():
                 await message.answer(f"✅ Miqdor yangilandi: {quantity}")
             else:
                 await message.answer("❌ Miqdorni yangilashda xatolik")
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
             lang = 'uz' if "Mahsulot" in message.text else 'ru'
             await message.answer(
                 "📦 Inventarizatsiya menyusi:" if lang == 'uz' else "📦 Меню инвентаризации:",
@@ -287,7 +287,7 @@ def get_warehouse_inventory_router():
             user = await get_warehouse_user_by_telegram_id(callback.from_user.id)
             lang = user.get('language', 'uz')
             
-            await state.set_state(WarehouseStates.searching_inventory)
+            await state.set_state(WarehouseInventoryStates.searching_inventory)
             search_text = "🔍 Qidiruv so'zini kiriting:" if lang == 'uz' else "🔍 Введите поисковый запрос:"
             await callback.message.edit_text(search_text)
             await callback.answer()
@@ -295,7 +295,7 @@ def get_warehouse_inventory_router():
         except Exception as e:
             logger.error(f"Error in inventory search: {str(e)}")
 
-    @router.message(StateFilter(WarehouseStates.searching_inventory))
+    @router.message(StateFilter(WarehouseInventoryStates.searching_inventory))
     async def process_inventory_search(message: Message, state: FSMContext):
         """Process inventory search"""
         try:
@@ -321,13 +321,13 @@ def get_warehouse_inventory_router():
                 text = "❌ Hech narsa topilmadi" if lang == 'uz' else "❌ Ничего не найдено"
             
             await message.answer(text, parse_mode="Markdown")
-            await state.set_state(WarehouseStates.main_menu)
+            await state.set_state(WarehouseMainMenuStates.main_menu)
             
         except Exception as e:
             logger.error(f"Error in inventory search: {str(e)}")
             error_text = "Qidirishda xatolik" if lang == 'uz' else "Ошибка при поиске"
             await message.answer(error_text)
-            await state.set_state(WarehouseStates.main_menu)
+            await state.set_state(WarehouseMainMenuStates.main_menu)
 
     @router.callback_query(F.data == "inventory_out_of_stock")
     async def inventory_out_of_stock_handler(callback: CallbackQuery, state: FSMContext):
@@ -365,18 +365,18 @@ def get_warehouse_inventory_router():
     async def add_item_handler(message: Message, state: FSMContext):
         data = await state.get_data()
         lang = data.get('lang', 'uz')
-        await state.set_state(WarehouseStates.adding_item_name)
+        await state.set_state(WarehouseInventoryStates.adding_item_name)
         await message.answer(
             "📝 Mahsulot nomini kiriting:" if lang == 'uz' else "📝 Введите название товара:"
         )
 
-    @router.message(StateFilter(WarehouseStates.adding_item_name))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_name))
     async def get_item_name(message: Message, state: FSMContext):
         await state.update_data(item_name=message.text)
-        await state.set_state(WarehouseStates.adding_item_quantity)
+        await state.set_state(WarehouseInventoryStates.adding_item_quantity)
         await message.answer("🔢 Miqdorni kiriting:")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_quantity))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_quantity))
     async def get_item_quantity(message: Message, state: FSMContext):
         try:
             quantity = int(message.text)
@@ -385,14 +385,14 @@ def get_warehouse_inventory_router():
             await state.update_data(item_quantity=quantity)
             data = await state.get_data()
             lang = data.get('lang', 'uz')
-            await state.set_state(WarehouseStates.adding_item_price)
+            await state.set_state(WarehouseInventoryStates.adding_item_price)
             await message.answer("💰 Narxni kiriting (so'm):" if lang == 'uz' else "💰 Введите цену (сум):")
         except ValueError:
             data = await state.get_data()
             lang = data.get('lang', 'uz')
             await message.answer("❌ Noto'g'ri miqdor. Musbat raqam kiriting." if lang == 'uz' else "❌ Неверное количество. Введите положительное число.")
 
-    @router.message(StateFilter(WarehouseStates.adding_item_price))
+    @router.message(StateFilter(WarehouseInventoryStates.adding_item_price))
     async def get_item_price(message: Message, state: FSMContext):
         try:
             price = float(message.text)
@@ -412,7 +412,7 @@ def get_warehouse_inventory_router():
                 await message.answer(f"✅ Mahsulot muvaffaqiyatli qo'shildi!\n📦 Nom: {item_data['name']}\n🔢 Miqdor: {item_data['quantity']}\n💰 Narx: {item_data['price']:,} so'm" if lang == 'uz' else f"✅ Товар успешно добавлен!\n📦 Название: {item_data['name']}\n🔢 Количество: {item_data['quantity']}\n💰 Цена: {item_data['price']:,} сум")
             else:
                 await message.answer("❌ Mahsulot qo'shishda xatolik" if lang == 'uz' else "❌ Ошибка при добавлении товара")
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
             await message.answer(
                 "📦 Inventarizatsiya menyusi:" if lang == 'uz' else "📦 Меню инвентаризации:",
                 reply_markup=warehouse_inventory_menu(lang)
@@ -441,7 +441,7 @@ def get_warehouse_inventory_router():
                 
                 await callback.message.edit_text(text, parse_mode="Markdown")
                 await state.update_data(available_items=items)
-                await state.set_state(WarehouseStates.selecting_item_to_update)
+                await state.set_state(WarehouseInventoryStates.selecting_item_to_update)
             else:
                 text = "📭 Yangilanadigan mahsulotlar yo'q" if lang == 'uz' else "📭 Нет товаров для обновления"
                 await callback.message.edit_text(text)
@@ -451,7 +451,7 @@ def get_warehouse_inventory_router():
         except Exception as e:
             logger.error(f"Error in update inventory item: {str(e)}")
 
-    @router.message(StateFilter(WarehouseStates.selecting_item_to_update))
+    @router.message(StateFilter(WarehouseInventoryStates.selecting_item_to_update))
     async def select_item_to_update(message: Message, state: FSMContext):
         try:
             item_number = int(message.text)
@@ -465,13 +465,13 @@ def get_warehouse_inventory_router():
                     f"🛠️ Qaysi maydonni yangilamoqchisiz?" if lang == 'uz' else "🛠️ Какое поле хотите обновить?",
                     reply_markup=update_item_fields_inline(selected_item['id'], lang)
                 )
-                await state.set_state(WarehouseStates.updating_item_info)
+                await state.set_state(WarehouseInventoryStates.updating_item_info)
             else:
                 await message.answer("❌ Noto'g'ri raqam. Qaytadan kiriting.")
         except ValueError:
             await message.answer("❌ Noto'g'ri format. Raqam kiriting.")
 
-    @router.message(StateFilter(WarehouseStates.updating_item_info))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_info))
     async def update_item_info(message: Message, state: FSMContext):
         data = await state.get_data()
         lang = data.get('lang', 'uz')
@@ -481,21 +481,21 @@ def get_warehouse_inventory_router():
         if message.text == "✏️ Nomi":
             await state.update_data(update_item_id=item_id)
             await message.answer("✏️ Yangi nomni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_name)
+            await state.set_state(WarehouseInventoryStates.updating_item_name)
         elif message.text == "🔢 Miqdori":
             await state.update_data(update_item_id=item_id)
             await message.answer("🔢 Yangi miqdorni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_quantity)
+            await state.set_state(WarehouseInventoryStates.updating_item_quantity)
         elif message.text == "💰 Narxi":
             await state.update_data(update_item_id=item_id)
             await message.answer("💰 Yangi narxni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_price)
+            await state.set_state(WarehouseInventoryStates.updating_item_price)
         elif message.text == "📝 Tavsifi":
             await state.update_data(update_item_id=item_id)
             await message.answer("📝 Yangi tavsifni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_description)
+            await state.set_state(WarehouseInventoryStates.updating_item_description)
         elif message.text == "◀️ Orqaga":
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
             await message.answer(
                 "📦 Inventarizatsiya menyusi:" if lang == 'uz' else "📦 Меню инвентаризации:",
                 reply_markup=warehouse_inventory_menu(lang)
@@ -506,10 +506,10 @@ def get_warehouse_inventory_router():
         item_id = int(callback.data.split("_")[2])
         await state.update_data(update_item_id=item_id)
         await callback.message.answer("✏️ Yangi nomni kiriting:")
-        await state.set_state(WarehouseStates.updating_item_name)
+        await state.set_state(WarehouseInventoryStates.updating_item_name)
         await callback.answer()
 
-    @router.message(StateFilter(WarehouseStates.updating_item_name))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_name))
     async def update_name_process(message: Message, state: FSMContext):
         data = await state.get_data()
         item_id = data.get('update_item_id')
@@ -519,17 +519,17 @@ def get_warehouse_inventory_router():
         lang = data.get('lang', 'uz')
         await message.answer("✅ Nomi yangilandi!")
         await message.answer(await format_item_info(updated, lang))
-        await state.set_state(WarehouseStates.inventory_menu)
+        await state.set_state(WarehouseInventoryStates.inventory_menu)
 
     @router.callback_query(F.data.startswith("update_description_"))
     async def update_description_start(callback: CallbackQuery, state: FSMContext):
         item_id = int(callback.data.split("_")[2])
         await state.update_data(update_item_id=item_id)
         await callback.message.answer("📝 Yangi tavsifni kiriting:")
-        await state.set_state(WarehouseStates.updating_item_description)
+        await state.set_state(WarehouseInventoryStates.updating_item_description)
         await callback.answer()
 
-    @router.message(StateFilter(WarehouseStates.updating_item_description))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_description))
     async def update_description_process(message: Message, state: FSMContext):
         data = await state.get_data()
         item_id = data.get('update_item_id')
@@ -539,17 +539,17 @@ def get_warehouse_inventory_router():
         lang = data.get('lang', 'uz')
         await message.answer("✅ Tavsif yangilandi!")
         await message.answer(await format_item_info(updated, lang))
-        await state.set_state(WarehouseStates.inventory_menu)
+        await state.set_state(WarehouseInventoryStates.inventory_menu)
 
     @router.callback_query(F.data.startswith("update_quantity_"))
     async def update_quantity_start(callback: CallbackQuery, state: FSMContext):
         item_id = int(callback.data.split("_")[2])
         await state.update_data(update_item_id=item_id)
         await callback.message.answer("🔢 Yangi miqdorni kiriting:")
-        await state.set_state(WarehouseStates.updating_item_quantity)
+        await state.set_state(WarehouseInventoryStates.updating_item_quantity)
         await callback.answer()
 
-    @router.message(StateFilter(WarehouseStates.updating_item_quantity))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_quantity))
     async def update_quantity_process(message: Message, state: FSMContext):
         data = await state.get_data()
         item_id = data.get('update_item_id')
@@ -562,7 +562,7 @@ def get_warehouse_inventory_router():
             lang = data.get('lang', 'uz')
             await message.answer("✅ Miqdor yangilandi!")
             await message.answer(await format_item_info(updated, lang))
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
         except ValueError:
             await message.answer("❌ Noto'g'ri miqdor. Musbat raqam kiriting.")
 
@@ -571,10 +571,10 @@ def get_warehouse_inventory_router():
         item_id = int(callback.data.split("_")[2])
         await state.update_data(update_item_id=item_id)
         await callback.message.answer("💰 Yangi narxni kiriting:")
-        await state.set_state(WarehouseStates.updating_item_price)
+        await state.set_state(WarehouseInventoryStates.updating_item_price)
         await callback.answer()
 
-    @router.message(StateFilter(WarehouseStates.updating_item_price))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_price))
     async def update_price_process(message: Message, state: FSMContext):
         data = await state.get_data()
         item_id = data.get('update_item_id')
@@ -587,7 +587,7 @@ def get_warehouse_inventory_router():
             lang = data.get('lang', 'uz')
             await message.answer("✅ Narx yangilandi!")
             await message.answer(await format_item_info(updated, lang))
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
         except ValueError:
             await message.answer("❌ Noto'g'ri narx. Musbat raqam kiriting.")
 
@@ -601,19 +601,19 @@ def get_warehouse_inventory_router():
         if callback.data.startswith("update_name_"):
             await state.update_data(update_item_id=item_id)
             await callback.message.answer("✏️ Yangi nomni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_name)
+            await state.set_state(WarehouseInventoryStates.updating_item_name)
         elif callback.data.startswith("update_quantity_"):
             await state.update_data(update_item_id=item_id)
             await callback.message.answer("🔢 Yangi miqdorni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_quantity)
+            await state.set_state(WarehouseInventoryStates.updating_item_quantity)
         elif callback.data.startswith("update_price_"):
             await state.update_data(update_item_id=item_id)
             await callback.message.answer("💰 Yangi narxni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_price)
+            await state.set_state(WarehouseInventoryStates.updating_item_price)
         elif callback.data.startswith("update_description_"):
             await state.update_data(update_item_id=item_id)
             await callback.message.answer("📝 Yangi tavsifni kiriting:")
-            await state.set_state(WarehouseStates.updating_item_description)
+            await state.set_state(WarehouseInventoryStates.updating_item_description)
         await callback.answer()
 
     @router.message(F.text.in_(["⚠️ Kam zaxira", "⚠️ Низкий запас"]))
@@ -646,10 +646,10 @@ def get_warehouse_inventory_router():
     async def search_inventory_start(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
-        await state.set_state(WarehouseStates.searching_inventory)
+        await state.set_state(WarehouseInventoryStates.searching_inventory)
         await message.answer("🔍 Qidiriladigan mahsulot nomini kiriting:" if lang == 'uz' else "🔍 Введите название товара для поиска:")
 
-    @router.message(StateFilter(WarehouseStates.searching_inventory))
+    @router.message(StateFilter(WarehouseInventoryStates.searching_inventory))
     async def process_inventory_search(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
@@ -661,7 +661,7 @@ def get_warehouse_inventory_router():
         else:
             text = "Hech narsa topilmadi." if lang == 'uz' else "Ничего не найдено."
         await message.answer(text)
-        await state.set_state(WarehouseStates.inventory_menu)
+        await state.set_state(WarehouseInventoryStates.inventory_menu)
 
     @router.message(F.text.in_(["📋 Barcha mahsulotlar", "📋 Все товары"]))
     async def view_all_inventory_handler(message: Message, state: FSMContext):
@@ -715,7 +715,7 @@ def get_warehouse_inventory_router():
         item_id = int(callback.data.split("_")[1])
         await state.update_data(action_item_id=item_id, action_type="increase")
         await callback.message.answer("➕ Qancha kirim qilmoqchisiz?")
-        await state.set_state(WarehouseStates.updating_item_quantity)
+        await state.set_state(WarehouseInventoryStates.updating_item_quantity)
         await callback.answer()
 
     @router.callback_query(F.data.startswith("decrease_"))
@@ -725,10 +725,10 @@ def get_warehouse_inventory_router():
         item_id = int(callback.data.split("_")[1])
         await state.update_data(action_item_id=item_id, action_type="decrease")
         await callback.message.answer("➖ Qancha chiqim qilmoqchisiz?")
-        await state.set_state(WarehouseStates.updating_item_quantity)
+        await state.set_state(WarehouseInventoryStates.updating_item_quantity)
         await callback.answer()
 
-    @router.message(StateFilter(WarehouseStates.updating_item_quantity))
+    @router.message(StateFilter(WarehouseInventoryStates.updating_item_quantity))
     async def process_quantity_change(message: Message, state: FSMContext):
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
@@ -749,7 +749,7 @@ def get_warehouse_inventory_router():
                 return
             await update_inventory_item_data(item_id, {'quantity': new_quantity})
             await message.answer(f"✅ Yangi miqdor: {new_quantity}")
-            await state.set_state(WarehouseStates.inventory_menu)
+            await state.set_state(WarehouseInventoryStates.inventory_menu)
         except ValueError:
             await message.answer("Faqat musbat raqam kiriting.")
 
@@ -770,9 +770,9 @@ def get_warehouse_inventory_router():
         user = await get_warehouse_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         from keyboards.warehouse_buttons import warehouse_main_menu
-        await state.set_state(WarehouseStates.main_menu)
+        await state.set_state(WarehouseMainMenuStates.main_menu)
         await message.answer(
-            "�� Ombor paneliga qaytdingiz." if lang == 'uz' else "🏢 Вы вернулись в панель склада.",
+            " Ombor paneliga qaytdingiz." if lang == 'uz' else "🏢 Вы вернулись в панель склада.",
             reply_markup=warehouse_main_menu(lang)
         )
 
@@ -788,12 +788,12 @@ def get_warehouse_inventory_router():
             text += "\n📝 Mahsulot raqamini kiriting:" if lang == 'uz' else "\n📝 Введите номер товара:"
             await message.answer(text)
             await state.update_data(available_items=items)
-            await state.set_state(WarehouseStates.selecting_item_to_update)
+            await state.set_state(WarehouseInventoryStates.selecting_item_to_update)
         else:
             await message.answer("📭 Yangilanadigan mahsulotlar yo'q" if lang == 'uz' else "📭 Нет товаров для обновления")
 
     # UNIVERSAL HANDLER: Agar foydalanuvchi selecting_item_to_update holatida raqamdan boshqa tugma/buyruq yuborsa, FSM tugaydi va asosiy menyu ko‘rsatiladi
-    @router.message(StateFilter(WarehouseStates.selecting_item_to_update))
+    @router.message(StateFilter(WarehouseInventoryStates.selecting_item_to_update))
     async def universal_selecting_item_to_update_handler(message: Message, state: FSMContext):
         # Faqat raqam kiritilganini tekshirish uchun
         if message.text.isdigit():

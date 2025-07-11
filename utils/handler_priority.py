@@ -19,6 +19,7 @@ class HandlerPriorityManager:
         'global': 1000,      # Global navigation (highest)
         'admin': 900,        # Admin functions
         'manager': 800,      # Manager functions
+        'junior_manager': 750, # Junior manager functions
         'controller': 700,   # Controller functions
         'call_center': 600,  # Call center functions
         'warehouse': 500,    # Warehouse functions

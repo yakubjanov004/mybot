@@ -5,7 +5,7 @@ from filters.role_filter import RoleFilter
 from utils.role_router import get_role_router
 from database.base_queries import get_user_by_telegram_id, get_system_statistics
 from keyboards.controllers_buttons import controllers_main_menu
-from states.controllers_states import ControllersStates
+from states.controllers_states import ControllerMainMenuStates
 from utils.logger import logger
 
 def get_controller_main_menu_router():
@@ -21,7 +21,7 @@ def get_controller_main_menu_router():
             text = "Sizda ruxsat yo'q." if lang == 'uz' else "У вас нет доступа."
             await message.answer(text)
             return
-        await state.set_state(ControllersStates.main_menu)
+        await state.set_state(ControllerMainMenuStates.main_menu)
         lang = user.get('language', 'uz')
         stats = await get_system_statistics()
         if lang == 'uz':

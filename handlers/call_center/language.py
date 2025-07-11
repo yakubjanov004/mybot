@@ -3,7 +3,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from database.base_queries import get_user_by_telegram_id
 from keyboards.call_center_buttons import call_center_main_menu_reply
-from states.call_center import CallCenterStates
+from states.call_center import CallCenterSettingsStates, CallCenterMainMenuStates
 from utils.logger import logger
 from utils.role_router import get_role_router
 
@@ -43,7 +43,7 @@ def get_call_center_language_router():
                 get_main_keyboard_func=call_center_main_menu_reply,
                 state=state
             )
-            await state.set_state(CallCenterStates.main_menu)
+            await state.set_state(CallCenterMainMenuStates.main_menu)
             await callback.answer()
             
         except Exception as e:

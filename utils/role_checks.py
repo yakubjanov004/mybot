@@ -114,12 +114,12 @@ def role_required(required_roles: List[str]):
     return decorator
 
 def manager_or_admin(handler: Callable) -> Callable:
-    """Decorator for manager or admin access"""
-    return role_required(['admin', 'manager'])(handler)
+    """Decorator for manager, junior_manager or admin access"""
+    return role_required(['admin', 'manager', 'junior_manager'])(handler)
 
 def staff_only(handler: Callable) -> Callable:
     """Decorator for staff access (non-client roles)"""
-    return role_required(['admin', 'manager', 'technician', 'call_center', 'controller', 'warehouse'])(handler)
+    return role_required(['admin', 'manager', 'junior_manager', 'technician', 'call_center', 'controller', 'warehouse'])(handler)
 
 def client_only(handler: Callable) -> Callable:
     """Decorator to restrict access to clients only"""
@@ -168,9 +168,9 @@ async def is_admin(user_id: int) -> bool:
     return config.is_admin(user_id)
 
 async def is_manager_or_admin(user_id: int) -> bool:
-    """Check if user is manager or admin"""
-    return await check_user_access(user_id, ['admin', 'manager'])
+    """Check if user is manager, junior_manager or admin"""
+    return await check_user_access(user_id, ['admin', 'manager', 'junior_manager'])
 
 async def is_staff(user_id: int) -> bool:
     """Check if user is staff member"""
-    return await check_user_access(user_id, ['admin', 'manager', 'technician', 'call_center', 'controller', 'warehouse'])
+    return await check_user_access(user_id, ['admin', 'manager', 'junior_manager', 'technician', 'call_center', 'controller', 'warehouse'])
