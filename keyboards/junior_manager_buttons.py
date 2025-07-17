@@ -1,13 +1,18 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 
 def get_junior_manager_main_keyboard(lang='uz'):
-    """Generate main keyboard for junior_manager with locale support"""
+    """Generate main keyboard for junior_manager with Inbox button"""
+    # Staff application creation button (connection requests only)
+    create_connection_text = "🔌 Ulanish arizasi yaratish" if lang == "uz" else "🔌 Создать заявку на подключение"
     view_applications_text = "📋 Zayavkalarni ko'rish" if lang == "uz" else "📋 Просмотр заявок"
     filter_applications_text = "🔍 Zayavkani filtrlash" if lang == "uz" else "🔍 Фильтровать заявки"
     reports_text = "📊 Hisobotlar" if lang == "uz" else "📊 Отчеты"
     change_language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
+    inbox_text = "📥 Inbox"
 
     keyboard = [
+        [KeyboardButton(text=inbox_text)],
+        [KeyboardButton(text=create_connection_text)],
         [KeyboardButton(text=view_applications_text)],
         [KeyboardButton(text=filter_applications_text)],
         [KeyboardButton(text=reports_text)],
@@ -71,3 +76,19 @@ def get_assign_order_keyboard(order_id, technicians, lang='uz'):
     keyboard.append([InlineKeyboardButton(text=cancel_text, callback_data="cancel_assign")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard) 
+
+def get_junior_manager_inbox_actions(order_id):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton("Texnikka biriktirish", callback_data=f"action_assign_technician_zayavka_{order_id}"))
+    keyboard.add(InlineKeyboardButton("Izoh qo'shish", callback_data=f"action_comment_zayavka_{order_id}"))
+    keyboard.add(InlineKeyboardButton("Yakunlash", callback_data=f"action_complete_zayavka_{order_id}"))
+    return keyboard
+
+def get_application_keyboard(application_id):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Qabul qilish", callback_data=f"accept_{application_id}")],
+            [InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_{application_id}")]
+        ]
+    )
+    return keyboard

@@ -12,6 +12,10 @@ from keyboards.call_center_buttons import (
 from states.call_center import CallCenterOrderStates
 from utils.logger import logger
 from utils.role_router import get_role_router
+from utils.workflow_engine import WorkflowEngineFactory
+from utils.state_manager import StateManagerFactory
+from utils.notification_system import NotificationSystemFactory
+from database.models import WorkflowType, UserRole, Priority
 
 def get_call_center_orders_router():
     router = get_role_router("call_center")
@@ -151,19 +155,52 @@ def get_call_center_orders_router():
 
     @router.callback_query(F.data.startswith("service_type_"))
     async def select_service_type(callback: CallbackQuery, state: FSMContext):
-        """Select service type"""
+        """Select service type and determine workflow type"""
         service_type = callback.data.split("_", 2)[2]
         user = await get_user_by_telegram_id(callback.from_user.id)
         lang = user.get('language', 'uz')
         
-        await state.update_data(service_type=service_type)
-        await state.set_state(CallCenterOrderStates.order_description)
-        text = "📝 Buyurtma tavsifini kiriting:" if lang == 'uz' else "📝 Введите описание заказа:"
+        # Map service types to workflow types for call center initiated requests
+        workflow_mapping = {
+            'installation': WorkflowType.CONNECTION_REQUEST.value,
+            'setup': WorkflowType.CONNECTION_REQUEST.value,
+            'repair': WorkflowType.TECHNICAL_SERVICE.value,
+            'maintenance': WorkflowType.TECHNICAL_SERVICE.value,
+            'consultation': WorkflowType.CALL_CENTER_DIRECT.value
+        }
+        
+        workflow_type = workflow_mapping.get(service_type, WorkflowType.TECHNICAL_SERVICE.value)
+        
+        await state.update_data(
+            service_type=service_type,
+            workflow_type=workflow_type
+        )
+        await state.set_state(CallCenterOrderStates.issue_description_capture)
+        text = "📝 Mijoz muammosini batafsil tasvirlab bering:" if lang == 'uz' else "📝 Подробно опишите проблему клиента:"
         await callback.message.edit_text(text)
+
+    @router.message(StateFilter(CallCenterOrderStates.issue_description_capture))
+    async def get_issue_description(message: Message, state: FSMContext):
+        """Get detailed issue description from call center operator"""
+        user = await get_user_by_telegram_id(message.from_user.id)
+        lang = user.get('language', 'uz')
+        
+        issue_description = message.text.strip()
+        
+        await state.update_data(
+            description=issue_description,
+            issue_description=issue_description
+        )
+        await state.set_state(CallCenterOrderStates.order_priority)
+        text = "🎯 Buyurtma ustuvorligini tanlang:" if lang == 'uz' else "🎯 Выберите приоритет заказа:"
+        await message.answer(
+            text,
+            reply_markup=call_status_keyboard(user['language'])
+        )
 
     @router.message(StateFilter(CallCenterOrderStates.order_description))
     async def get_order_description(message: Message, state: FSMContext):
-        """Get order description"""
+        """Get order description (legacy handler for backward compatibility)"""
         user = await get_user_by_telegram_id(message.from_user.id)
         lang = user.get('language', 'uz')
         
@@ -177,59 +214,142 @@ def get_call_center_orders_router():
 
     @router.callback_query(F.data.startswith("priority_"))
     async def set_order_priority(callback: CallbackQuery, state: FSMContext):
-        """Set order priority and create order"""
+        """Set order priority and create workflow request with proper routing"""
         priority = callback.data.split("_")[1]
         user = await get_user_by_telegram_id(callback.from_user.id)
         lang = user.get('language', 'uz')
         data = await state.get_data()
         
         try:
-            order_data = {
+            # Initialize workflow components
+            state_manager = StateManagerFactory.create_state_manager()
+            notification_system = NotificationSystemFactory.create_notification_system()
+            workflow_engine = WorkflowEngineFactory.create_workflow_engine(
+                state_manager, notification_system, None
+            )
+            
+            # Get client details for contact info
+            client = await get_client_by_phone(data['client_phone'])
+            if not client:
+                text = "❌ Mijoz ma'lumotlari topilmadi." if lang == 'uz' else "❌ Данные клиента не найдены."
+                await callback.message.edit_text(text)
+                return
+            
+            # Prepare workflow request data with enhanced client details capture
+            workflow_type = data.get('workflow_type', WorkflowType.TECHNICAL_SERVICE.value)
+            
+            request_data = {
                 'client_id': data['client_id'],
+                'description': data.get('description', ''),
+                'location': client.get('address', ''),
+                'contact_info': {
+                    'phone': data['client_phone'],
+                    'name': client['full_name'],
+                    'address': client.get('address', '')
+                },
+                'priority': priority,
                 'service_type': data['service_type'],
-                'description': data['description'],
-                'phone_number': data['client_phone'],
-                'status': 'new',
-                'created_by': user['id']
+                'created_by_role': UserRole.CALL_CENTER.value,
+                'created_by': user['id'],
+                'issue_description': data.get('issue_description', data.get('description', '')),
+                'client_details': {
+                    'name': client['full_name'],
+                    'phone': data['client_phone'],
+                    'address': client.get('address', ''),
+                    'language': client.get('language', 'uz')
+                }
             }
             
-            order_id = await create_order_from_call(order_data)
+            # Create workflow request - this will route to appropriate role based on workflow type
+            request_id = await workflow_engine.initiate_workflow(workflow_type, request_data)
             
-            if order_id:
-                # Log the call
+            if request_id:
+                # Log the call for audit trail
                 call_log_data = {
                     'user_id': data['client_id'],
                     'phone_number': data['client_phone'],
-                    'duration': 0,  # Will be updated later
-                    'result': 'order_created',
-                    'notes': f"Order #{order_id} created",
+                    'duration': 0,  # Will be updated later if needed
+                    'result': 'workflow_request_created',
+                    'notes': f"Workflow request {request_id[:8]} created via call center for {workflow_type}",
                     'created_by': user['id']
                 }
                 await log_call(call_log_data)
                 
-                success_text = "✅ Buyurtma muvaffaqiyatli yaratildi!" if lang == 'uz' else "✅ Заказ успешно создан!"
-                order_id_text = "Buyurtma ID" if lang == 'uz' else "ID заказа"
+                # Determine routing information based on workflow type for user feedback
+                routing_info = {
+                    WorkflowType.CONNECTION_REQUEST.value: {
+                        'uz': 'Menejer',
+                        'ru': 'Менеджер'
+                    },
+                    WorkflowType.TECHNICAL_SERVICE.value: {
+                        'uz': 'Nazoratchi',
+                        'ru': 'Контроллер'
+                    },
+                    WorkflowType.CALL_CENTER_DIRECT.value: {
+                        'uz': 'Call-markaz nazoratchisi',
+                        'ru': 'Руководитель call-центра'
+                    }
+                }
+                
+                route_text = routing_info.get(workflow_type, {}).get(lang, 'Unknown')
+                
+                # Create success message
+                success_text = "✅ So'rov muvaffaqiyatli yaratildi!" if lang == 'uz' else "✅ Запрос успешно создан!"
+                request_id_text = "So'rov ID" if lang == 'uz' else "ID запроса"
                 service_text = "Xizmat" if lang == 'uz' else "Услуга"
                 priority_text = "Ustuvorlik" if lang == 'uz' else "Приоритет"
+                routed_text = "Yo'naltirildi" if lang == 'uz' else "Направлено"
+                workflow_text = "Ish jarayoni" if lang == 'uz' else "Тип процесса"
+                
+                # Map workflow types to user-friendly names
+                workflow_names = {
+                    WorkflowType.CONNECTION_REQUEST.value: {
+                        'uz': 'Ulanish so\'rovi',
+                        'ru': 'Запрос подключения'
+                    },
+                    WorkflowType.TECHNICAL_SERVICE.value: {
+                        'uz': 'Texnik xizmat',
+                        'ru': 'Техническое обслуживание'
+                    },
+                    WorkflowType.CALL_CENTER_DIRECT.value: {
+                        'uz': 'To\'g\'ridan-to\'g\'ri xizmat',
+                        'ru': 'Прямое обслуживание'
+                    }
+                }
+                
+                workflow_name = workflow_names.get(workflow_type, {}).get(lang, workflow_type)
                 
                 text = f"{success_text}\n\n"
-                text += f"🆔 {order_id_text}: #{order_id}\n"
+                text += f"🆔 {request_id_text}: {request_id[:8]}\n"
+                text += f"📋 {workflow_text}: {workflow_name}\n"
                 text += f"🔧 {service_text}: {data['service_type']}\n"
                 text += f"🎯 {priority_text}: {priority}\n"
-                text += f"📞 Telefon: {data['client_phone']}"
+                text += f"📞 Telefon: {data['client_phone']}\n"
+                text += f"👤 Mijoz: {client['full_name']}\n"
+                text += f"➡️ {routed_text}: {route_text}\n\n"
+                
+                # Add workflow-specific routing information
+                if workflow_type == WorkflowType.CONNECTION_REQUEST.value:
+                    routing_info_text = "So'rov menejerga yuborildi va keyingi bosqichlar: Kichik menejer → Nazoratchi → Texnik → Ombor" if lang == 'uz' else "Запрос направлен менеджеру, следующие этапы: Младший менеджер → Контроллер → Техник → Склад"
+                elif workflow_type == WorkflowType.TECHNICAL_SERVICE.value:
+                    routing_info_text = "So'rov nazoratchi orqali texnikka yuboriladi" if lang == 'uz' else "Запрос направляется технику через контроллера"
+                else:  # CALL_CENTER_DIRECT
+                    routing_info_text = "So'rov call-markaz nazoratchisiga yuborildi" if lang == 'uz' else "Запрос направлен руководителю call-центра"
+                
+                text += f"ℹ️ {routing_info_text}"
                 
                 await callback.message.edit_text(text)
                 
-                logger.info(f"New order #{order_id} created by call center operator {user['id']}")
+                logger.info(f"Call center workflow request created: ID={request_id[:8]}, Type={workflow_type}, Operator={user['id']}, Client={client['full_name']}")
             else:
-                text = "❌ Buyurtmani yaratishda xatolik yuz berdi." if lang == 'uz' else "❌ Ошибка при создании заказа."
+                text = "❌ So'rovni yaratishda xatolik yuz berdi." if lang == 'uz' else "❌ Ошибка при создании запроса."
                 await callback.message.edit_text(text)
             
             await state.set_state(CallCenterOrderStates.main_menu)
             await callback.answer()
             
         except Exception as e:
-            logger.error(f"Error creating order: {str(e)}")
+            logger.error(f"Error creating call center workflow request: {str(e)}", exc_info=True)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await callback.message.edit_text(error_text)
             await callback.answer()

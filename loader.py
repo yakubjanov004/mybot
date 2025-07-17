@@ -11,6 +11,10 @@ from utils.inline_cleanup import InlineMessageManager
 from config import ZAYAVKA_GROUP_ID
 from utils.role_dispatcher import RoleAwareDispatcher, set_global_role_dispatcher
 from database.base_queries import DatabaseManager
+from utils.workflow_engine import WorkflowEngineFactory
+from utils.state_manager import StateManagerFactory
+from utils.notification_system import NotificationSystemFactory
+from utils.inventory_manager import InventoryManagerFactory
 
 # Load environment variables
 load_dotenv()
@@ -156,6 +160,34 @@ async def create_basic_tables(conn):
     await conn.execute(basic_schema)
     logger.info("Basic database schema created")
 
+async def initialize_workflow_system():
+    """Initialize workflow system components"""
+    try:
+        logger.info("Initializing workflow system...")
+        
+        # Initialize workflow system components
+        state_manager = StateManagerFactory.create_state_manager()
+        notification_system = NotificationSystemFactory.create_notification_system()
+        inventory_manager = InventoryManagerFactory.create_inventory_manager()
+        
+        # Create workflow engine
+        workflow_engine = WorkflowEngineFactory.create_workflow_engine(
+            state_manager, notification_system, inventory_manager
+        )
+        
+        # Store components in bot for global access
+        bot.state_manager = state_manager
+        bot.notification_system = notification_system
+        bot.inventory_manager = inventory_manager
+        bot.workflow_engine = workflow_engine
+        
+        logger.info("Workflow system initialized successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error initializing workflow system: {e}", exc_info=True)
+        raise
+
 async def on_startup():
     """Startup handler"""
     try:
@@ -167,6 +199,9 @@ async def on_startup():
         
         # Initialize database tables
         await initialize_database()
+        
+        # Initialize workflow system
+        await initialize_workflow_system()
         
         # Get bot info
         bot_info = await bot.get_me()

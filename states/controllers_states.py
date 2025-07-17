@@ -1,5 +1,8 @@
 from aiogram.fsm.state import State, StatesGroup
 
+class ControllerInboxStates(StatesGroup):
+    inbox = State()
+
 class ControllerMainMenuStates(StatesGroup):
     main_menu = State()
 

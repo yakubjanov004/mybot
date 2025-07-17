@@ -31,7 +31,7 @@ class Config:
     ])
     
     # Language settings
-    DEFAULT_LANGUAGE: str = os.getenv("DEFAULT_LANGUAGE", "ru")
+    DEFAULT_LANGUAGE: str = os.getenv("DEFAULT_LANGUAGE", "uz")
     AVAILABLE_LANGUAGES: List[str] = field(default_factory=lambda: ["uz", "ru"])
     
     # Group settings

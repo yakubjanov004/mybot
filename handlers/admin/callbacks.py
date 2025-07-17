@@ -104,6 +104,7 @@ def get_admin_callbacks_router():
                 ("manager", "👨‍💼 Menejer", "👨‍💼 Менеджер"),
                 ("admin", "🏢 Admin", "🏢 Админ"),
                 ("call_center", "📞 Call Center", "📞 Колл-центр"),
+                ("call_center_supervisor", "🕴️ Call Center Supervisor", "🕴️ Супервайзер колл-центра"),
                 ("controller", "🎯 Kontrolyor", "🎯 Контроллер"),
                 ("warehouse", "📦 Sklad", "📦 Склад")
             ]

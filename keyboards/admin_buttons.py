@@ -340,27 +340,24 @@ def roles_keyboard(telegram_id: int, lang="uz"):
     client_text = "Abonent" if lang == "uz" else "Абонент"
     blocked_text = "Bloklangan" if lang == "uz" else "Заблокирован"
     junior_manager_text = "Kichik menejer" if lang == "uz" else "Младший менеджер"
+    call_center_supervisor_text = "Call Center Supervisor" if lang == "uz" else "Супервайзер колл-центра"
     
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(text=admin_text, callback_data=f"set_role:admin:{telegram_id}"),
-                InlineKeyboardButton(text=call_center_text, callback_data=f"set_role:call_center:{telegram_id}")
+                InlineKeyboardButton(text=call_center_text, callback_data=f"set_role:call_center:{telegram_id}"),
+                InlineKeyboardButton(text=call_center_supervisor_text, callback_data=f"set_role:call_center_supervisor:{telegram_id}")
             ],
             [
                 InlineKeyboardButton(text=tech_text, callback_data=f"set_role:technician:{telegram_id}"),
-                InlineKeyboardButton(text=manager_text, callback_data=f"set_role:manager:{telegram_id}")
+                InlineKeyboardButton(text=manager_text, callback_data=f"set_role:manager:{telegram_id}"),
+                InlineKeyboardButton(text=junior_manager_text, callback_data=f"set_role:junior_manager:{telegram_id}")
             ],
             [
-                InlineKeyboardButton(text=junior_manager_text, callback_data=f"set_role:junior_manager:{telegram_id}"),
-                InlineKeyboardButton(text=controller_text, callback_data=f"set_role:controller:{telegram_id}")
-            ],
-            [
-                InlineKeyboardButton(text=warehouse_text, callback_data=f"set_role:warehouse:{telegram_id}")
-            ],
-            [
-                InlineKeyboardButton(text=client_text, callback_data=f"set_role:client:{telegram_id}"),
-                InlineKeyboardButton(text=blocked_text, callback_data=f"set_role:blocked:{telegram_id}")
+                InlineKeyboardButton(text=controller_text, callback_data=f"set_role:controller:{telegram_id}"),
+                InlineKeyboardButton(text=warehouse_text, callback_data=f"set_role:warehouse:{telegram_id}"),
+                InlineKeyboardButton(text=client_text, callback_data=f"set_role:client:{telegram_id}")
             ]
         ]
     )

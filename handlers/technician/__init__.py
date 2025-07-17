@@ -7,6 +7,8 @@ from .equipment import get_technician_equipment_router
 from .communication import get_technician_communication_router
 from .help import get_technician_help_router
 from .profile import get_technician_profile_router
+from .applications import get_applications_router
+from .technical_service import get_technician_technical_service_router
 
 technician_router = get_role_router("technician")
 technician_router.include_router(get_technician_main_menu_router())
@@ -17,6 +19,8 @@ technician_router.include_router(get_technician_equipment_router())
 technician_router.include_router(get_technician_communication_router())
 technician_router.include_router(get_technician_help_router())
 technician_router.include_router(get_technician_profile_router())
+technician_router.include_router(get_applications_router())
+technician_router.include_router(get_technician_technical_service_router())
 
 def get_technician_router():
     return technician_router

@@ -1,5 +1,8 @@
 from aiogram.fsm.state import State, StatesGroup
 
+class CallCenterInboxStates(StatesGroup):
+    inbox = State()
+
 class CallCenterMainMenuStates(StatesGroup):
     main_menu = State()
 
@@ -16,6 +19,13 @@ class CallCenterOrderStates(StatesGroup):
     order_confirm = State()
     order_details = State()
     order_status_update = State()
+    
+    # Enhanced workflow states
+    workflow_request_created = State()
+    client_details_capture = State()
+    issue_description_capture = State()
+    workflow_type_selection = State()
+    main_menu = State()
 
 class CallCenterClientStates(StatesGroup):
     customer_search = State()
@@ -59,3 +69,16 @@ class CallCenterSettingsStates(StatesGroup):
     language_change = State()
     notifications_settings = State()
     selecting_language = State()
+class CallCenterSupervisorStates(StatesGroup):
+    main_menu = State()
+    assign_requests = State()
+    pending_assignments = State()
+    operator_selection = State()
+    team_performance = State()
+
+class CallCenterDirectResolutionStates(StatesGroup):
+    awaiting_assignment = State()
+    operator_working = State()
+    resolution_notes = State()
+    completed = State()
+    client_rating = State()

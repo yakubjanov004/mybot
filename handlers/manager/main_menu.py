@@ -78,17 +78,6 @@ def get_manager_main_menu_router():
         except Exception as e:
             logger.error(f"Error in manager_staff_activity: {str(e)}", exc_info=True)
 
-    @router.message(F.text.in_(["📥 Kiruvchi xabarlar", "📥 Входящие сообщения"]))
-    async def manager_inbox(message: Message, state: FSMContext):
-        """Manager inbox - redirect to inbox handler"""
-        try:
-            # Bu tugma inbox handler tomonidan boshqariladi
-            # Bu yerda faqat log qilamiz
-            logger.info(f"Manager {message.from_user.id} accessed inbox")
-            
-        except Exception as e:
-            logger.error(f"Error in manager_inbox: {str(e)}", exc_info=True)
-
     @router.message(F.text.in_(["🔔 Bildirishnomalar", "🔔 Уведомления"]))
     async def manager_notifications(message: Message, state: FSMContext):
         """Manager notifications"""

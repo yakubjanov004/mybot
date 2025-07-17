@@ -13,20 +13,93 @@ class UserRole(Enum):
     CONTROLLER = "controller"
     BLOCKED = "blocked"
     JUNIOR_MANAGER = "junior_manager"
+    CALL_CENTER_SUPERVISOR = "call_center_supervisor"
 
 class ZayavkaStatus(Enum):
+    # General Statuses
     NEW = "new"
-    PENDING = "pending"
-    ASSIGNED = "assigned"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
     CANCELLED = "cancelled"
+    CLOSED = "closed" # Final status after feedback
+
+    # Manager Flow
+    PENDING_JUNIOR_MANAGER = "pending_junior_manager"
+    ASSIGNED_TO_JUNIOR_MANAGER = "assigned_to_junior_manager"
+
+
+    # Controller Flow
+    PENDING_CONTROLLER = "pending_controller"
+    ASSIGNED_TO_TECHNICIAN = "assigned_to_technician"
+
+    # Technician Flow
+    TECHNICIAN_IN_PROGRESS = "technician_in_progress"
+    PENDING_WAREHOUSE_CONFIRMATION = "pending_warehouse_confirmation"
+    TECHNICIAN_COMPLETED = "technician_completed"
+
+    # Warehouse Flow
+    WAREHOUSE_CONFIRMED = "warehouse_confirmed"
+    
+    # Call Center Flow
+    ASSIGNED_TO_CALL_CENTER = "assigned_to_call_center"
+    CALL_CENTER_IN_PROGRESS = "call_center_in_progress"
+    CALL_CENTER_COMPLETED = "call_center_completed"
+
+    # Client Feedback
+    PENDING_FEEDBACK = "pending_feedback"
+
 
 class Priority(Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     URGENT = "urgent"
+
+# Workflow-specific enums
+class WorkflowType(Enum):
+    CONNECTION_REQUEST = "connection_request"
+    TECHNICAL_SERVICE = "technical_service"
+    CALL_CENTER_DIRECT = "call_center_direct"
+
+class RequestStatus(Enum):
+    CREATED = "created"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    ON_HOLD = "on_hold"
+
+class WorkflowAction(Enum):
+    # Connection workflow actions
+    SUBMIT_REQUEST = "submit_request"
+    ASSIGN_TO_JUNIOR_MANAGER = "assign_to_junior_manager"
+    CALL_CLIENT = "call_client"
+    FORWARD_TO_CONTROLLER = "forward_to_controller"
+    ASSIGN_TO_TECHNICIAN = "assign_to_technician"
+    START_INSTALLATION = "start_installation"
+    DOCUMENT_EQUIPMENT = "document_equipment"
+    UPDATE_INVENTORY = "update_inventory"
+    CLOSE_REQUEST = "close_request"
+    RATE_SERVICE = "rate_service"
+    
+    # Technical service actions
+    SUBMIT_TECHNICAL_REQUEST = "submit_technical_request"
+    ASSIGN_TECHNICAL_TO_TECHNICIAN = "assign_technical_to_technician"
+    START_DIAGNOSTICS = "start_diagnostics"
+    DECIDE_WAREHOUSE_INVOLVEMENT = "decide_warehouse_involvement"
+    RESOLVE_WITHOUT_WAREHOUSE = "resolve_without_warehouse"
+    REQUEST_WAREHOUSE_SUPPORT = "request_warehouse_support"
+    PREPARE_EQUIPMENT = "prepare_equipment"
+    CONFIRM_EQUIPMENT_READY = "confirm_equipment_ready"
+    COMPLETE_TECHNICAL_SERVICE = "complete_technical_service"
+    
+    # Call center actions
+    CREATE_CALL_CENTER_REQUEST = "create_call_center_request"
+    ASSIGN_TO_CALL_CENTER_SUPERVISOR = "assign_to_call_center_supervisor"
+    ASSIGN_TO_CALL_CENTER_OPERATOR = "assign_to_call_center_operator"
+    RESOLVE_REMOTELY = "resolve_remotely"
+    
+    # Common actions
+    ADD_COMMENTS = "add_comments"
+    CANCEL_REQUEST = "cancel_request"
+    ESCALATE = "escalate"
 
 @dataclass
 class User:
@@ -407,16 +480,212 @@ class Notification:
     def from_dict(cls, data: Dict[str, Any]) -> 'Notification':
         return cls(**data)
 
+# Workflow-specific models
+@dataclass
+class ServiceRequest:
+    id: Optional[str] = None
+    workflow_type: str = WorkflowType.CONNECTION_REQUEST.value
+    client_id: Optional[int] = None
+    role_current: Optional[str] = None
+    current_status: str = RequestStatus.CREATED.value
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    priority: str = Priority.MEDIUM.value
+    
+    # Request details
+    description: Optional[str] = None
+    location: Optional[str] = None
+    contact_info: Dict[str, Any] = field(default_factory=dict)
+    
+    # Workflow state
+    state_data: Dict[str, Any] = field(default_factory=dict)
+    
+    # Equipment tracking
+    equipment_used: List[Dict[str, Any]] = field(default_factory=list)
+    inventory_updated: bool = False
+    
+    # Quality tracking
+    completion_rating: Optional[int] = None
+    feedback_comments: Optional[str] = None
+    
+    # Staff creation tracking fields
+    created_by_staff: bool = False
+    staff_creator_id: Optional[int] = None
+    staff_creator_role: Optional[str] = None
+    creation_source: str = "client"  # "client", "manager", "junior_manager", "controller", "call_center"
+    client_notified_at: Optional[datetime] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'workflow_type': self.workflow_type,
+            'client_id': self.client_id,
+            'role_current': self.role_current,
+            'current_status': self.current_status,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at,
+            'priority': self.priority,
+            'description': self.description,
+            'location': self.location,
+            'contact_info': self.contact_info,
+            'state_data': self.state_data,
+            'equipment_used': self.equipment_used,
+            'inventory_updated': self.inventory_updated,
+            'completion_rating': self.completion_rating,
+            'feedback_comments': self.feedback_comments,
+            'created_by_staff': self.created_by_staff,
+            'staff_creator_id': self.staff_creator_id,
+            'staff_creator_role': self.staff_creator_role,
+            'creation_source': self.creation_source,
+            'client_notified_at': self.client_notified_at
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ServiceRequest':
+        return cls(**data)
+
+@dataclass
+class StateTransition:
+    id: Optional[int] = None
+    request_id: Optional[str] = None
+    from_role: Optional[str] = None
+    to_role: Optional[str] = None
+    action: Optional[str] = None
+    actor_id: Optional[int] = None
+    transition_data: Dict[str, Any] = field(default_factory=dict)
+    comments: Optional[str] = None
+    created_at: Optional[datetime] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'request_id': self.request_id,
+            'from_role': self.from_role,
+            'to_role': self.to_role,
+            'action': self.action,
+            'actor_id': self.actor_id,
+            'transition_data': self.transition_data,
+            'comments': self.comments,
+            'created_at': self.created_at
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'StateTransition':
+        return cls(**data)
+
+@dataclass
+class WorkflowStep:
+    role: str
+    actions: List[str]
+    next_steps: Dict[str, str] = field(default_factory=dict)  # action -> next_role mapping
+    required_data: List[str] = field(default_factory=list)
+    optional_data: List[str] = field(default_factory=list)
+
+@dataclass
+class WorkflowDefinition:
+    name: str
+    initial_role: str
+    steps: Dict[str, WorkflowStep] = field(default_factory=dict)
+    completion_actions: List[str] = field(default_factory=list)
+
+@dataclass
+class WorkflowStatus:
+    request_id: str
+    role_current: str
+    current_status: str
+    available_actions: List[str]
+    next_roles: List[str]
+    history: List[StateTransition] = field(default_factory=list)
+
+@dataclass
+class ClientSelectionData:
+    """Model for client selection during staff application creation"""
+    id: Optional[int] = None
+    search_method: str = "phone"  # "phone", "name", "id", "new"
+    search_value: Optional[str] = None
+    client_id: Optional[int] = None
+    new_client_data: Optional[Dict[str, Any]] = field(default_factory=dict)
+    verified: bool = False
+    created_at: Optional[datetime] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'search_method': self.search_method,
+            'search_value': self.search_value,
+            'client_id': self.client_id,
+            'new_client_data': self.new_client_data,
+            'verified': self.verified,
+            'created_at': self.created_at
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ClientSelectionData':
+        return cls(**data)
+
+@dataclass
+class StaffApplicationAudit:
+    """Model for auditing staff-created applications"""
+    id: Optional[int] = None
+    application_id: Optional[str] = None
+    creator_id: Optional[int] = None
+    creator_role: Optional[str] = None
+    client_id: Optional[int] = None
+    application_type: Optional[str] = None  # "connection_request", "technical_service"
+    creation_timestamp: Optional[datetime] = None
+    client_notified: bool = False
+    client_notified_at: Optional[datetime] = None
+    workflow_initiated: bool = False
+    workflow_initiated_at: Optional[datetime] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    # Additional audit fields
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    session_id: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'id': self.id,
+            'application_id': self.application_id,
+            'creator_id': self.creator_id,
+            'creator_role': self.creator_role,
+            'client_id': self.client_id,
+            'application_type': self.application_type,
+            'creation_timestamp': self.creation_timestamp,
+            'client_notified': self.client_notified,
+            'client_notified_at': self.client_notified_at,
+            'workflow_initiated': self.workflow_initiated,
+            'workflow_initiated_at': self.workflow_initiated_at,
+            'metadata': self.metadata,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'session_id': self.session_id
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'StaffApplicationAudit':
+        return cls(**data)
+
 # Utility functions for models
 def get_status_display(status: str, language: str = 'ru') -> str:
     """Get display text for status"""
     status_map = {
         'new': {'uz': 'Yangi', 'ru': 'Новая'},
-        'pending': {'uz': 'Kutilmoqda', 'ru': 'В ожидании'},
-        'assigned': {'uz': 'Tayinlangan', 'ru': 'Назначена'},
-        'in_progress': {'uz': 'Bajarilmoqda', 'ru': 'В работе'},
-        'completed': {'uz': 'Bajarildi', 'ru': 'Завершена'},
-        'cancelled': {'uz': 'Bekor qilindi', 'ru': 'Отменена'}
+        'cancelled': {'uz': 'Bekor qilindi', 'ru': 'Отменена'},
+        'closed': {'uz': 'Yopilgan', 'ru': 'Закрыта'},
+        'pending_junior_manager': {'uz': 'Kichik menejerga yuborish', 'ru': 'Ожидает младшего менеджера'},
+        'assigned_to_junior_manager': {'uz': 'Kichik menejerga tayinlangan', 'ru': 'Назначено младшему менеджеру'},
+        'pending_controller': {'uz': 'Nazoratchiga yuborish', 'ru': 'Ожидает контролера'},
+        'assigned_to_technician': {'uz': 'Texnikga tayinlangan', 'ru': 'Назначено технику'},
+        'technician_in_progress': {'uz': 'Texnik ishlamoqda', 'ru': 'Техник в работе'},
+        'pending_warehouse_confirmation': {'uz': 'Ombor tasdiqlashini kutmoqda', 'ru': 'Ожидает подтверждения склада'},
+        'technician_completed': {'uz': 'Texnik yakunladi', 'ru': 'Техник завершил'},
+        'warehouse_confirmed': {'uz': 'Ombor tasdiqladi', 'ru': 'Склад подтвердил'},
+        'assigned_to_call_center': {'uz': 'Call-markazga tayinlangan', 'ru': 'Назначено call-центру'},
+        'call_center_in_progress': {'uz': 'Call-markaz ishlamoqda', 'ru': 'Call-центр в работе'},
+        'call_center_completed': {'uz': 'Call-markaz yakunladi', 'ru': 'Call-центр завершил'},
+        'pending_feedback': {'uz': 'Fikr-mulohaza kutilmoqda', 'ru': 'Ожидается обратная связь'}
     }
     
     return status_map.get(status, {}).get(language, status)
@@ -443,7 +712,8 @@ def get_role_display(role: str, language: str = 'ru') -> str:
         'warehouse': {'uz': 'Ombor', 'ru': 'Склад'},
         'controller': {'uz': 'Nazoratchi', 'ru': 'Контролер'},
         'blocked': {'uz': 'Bloklangan', 'ru': 'Заблокирован'},
-        'junior_manager': {'uz': 'Kichik menejer', 'ru': 'Младший менеджер'}
+        'junior_manager': {'uz': 'Kichik menejer', 'ru': 'Младший менеджер'},
+        'call_center_supervisor': {'uz': 'Call-markaz nazoratchisi', 'ru': 'Руководитель call-центра'}
     }
     
     return role_map.get(role, {}).get(language, role)
@@ -462,6 +732,46 @@ class Models:
     HelpRequest = HelpRequest
     Equipment = Equipment
     Notification = Notification
+    ServiceRequest = ServiceRequest
+    StateTransition = StateTransition
+    WorkflowStep = WorkflowStep
+    WorkflowDefinition = WorkflowDefinition
+    WorkflowStatus = WorkflowStatus
+    ClientSelectionData = ClientSelectionData
+    StaffApplicationAudit = StaffApplicationAudit
+
+# Utility functions for models
+def validate_staff_creation_data(service_request: ServiceRequest) -> List[str]:
+    """Validate staff creation tracking data"""
+    errors = []
+    
+    if service_request.created_by_staff:
+        if not service_request.staff_creator_id:
+            errors.append("staff_creator_id is required when created_by_staff is True")
+        if not service_request.staff_creator_role:
+            errors.append("staff_creator_role is required when created_by_staff is True")
+        elif service_request.staff_creator_role not in ModelConstants.USER_ROLES:
+            errors.append(f"Invalid staff_creator_role: {service_request.staff_creator_role}")
+    
+    if service_request.creation_source not in ModelConstants.CREATION_SOURCES:
+        errors.append(f"Invalid creation_source: {service_request.creation_source}")
+    
+    return errors
+
+def validate_client_selection_data(client_data: ClientSelectionData) -> List[str]:
+    """Validate client selection data"""
+    errors = []
+    
+    if client_data.search_method not in ModelConstants.SEARCH_METHODS:
+        errors.append(f"Invalid search_method: {client_data.search_method}")
+    
+    if client_data.search_method != "new" and not client_data.search_value:
+        errors.append("search_value is required for non-new search methods")
+    
+    if client_data.search_method == "new" and not client_data.new_client_data:
+        errors.append("new_client_data is required when search_method is 'new'")
+    
+    return errors
 
 # Constants
 class ModelConstants:
@@ -471,10 +781,24 @@ class ModelConstants:
     ZAYAVKA_STATUSES = [status.value for status in ZayavkaStatus]
     PRIORITIES = [priority.value for priority in Priority]
     
-    DEFAULT_LANGUAGE = "ru"
+    # Workflow constants
+    WORKFLOW_TYPES = [wf_type.value for wf_type in WorkflowType]
+    REQUEST_STATUSES = [status.value for status in RequestStatus]
+    WORKFLOW_ACTIONS = [action.value for action in WorkflowAction]
+    
+    # Staff creation constants
+    CREATION_SOURCES = ["client", "manager", "junior_manager", "controller", "call_center"]
+    SEARCH_METHODS = ["phone", "name", "id", "new"]
+    APPLICATION_TYPES = ["connection_request", "technical_service"]
+    
+    DEFAULT_LANGUAGE = "uz"
     DEFAULT_ROLE = UserRole.CLIENT.value
     DEFAULT_STATUS = ZayavkaStatus.NEW.value
     DEFAULT_PRIORITY = Priority.MEDIUM.value
+    DEFAULT_WORKFLOW_TYPE = WorkflowType.CONNECTION_REQUEST.value
+    DEFAULT_REQUEST_STATUS = RequestStatus.CREATED.value
+    DEFAULT_CREATION_SOURCE = "client"
+    DEFAULT_SEARCH_METHOD = "phone"
     
     # Validation constants
     MAX_NAME_LENGTH = 100

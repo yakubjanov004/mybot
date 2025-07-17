@@ -175,3 +175,15 @@ def get_reports_keyboard(lang: str) -> InlineKeyboardMarkup:
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def equipment_documentation_keyboard(request_id: str, lang: str = "uz") -> InlineKeyboardMarkup:
+    """Equipment documentation keyboard for technician"""
+    document_text = "📝 Uskunani hujjatlash" if lang == "uz" else "📝 Документировать оборудование"
+    
+    keyboard = [
+        [InlineKeyboardButton(
+            text=document_text,
+            callback_data=f"document_equipment_for_warehouse_{request_id}"
+        )]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

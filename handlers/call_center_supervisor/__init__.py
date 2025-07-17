@@ -1,0 +1,16 @@
+from utils.role_router import get_role_router
+from .inbox import get_call_center_supervisor_inbox_router
+from .orders import get_call_center_supervisor_orders_router
+from .statistics import get_call_center_supervisor_statistics_router
+from .feedback import get_call_center_supervisor_feedback_router
+from .language import get_call_center_supervisor_language_router
+
+call_center_supervisor_router = get_role_router("call_center_supervisor")
+call_center_supervisor_router.include_router(get_call_center_supervisor_inbox_router())
+call_center_supervisor_router.include_router(get_call_center_supervisor_orders_router())
+call_center_supervisor_router.include_router(get_call_center_supervisor_statistics_router())
+call_center_supervisor_router.include_router(get_call_center_supervisor_feedback_router())
+call_center_supervisor_router.include_router(get_call_center_supervisor_language_router())
+
+def get_call_center_supervisor_router():
+    return call_center_supervisor_router 

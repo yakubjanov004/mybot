@@ -50,3 +50,38 @@ def get_technician_details_keyboard(technician_id: int, lang: str) -> InlineKeyb
     )
     
     return keyboard
+
+def get_application_keyboard(app_id: int) -> InlineKeyboardMarkup:
+    """Create keyboard for an application"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👁️ Ko'rish", callback_data=f"view_app_{app_id}"),
+                InlineKeyboardButton(text="👨‍🔧 Texnikga yuborish", callback_data=f"assign_tech_{app_id}")
+            ]
+        ]
+    )
+    return keyboard
+
+def technical_service_assignment_keyboard(request_id: str, technicians: List[Dict[str, Any]], lang: str) -> InlineKeyboardMarkup:
+    """Create keyboard for technical service assignment to technicians"""
+    keyboard = []
+    
+    for tech in technicians:
+        status_emoji = "🟢" if tech.get('is_active', True) else "🔴"
+        button_text = f"{status_emoji} {tech['full_name']}"
+        callback_data = f"assign_technical_to_technician_{tech['id']}_{request_id}"
+        
+        keyboard.append([InlineKeyboardButton(
+            text=button_text,
+            callback_data=callback_data
+        )])
+    
+    # Add back button
+    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
+    keyboard.append([InlineKeyboardButton(
+        text=back_text,
+        callback_data="back_to_technical_requests"
+    )])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

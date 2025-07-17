@@ -99,3 +99,9 @@ async def get_quality_trends(pool: asyncpg.Pool = None, period: str = 'monthly')
         logger = logging.getLogger(__name__)
         logger.error(f"Error getting quality trends: {str(e)}", exc_info=True)
         return []
+
+async def get_application_by_id(app_id: int, pool: asyncpg.Pool) -> Optional[Dict[str, Any]]:
+    """Get an application by its ID"""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT * FROM zayavki WHERE id = $1", app_id)
+        return dict(row) if row else None

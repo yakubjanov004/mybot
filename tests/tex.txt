@@ -1,0 +1,79 @@
+---------------------------------------------------------
+Ulanish uchun ariza
+
+1. Client zayavka qoldiradi(zayavka haqida ma'lumotlarni stateda olgan bo'lamiz) -> Zayavka menejerga kelib tushadi -> Menejer zayavkani ichik menejerlardan biriga bo’lib beradi ->
+->menejer oladi va client bilan qo'ng'iroq orqali gaplashib qo'shimcha izoh qo'shib zayavkani Controllerga yuboradi ->
+->  controller esa zayavkani ko'rib ertxnikka biriktiradi -> texnik esa manzilga borib boshlash qiladi ->
+-> va texnik vaziyatni ko'rib zayavkaga qo'shimcha qilib nimalar o'rnatganini yozadi va warehouse uchun yuboradi ->
+-> warehouse esa buni ko'rib bazadan o'chirib qo'yadi va client uchun yozib qo'yadi ->
+-> oxirgi bo'lib zayavkani ombor xodimi yopadi va zayavka yakunlanadiu va bu haqida clientga ma'lumot yuboriladi bot orqali.->
+-> client esa zayavka to'g'riligini tasdiqaydi va 5a yulduzdan birini tanlaydi(sifatini baholash ma'nosida)
+---------------------------------------------------------
+Texnik xizmat
+
+1. texnik bilan bajariladi ombor aralashuvisiz
+client zayavka qoldiradi(zayavka haqida ma'lumotlarni stateda olgan bo'lamiz buni ham) -> zayavka controllerga keladi ->
+Controller esa bu zayavkani texnikga biriktiradi -> texnik vazifani ko'radi -> manzilga boradi boshlash qiladi ->
+-> diagnostika qo'yadi -> bot texnikadan ombor bilan ishlaydimi yokida yo'q shuni so'raydi -> bu holatda yo'qni bosadi(warehouse bilan zayavka to'ldirilmaydi) ->
+-> muzmmoni tuzatib zayakaga qo'shimcha sifatida izoh qo'shadi shunda -> shundan so'ng zayavka yopiladi -> bu haqida clientga zayavka haqida ma'lumot yuboriladi ->
+-> client esa zayavka to'g'riligini tasdiqaydi va 5a yulduzdan birini tanlaydi(sifatini baholash ma'nosida)
+
+2. texnik bilan bajariladi ombor bilan ishlaydigan qismi
+client zayavka qoldiradi(zayavka haqida ma'lumotlarni stateda olgan bo'lamiz buni ham) -> zayavka controllerga keladi ->
+Controller esa bu zayavkani texnikga biriktiradi -> texnik vazifani ko'radi -> manzilga boradi boshlash qiladi ->
+-> diagnostika qo'yadi -> bot texnikadan ombor bilan ishlaydimi yokida yo'q shuni so'raydi -> bu holatda xani bosadi(warehouse bilan zayavka ishlaydigan bo'ladi) ->
+-> zayakaga qo'shimcha sifatida obordan nimalar ishlailishiga izoh qo'shadi va warehousega yuboriladi ->  zayavka warehousega keladi ->
+-> warehouse esa buni ko'rib bazadan o'chirib qo'yadi va client uchun yozib qo'yadi -> warehouse qilgan ishi bo'yicha izox yozadi va texnikka yuboradi ->
+-> texnik buni ko'radi va ishni yakunlagandan so'ng esa yakunlsh qiladi -> zayavka yopiladi ->  bu haqida clientga zayavka haqida ma'lumot yuboriladi ->
+-> client esa zayavka to'g'riligini tasdiqaydi va 5a yulduzdan birini tanlaydi(sifatini baholash ma'nosida)
+
+3. CallCenter bilan bajariladi
+client zayavka qoldiradi(zayavka haqida ma'lumotlarni stateda olgan bo'lamiz buni ham) -> zayavka controllerga keladi ->
+-> Controller esa bu zayavkani CallCenter boshlig'iga biriktiradi(CallCenter boshlig'i ro'l xozircha bizda yo'q) -> CallCenter boshlig'i callcaenter operatoriga biriltiradi ->
+-> CallCenter esa client bilan qo'ng'iroq qilib bog'lanadi -> CallCenter operatori muammoni kompyuteridan xal qiladi ->
+-> CallCenter operatori esa zayakaga qo'shimcha izoh qo'shib zayavkani yopadi ->  bu haqida clientga zayavka haqida ma'lumot yuboriladi ->
+-> client esa zayavka to'g'riligini tasdiqaydi va 5a yulduzdan birini tanlaydi(sifatini baholash ma'nosida)
+
+------------------------------------------------------------
+
+CallCenter ochadigan zayavkalar
+
+1.
+Client CallCenter operoriga qo'ng'iroq qiladi va muammosini ayadi -> CallCenter operaotri esa muammoga qarab zayavka ochadi ->
+-> zayavka 2xil ko'rinishda bo'lmoqda (ulanish uchun , texnik xizmat) CallCenter operatori 2ta zayavkani ham ochadigan bo'ladi->
+CallCenter operatori ochgan zayavka -> yoki menejerga boradi yoki controllerga ->
+uyog'i esa xuddi tepadagi kabi davom eadigan bo'ladi.
+
+
+-------------------------------------------------------------
+
+zayava boshqa ro'llarga yuborilganda shunchaki 1ta message sifatida boradi hamda bu messageni ko'rish uchun 1ta reply qilib qo'yamiz
+o'sha reply bosilganida esa shu o'ziga biritirilgan zayavalar va boshqa boshqa narsalarni ko'rib oladi va agar 1marta ko'rib keyin boshqa narsa qilib yana bossa turgan bo'lishi kerak(masalan 4ta message turgandi 1tasini bajarib kelgandan so'ng 3tasi ko'rinib tursin 4tasi ham yo'qolib qolmasdan)
+shuni ham ko'rib ketish kerak bu faqatgina client hamda admin ro'lida bo'lmaydi qolgan xamma rolda bo'ladi
+
+------------------------------------------------------------
+warehouse bilan ishlaydigan logikjani ham to'g'irlab qo'yish kerak
+zayavkada aytib o'tilgan narsalar clientga berilganda bazadan kamayishi kerak bo'ladi.
+bu ishni warehouse zayavkani yopishida yokida texnikka yuborishida qilinib keta qolishi lozim
+
+
+
+-----------------------------------------------------------
+Avval butun tizximdagi kodlarni o'rganib chiq, qaysi fayl kerak va qaysi biri kerakmasligini
+Menga shunday narsa qo'shib berishing kerak :
+Zayavka yaratish qismini ko'rib chiqishimiz kerak:
+xozircha faqatgina client yaratish qilyaptiku shuni boshqa rollarga ham qo'shish kerak ->
+-> 2ta replyni ham "Ulanish uchun ariza" va "Texnik xizmat" 2ta reply ham ishlashi kerak boshqa rollarda ->
+BU rollar Menejer 2ta zayavkani ham yaraa olishi lozim, kichik menejerga faqa ulanish uchun ariza, Conrollerga ham 2a arizani, yarata olsin 
+ CallCenter ham 2ta zayavkani ochadigan qilzim, faqatgina farqi kim yaratganida
+ hammasi yaraishida client uchun yaratiladigan bo'ladi shuni qilishimiz kerak.
+ Database,keyboards,handlers,middlewares,utils kabi papalardan foydalangan xolatda odni real ishlaydigan qilish lozim bo'lmnoqda shunga xam qaragin 
+ ishlaydigan qilish lozim hammasini, etma-kketlikda muammo bo'lmaydigan qilib chiqish lozim.
+ hamma rollardagi keyboardsni to'g'irlab qo'y baza bilan integratsiyani yaxshilash kerak ortiqchasini yo'qotish lozim. keraksizlarni o'chirish keralilarini ishlatish kerak
+ juda ko'p narsa ham qo'shib yuborma lekin, keraksizlarni o'chirib tozalash kerak 
+ bu zayavka ochish bo'yicha edi va zayavka yurishini ham ishlatish lozim .
+
+ men ishlaib ko'rmoqchiman jarayonni 1a 1talab o'zim bot orqali real xolatda
+
+ xammasini o'z o'rniga ko'chirib ishlatish lozim importlar qilib.
+ 2ta ilda o'zbekcha hamda ruscha bo'ladigan qilamiz

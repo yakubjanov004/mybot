@@ -4,16 +4,22 @@ from aiogram.filters.callback_data import CallbackData
 def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
     search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
+    # Staff application creation buttons
+    create_connection = "🔌 Ulanish arizasi yaratish" if lang == 'uz' else "🔌 Создать заявку на подключение"
+    create_technical = "🔧 Texnik xizmat yaratish" if lang == 'uz' else "🔧 Создать техническую заявку"
     stats = "📊 Statistikalar" if lang == 'uz' else "📊 Статистика"
     pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
     feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
     chat = "💬 Chat" if lang == 'uz' else "💬 Чат"
     change_lang = "🌐 Tilni o'zgartirish" if lang == 'uz' else "🌐 Изменить язык"
-    
+    inbox = "📥 Inbox"
+
     keyboard = [
         [KeyboardButton(text=new_order), KeyboardButton(text=search)],
+        [KeyboardButton(text=create_connection), KeyboardButton(text=create_technical)],
         [KeyboardButton(text=feedback), KeyboardButton(text=chat)],
         [KeyboardButton(text=stats), KeyboardButton(text=pending)],
+        [KeyboardButton(text=inbox)],
         [KeyboardButton(text=change_lang)]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -70,18 +76,29 @@ def get_client_actions_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def order_types_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
-    """Order types selection keyboard"""
-    types = [
-        ("🔧 Ta'mirlash", "repair"),
-        ("🔌 O'rnatish", "installation"),
-        ("🧰 Profilaktika", "maintenance"),
-        ("📡 Sozlash", "setup"),
-        ("❓ Konsultatsiya", "consultation")
-    ]
-    keyboard = [
-        [InlineKeyboardButton(text=text, callback_data=f"service_type_{type_}") for text, type_ in types],
-        [InlineKeyboardButton(text=("🔄 Orqaga" if lang == 'uz' else "🔄 Назад"), callback_data="call_center_back")]
-    ]
+    """Order types selection keyboard with workflow routing"""
+    if lang == 'uz':
+        types = [
+            ("🔌 O'rnatish (Ulanish)", "installation"),
+            ("📡 Sozlash (Ulanish)", "setup"),
+            ("🔧 Ta'mirlash (Texnik)", "repair"),
+            ("🧰 Profilaktika (Texnik)", "maintenance"),
+            ("❓ Konsultatsiya (To'g'ridan-to'g'ri)", "consultation")
+        ]
+    else:
+        types = [
+            ("🔌 Установка (Подключение)", "installation"),
+            ("📡 Настройка (Подключение)", "setup"),
+            ("🔧 Ремонт (Техническая)", "repair"),
+            ("🧰 Профилактика (Техническая)", "maintenance"),
+            ("❓ Консультация (Прямая)", "consultation")
+        ]
+    
+    keyboard = []
+    for text, type_ in types:
+        keyboard.append([InlineKeyboardButton(text=text, callback_data=f"service_type_{type_}")])
+    
+    keyboard.append([InlineKeyboardButton(text=("🔄 Orqaga" if lang == 'uz' else "🔄 Назад"), callback_data="call_center_back")])
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def call_status_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
@@ -201,3 +218,65 @@ def call_center_statistics_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
         [KeyboardButton(text=back)]
     ]
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def call_center_supervisor_main_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
+    """Call center supervisor main menu"""
+    assign_requests = "📋 So'rovlarni tayinlash" if lang == 'uz' else "📋 Назначить запросы"
+    pending_assignments = "⏳ Kutilayotgan tayinlashlar" if lang == 'uz' else "⏳ Ожидающие назначения"
+    team_performance = "📊 Jamoa samaradorligi" if lang == 'uz' else "📊 Производительность команды"
+    back = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    
+    keyboard = [
+        [KeyboardButton(text=assign_requests), KeyboardButton(text=pending_assignments)],
+        [KeyboardButton(text=team_performance)],
+        [KeyboardButton(text=back)]
+    ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+def call_center_operator_selection_keyboard(operators: list, lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Keyboard for selecting call center operator"""
+    keyboard = []
+    
+    for operator in operators:
+        operator_name = operator.get('full_name', f"Operator {operator['id']}")
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"👤 {operator_name}",
+                callback_data=f"assign_cc_operator_{operator['id']}"
+            )
+        ])
+    
+    back_text = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    keyboard.append([InlineKeyboardButton(text=back_text, callback_data="cc_supervisor_back")])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def remote_resolution_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Keyboard for remote resolution actions"""
+    resolve_text = "✅ Masofadan hal qilish" if lang == 'uz' else "✅ Решить удаленно"
+    escalate_text = "⬆️ Yuqoriga ko'tarish" if lang == 'uz' else "⬆️ Эскалировать"
+    back_text = "🔄 Orqaga" if lang == 'uz' else "🔄 Назад"
+    
+    keyboard = [
+        [InlineKeyboardButton(text=resolve_text, callback_data="resolve_remotely")],
+        [InlineKeyboardButton(text=escalate_text, callback_data="escalate_request")],
+        [InlineKeyboardButton(text=back_text, callback_data="cc_operator_back")]
+    ]
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def rating_keyboard(lang: str = 'uz') -> InlineKeyboardMarkup:
+    """Rating keyboard for client feedback"""
+    rating_text = "Xizmatni baholang" if lang == 'uz' else "Оцените услугу"
+    
+    keyboard = []
+    for i in range(1, 6):
+        star_text = "⭐" * i
+        keyboard.append([
+            InlineKeyboardButton(
+                text=f"{star_text} ({i})",
+                callback_data=f"rate_service_{i}"
+            )
+        ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

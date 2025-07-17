@@ -49,3 +49,7 @@ class WarehouseQualityStates(StatesGroup):
 
 class WarehouseSettingsStates(StatesGroup):
     selecting_language = State()
+
+class WarehouseWorkflowStates(StatesGroup):
+    preparing_equipment = State()
+    confirming_equipment_ready = State()

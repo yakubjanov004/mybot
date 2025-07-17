@@ -1,14 +1,20 @@
 from utils.role_router import get_role_router
-from .main_menu import router as main_menu_router
-from .language import router as language_router
-from .orders import router as orders_router
-from .statistics import router as statistics_router
+from .main_menu import get_junior_manager_main_menu_router
+from .language import get_junior_manager_language_router
+from .orders import get_junior_manager_orders_router
+from .statistics import get_junior_manager_statistics_router
+from .inbox import get_junior_manager_inbox_router
+from .applications import get_applications_router
+from .staff_application_creation import get_junior_manager_staff_application_router
 
 junior_manager_router = get_role_router("junior_manager")
-junior_manager_router.include_router(main_menu_router)
-junior_manager_router.include_router(language_router)
-junior_manager_router.include_router(orders_router)
-junior_manager_router.include_router(statistics_router)
+junior_manager_router.include_router(get_junior_manager_main_menu_router())
+junior_manager_router.include_router(get_junior_manager_language_router())
+junior_manager_router.include_router(get_junior_manager_orders_router())
+junior_manager_router.include_router(get_junior_manager_statistics_router())
+junior_manager_router.include_router(get_junior_manager_inbox_router())
+junior_manager_router.include_router(get_applications_router())
+junior_manager_router.include_router(get_junior_manager_staff_application_router())
 
 def get_junior_manager_router():
-    return junior_manager_router 
+    return junior_manager_router

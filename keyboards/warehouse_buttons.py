@@ -344,3 +344,26 @@ def update_item_fields_inline(item_id: int, language: str) -> InlineKeyboardMark
          InlineKeyboardButton(text=description, callback_data=f"update_description_{item_id}")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_application_keyboard(app_id: int) -> InlineKeyboardMarkup:
+    """Create keyboard for an application"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👁️ Ko'rish", callback_data=f"view_app_{app_id}"),
+                InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"confirm_app_{app_id}")
+            ]
+        ]
+    )
+    return keyboard
+def equipment_preparation_keyboard(request_id: str, lang: str = "uz") -> InlineKeyboardMarkup:
+    """Equipment preparation keyboard for warehouse"""
+    prepare_text = "📦 Uskunani tayyorlash" if lang == "uz" else "📦 Подготовить оборудование"
+    
+    keyboard = [
+        [InlineKeyboardButton(
+            text=prepare_text,
+            callback_data=f"prepare_equipment_{request_id}"
+        )]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

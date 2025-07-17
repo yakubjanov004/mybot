@@ -5,14 +5,18 @@ def controllers_main_menu(lang='uz'):
     if lang == 'uz':
         keyboard = [
             [KeyboardButton(text="📋 Buyurtmalar nazorati"), KeyboardButton(text="👨‍🔧 Texniklar nazorati")],
+            [KeyboardButton(text="🔌 Ulanish arizasi yaratish"), KeyboardButton(text="🔧 Texnik xizmat yaratish")],
             [KeyboardButton(text="🎯 Sifat nazorati"), KeyboardButton(text="📊 Hisobotlar")],
             [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="🌐 Til o'zgartirish")],
+            [KeyboardButton(text="📥 Inbox")],
         ]
     else:
         keyboard = [
             [KeyboardButton(text="📋 Контроль заказов"), KeyboardButton(text="👨‍🔧 Контроль техников")],
+            [KeyboardButton(text="🔌 Создать заявку на подключение"), KeyboardButton(text="🔧 Создать техническую заявку")],
             [KeyboardButton(text="🎯 Контроль качества"), KeyboardButton(text="📊 Отчеты")],
-            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="🌐 Изменить язык")],
+            [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="�� Изменить язык")],
+            [KeyboardButton(text="📥 Inbox")],
         ]
     
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -80,7 +84,7 @@ def reports_menu(lang='uz'):
         keyboard = [
             [KeyboardButton(text="📈 Системный отчет"), KeyboardButton(text="👨‍🔧 Отчет по техникам")],
             [KeyboardButton(text="⭐ Отчет по качеству"), KeyboardButton(text="📅 Ежедневный отчет")],
-            [KeyboardButton(text="📊 Еженедельный отчет"), KeyboardButton(text="🏠 Главное меню")]
+            [KeyboardButton(text="�� Еженедельный отчет"), KeyboardButton(text="🏠 Главное меню")]
         ]
     
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
@@ -189,5 +193,25 @@ def feedback_detailed_filter_menu(lang='uz'):
             [InlineKeyboardButton(text="🕒 Последние отзывы", callback_data="feedback_filter_recent")],
             [InlineKeyboardButton(text="◀️ Назад", callback_data="quality_control")]
         ]
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def technical_service_assignment_keyboard(request_id, technicians=None, lang='uz'):
+    """Technical service assignment keyboard"""
+    keyboard = []
+    
+    if technicians:
+        for tech in technicians[:10]:  # Maximum 10 technicians
+            button_text = f"👨‍🔧 {tech['full_name']}"
+            if tech.get('active_tasks'):
+                button_text += f" ({tech['active_tasks']})"
+            
+            keyboard.append([InlineKeyboardButton(
+                text=button_text, 
+                callback_data=f"assign_technical_to_technician_{tech['id']}_{request_id}"
+            )])
+    
+    back_text = "◀️ Orqaga" if lang == 'uz' else "◀️ Назад"
+    keyboard.append([InlineKeyboardButton(text=back_text, callback_data="controllers_back")])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

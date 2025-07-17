@@ -5,6 +5,9 @@ def get_manager_main_keyboard(lang='uz'):
     """Generate main keyboard for manager with locale support"""
     service_order_text = "🆕 Texnik xizmat" if lang == "uz" else "🆕 Техническая поддержка"
     connection_order_text = "🔌 Ulanish uchun ariza" if lang == "uz" else "🔌 Заявка на подключение"
+    # Staff application creation buttons
+    create_connection_text = "🔌 Ulanish arizasi yaratish" if lang == "uz" else "🔌 Создать заявку на подключение"
+    create_technical_text = "🔧 Texnik xizmat yaratish" if lang == "uz" else "🔧 Создать техническую заявку"
     view_applications_text = "📋 Arizalarni ko'rish" if lang == "uz" else "📋 Просмотр заявок"
     filter_applications_text = "🔍 Filtrlar" if lang == "uz" else "🔍 Фильтры"
     change_status_text = "🔄 Status o'zgartirish" if lang == "uz" else "🔄 Изменить статус"
@@ -14,11 +17,13 @@ def get_manager_main_keyboard(lang='uz'):
     staff_activity_text = "👥 Xodimlar faoliyati" if lang == "uz" else "👥 Активность сотрудников"
     notifications_text = "🔔 Bildirishnomalar" if lang == "uz" else "🔔 Уведомления"
     change_language_text = "🌐 Tilni o'zgartirish" if lang == "uz" else "🌐 Изменить язык"
-    inbox_text = "📥 Kiruvchi xabarlar" if lang == "uz" else "📥 Входящие сообщения"
+    inbox_text = "📥 Inbox" 
     
     keyboard = [
         [KeyboardButton(text=service_order_text),
          KeyboardButton(text=connection_order_text)],
+        [KeyboardButton(text=create_connection_text),
+         KeyboardButton(text=create_technical_text)],
         [KeyboardButton(text=view_applications_text)],
         [KeyboardButton(text=filter_applications_text),
          KeyboardButton(text=change_status_text)],
@@ -602,7 +607,7 @@ def get_staff_activity_keyboard(lang='uz'):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_inbox_keyboard(lang='uz'):
-    """Kiruvchi xabarlar uchun keyboard"""
+    """Inbox uchun keyboard"""
     new_messages_text = "🆕 Yangi xabarlar" if lang == "uz" else "🆕 Новые сообщения"
     read_messages_text = "✅ O'qilgan xabarlar" if lang == "uz" else "✅ Прочитанные сообщения"
     urgent_messages_text = "🚨 Shoshilinch xabarlar" if lang == "uz" else "🚨 Срочные сообщения"
@@ -639,6 +644,12 @@ def get_inbox_keyboard(lang='uz'):
             InlineKeyboardButton(
                 text=system_messages_text,
                 callback_data="inbox_system"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="📝 Yangi zayavkalar" if lang == 'uz' else "📝 Новые заявки",
+                callback_data="inbox_zayavka"
             )
         ],
         [
@@ -729,3 +740,14 @@ def get_message_detail_keyboard(message_id: int, lang='uz'):
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_application_keyboard(application_id):
+    # TODO: Implement the actual keyboard logic
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Approve", callback_data=f"approve_{application_id}")],
+            [InlineKeyboardButton(text="Reject", callback_data=f"reject_{application_id}")]
+        ]
+    )
+    return keyboard

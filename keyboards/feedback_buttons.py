@@ -64,13 +64,29 @@ def get_feedback_complete_keyboard() -> InlineKeyboardMarkup:
     
     keyboard.add(
         InlineKeyboardButton(
-            text="🙏 Rahmat!",
-            callback_data=FeedbackCallbackFactory(
-                action='thanks',
-                request_id='0',
-                rating='0'
-            ).pack()
+            text="✅ Yaxshi",
+            callback_data="feedback_complete:ok"
         )
     )
     
+    return keyboard
+
+def get_task_keyboard(task_id: int) -> InlineKeyboardMarkup:
+    """
+    Create keyboard for task actions
+    """
+    keyboard = InlineKeyboardMarkup(row_width=2)
+    
+    keyboard.add(
+        InlineKeyboardButton(
+            text="👁️ Ko'rish",
+            callback_data=f"view_task:{task_id}"
+        ),
+        InlineKeyboardButton(
+            text="✅ Bajarildi",
+            callback_data=f"complete_task:{task_id}"
+        )
+    )
+    
+    return keyboard
     return keyboard 

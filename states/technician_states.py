@@ -62,3 +62,12 @@ class TechnicianSettingsStates(StatesGroup):
     availability_status = State()
     notification_settings = State()
     waiting_for_language_change = State()
+
+class TechnicianTechnicalServiceStates(StatesGroup):
+    entering_resolution_comments = State()
+    documenting_equipment = State()
+    completing_with_warehouse = State()
+
+class TechnicalServiceStates(StatesGroup):
+    documenting_equipment = State()
+    completing_with_warehouse = State()

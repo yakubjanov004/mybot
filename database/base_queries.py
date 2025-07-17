@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 import json
 from utils.logger import setup_module_logger
 logger = setup_module_logger("base_queries")
-from database.models import User, Zayavka, Material, Feedback, Equipment, ChatMessage, HelpRequest
+from database.models import User, Zayavka, Material, Feedback, Equipment, ChatMessage, HelpRequest, ServiceRequest, StateTransition
 
 # User language functions
 async def create_user_if_not_exists(
@@ -1297,3 +1297,271 @@ async def set_user_language(telegram_id: int, language: str, pool: asyncpg.Pool 
     except Exception as e:
         logger.error(f"Error setting user language: {str(e)}")
         return False
+# ===== WORKFLOW SYSTEM DATABASE QUERIES =====
+
+async def get_service_request_by_id(request_id: str, pool: asyncpg.Pool = None) -> Optional[Dict[str, Any]]:
+    """Get service request by ID"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT id, workflow_type, client_id, role_current , current_status,
+               created_at, updated_at, priority, description, location,
+               contact_info, state_data, equipment_used, inventory_updated,
+               completion_rating, feedback_comments
+        FROM service_requests
+        WHERE id = $1
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(query, request_id)
+            return dict(row) if row else None
+    except Exception as e:
+        logger.error(f"Error getting service request by ID: {e}", exc_info=True)
+        return None
+
+async def get_service_requests_by_role(role: str, status_filter: str = None, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get service requests assigned to specific role"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    base_query = """
+        SELECT sr.id, sr.workflow_type, sr.client_id, sr.role_current , sr.current_status,
+               sr.created_at, sr.updated_at, sr.priority, sr.description, sr.location,
+               sr.contact_info, sr.state_data, sr.equipment_used, sr.inventory_updated,
+               sr.completion_rating, sr.feedback_comments,
+               u.full_name as client_name, u.phone_number as client_phone
+        FROM service_requests sr
+        LEFT JOIN users u ON sr.client_id = u.id
+        WHERE sr.role_current = $1
+    """
+    
+    params = [role]
+    
+    if status_filter:
+        base_query += " AND sr.current_status = $2"
+        params.append(status_filter)
+    
+    base_query += " ORDER BY sr.priority DESC, sr.created_at DESC"
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(base_query, *params)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting service requests by role: {e}", exc_info=True)
+        return []
+
+async def get_service_requests_by_client(client_id: int, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get service requests for specific client"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT id, workflow_type, client_id, role_current , current_status,
+               created_at, updated_at, priority, description, location,
+               contact_info, state_data, equipment_used, inventory_updated,
+               completion_rating, feedback_comments
+        FROM service_requests
+        WHERE client_id = $1
+        ORDER BY created_at DESC
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, client_id)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting service requests by client: {e}", exc_info=True)
+        return []
+
+async def get_state_transitions_by_request(request_id: str, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get state transitions for a request"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT st.id, st.request_id, st.from_role, st.to_role, st.action, 
+               st.actor_id, st.transition_data, st.comments, st.created_at,
+               u.full_name as actor_name
+        FROM state_transitions st
+        LEFT JOIN users u ON st.actor_id = u.id
+        WHERE st.request_id = $1
+        ORDER BY st.created_at ASC
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, request_id)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting state transitions: {e}", exc_info=True)
+        return []
+
+async def get_pending_notifications_by_user(user_id: int, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get pending notifications for user"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT pn.id, pn.request_id, pn.workflow_type, pn.role, pn.created_at,
+               sr.description, sr.priority, sr.current_status
+        FROM pending_notifications pn
+        JOIN service_requests sr ON pn.request_id = sr.id
+        WHERE pn.user_id = $1 AND pn.is_handled = false
+        ORDER BY pn.created_at DESC
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, user_id)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting pending notifications: {e}", exc_info=True)
+        return []
+
+async def get_inventory_transactions_by_request(request_id: str, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get inventory transactions for a request"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT it.*, m.name as material_name, m.category, u.full_name as performed_by_name
+        FROM inventory_transactions it
+        LEFT JOIN materials m ON it.material_id = m.id
+        LEFT JOIN users u ON it.performed_by = u.id
+        WHERE it.request_id = $1
+        ORDER BY it.transaction_date DESC
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, request_id)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting inventory transactions: {e}", exc_info=True)
+        return []
+
+async def get_workflow_statistics(pool: asyncpg.Pool = None) -> Dict[str, Any]:
+    """Get workflow system statistics"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        WITH workflow_stats AS (
+            SELECT 
+                workflow_type,
+                current_status,
+                COUNT(*) as count
+            FROM service_requests
+            GROUP BY workflow_type, current_status
+        ),
+        role_stats AS (
+            SELECT 
+                role_current ,
+                COUNT(*) as pending_count
+            FROM service_requests
+            WHERE current_status IN ('created', 'in_progress')
+            GROUP BY role_current 
+        ),
+        completion_stats AS (
+            SELECT 
+                workflow_type,
+                AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as avg_completion_hours,
+                COUNT(*) as completed_count
+            FROM service_requests
+            WHERE current_status = 'completed'
+            GROUP BY workflow_type
+        )
+        SELECT 
+            (SELECT json_agg(row_to_json(ws)) FROM workflow_stats ws) as workflow_stats,
+            (SELECT json_agg(row_to_json(rs)) FROM role_stats rs) as role_stats,
+            (SELECT json_agg(row_to_json(cs)) FROM completion_stats cs) as completion_stats,
+            (SELECT COUNT(*) FROM service_requests) as total_requests,
+            (SELECT COUNT(*) FROM service_requests WHERE current_status = 'completed') as completed_requests,
+            (SELECT COUNT(*) FROM pending_notifications WHERE is_handled = false) as pending_notifications
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(query)
+            return dict(row) if row else {}
+    except Exception as e:
+        logger.error(f"Error getting workflow statistics: {e}", exc_info=True)
+        return {}
+
+async def cleanup_old_notifications(days_old: int = 7, pool: asyncpg.Pool = None) -> int:
+    """Cleanup old handled notifications"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        DELETE FROM pending_notifications 
+        WHERE is_handled = true 
+        AND handled_at < NOW() - INTERVAL '%s days'
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            result = await conn.execute(query, days_old)
+            # Extract number of deleted rows from result
+            deleted_count = int(result.split()[-1]) if result.startswith('DELETE') else 0
+            logger.info(f"Cleaned up {deleted_count} old notifications")
+            return deleted_count
+    except Exception as e:
+        logger.error(f"Error cleaning up notifications: {e}", exc_info=True)
+        return 0
+
+async def get_users_by_role(role: str, pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get all users with specific role"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT id, telegram_id, full_name, username, phone_number, role, 
+               language, is_active, created_at, updated_at
+        FROM users 
+        WHERE role = $1 AND is_active = true
+        ORDER BY full_name
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, role)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting users by role: {e}", exc_info=True)
+        return []
+
+async def get_materials_with_low_stock(pool: asyncpg.Pool = None) -> List[Dict[str, Any]]:
+    """Get materials with low stock levels"""
+    if not pool:
+        from loader import bot
+        pool = bot.db
+    
+    query = """
+        SELECT id, name, category, quantity_in_stock, min_quantity, unit, location
+        FROM materials 
+        WHERE is_active = true AND quantity_in_stock <= min_quantity
+        ORDER BY (quantity_in_stock::float / NULLIF(min_quantity, 0)::float) ASC
+    """
+    
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query)
+            return [dict(row) for row in rows]
+    except Exception as e:
+        logger.error(f"Error getting materials with low stock: {e}", exc_info=True)
+        return []
+
+# ===== END WORKFLOW SYSTEM QUERIES =====

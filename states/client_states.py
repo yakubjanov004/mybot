@@ -48,3 +48,8 @@ class FeedbackStates(StatesGroup):
 
 class LanguageStates(StatesGroup):
     language_settings = State()
+
+class TechnicalServiceStates(StatesGroup):
+    entering_issue_description = State()
+    confirming_request = State()
+    entering_resolution_comments = State()

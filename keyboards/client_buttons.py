@@ -32,7 +32,7 @@ def get_contact_keyboard(lang="uz"):
 
 def get_main_menu_keyboard(lang="uz"):
     """Asosiy menyu klaviaturasi - 2 ustunli, 3 qatorli"""
-    service_order_text = "🆕 Texnik xizmat" if lang == "uz" else "🆕 Техническая поддержка"
+    service_order_text = "🔧 Texnik xizmat" if lang == "uz" else "🔧 Техническая служба"
     connection_order_text = "🔌 Ulanish uchun ariza" if lang == "uz" else "🔌 Заявка на подключение"
     my_orders_text = "📋 Mening buyurtmalarim" if lang == "uz" else "📋 Мои заказы"
     contact_operator_text = "📞 Operator bilan bog'lanish" if lang == "uz" else "📞 Связаться с оператором"
@@ -74,26 +74,6 @@ def get_back_keyboard(lang="uz"):
     )
     return keyboard
 
-def get_reply_keyboard(lang="uz"):
-    """4 button keyboard for reply confirmation - 2 tilda"""
-    confirm_text = "✅ Tasdiqlash" if lang == "uz" else "✅ Подтвердить"
-    cancel_text = "❌ Bekor qilish" if lang == "uz" else "❌ Отменить"
-    back_text = "◀️ Orqaga" if lang == "uz" else "◀️ Назад"
-    main_menu_text = "🏠 Asosiy menyu" if lang == "uz" else "🏠 Главное меню"
-    
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text=confirm_text),
-                KeyboardButton(text=cancel_text)
-            ],
-            [
-                KeyboardButton(text=back_text),
-                KeyboardButton(text=main_menu_text)
-            ]
-        ],
-        resize_keyboard=True
-    )
 
 def get_language_keyboard(role="client"):
     """Til tanlash klaviaturasi - role asosida callback data"""
@@ -267,4 +247,15 @@ def get_cancel_edit_keyboard(lang="uz"):
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=cancel_text, callback_data="client_profile_back")]]
     )
+    return keyboard
+
+def technical_service_keyboard(lang="uz"):
+    """Technical service request keyboard"""
+    confirm_text = "✅ Tasdiqlash" if lang == "uz" else "✅ Подтвердить"
+    cancel_text = "❌ Bekor qilish" if lang == "uz" else "❌ Отменить"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=confirm_text, callback_data="confirm_technical_request")],
+        [InlineKeyboardButton(text=cancel_text, callback_data="cancel_technical_request")]
+    ])
     return keyboard
