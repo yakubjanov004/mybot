@@ -532,6 +532,35 @@ def can_manage_role(manager_role: str, target_role: str) -> bool:
     return manager_level > target_level
 
 
+async def check_staff_application_permission(role: str, permission_type: str) -> bool:
+    """
+    Check if a staff role has a specific application-related permission.
+    
+    Args:
+        role: The user role
+        permission_type: Type of permission to check
+        
+    Returns:
+        True if role has the permission, False otherwise
+    """
+    try:
+        permissions = get_role_permissions(role)
+        
+        if permission_type == "create_application":
+            return permissions.can_create_connection or permissions.can_create_technical
+        elif permission_type == "select_client":
+            return permissions.can_select_client
+        elif permission_type == "create_client":
+            return permissions.can_create_client
+        elif permission_type == "assign_directly":
+            return permissions.can_assign_directly
+        else:
+            return False
+            
+    except ValueError:
+        return False
+
+
 # Constants for external use
 STAFF_ROLES = get_staff_roles_with_application_creation()
 APPLICATION_TYPES = [app_type.value for app_type in ApplicationType]

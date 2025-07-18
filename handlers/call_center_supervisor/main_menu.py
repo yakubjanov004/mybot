@@ -1,123 +1,99 @@
-from aiogram import F
-from aiogram.types import Message
+"""
+Call Center Supervisor Main Menu Handler
+
+This module implements the main menu handler for Call Center Supervisor role,
+including staff application creation functionality with appropriate permissions.
+"""
+
+from aiogram import F, Router
+from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from filters.role_filter import RoleFilter
+from typing import Dict, Any, Optional
+
+from database.base_queries import get_user_by_telegram_id, get_user_lang
+from keyboards.call_center_supervisor_buttons import get_call_center_supervisor_main_menu
+from states.call_center import CallCenterSupervisorStates
+from utils.logger import setup_logger
+from utils.inline_cleanup import cleanup_user_inline_messages
 from utils.role_router import get_role_router
-from database.base_queries import get_user_by_telegram_id, get_system_statistics, get_user_lang
-from keyboards.controllers_buttons import controllers_main_menu
-from states.controllers_states import ControllerMainMenuStates
-from utils.logger import logger
 
-def get_controller_main_menu_router():
-    router = get_role_router("controller")
+logger = setup_logger('bot.call_center_supervisor.main_menu')
 
-    @router.message(F.text.in_(["🎛️ Controller", "🎛️ Контроллер", "🎛️ Nazoratchi"]))
-    async def controllers_start(message: Message, state: FSMContext):
-        """Controllers panel asosiy menyu"""
-        await state.clear()
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or user['role'] != 'controller':
-            lang = user.get('language', 'uz') if user else 'uz'
-            text = "Sizda ruxsat yo'q." if lang == 'uz' else "У вас нет доступа."
-            await message.answer(text)
-            return
-        await state.set_state(ControllerMainMenuStates.main_menu)
-        lang = user.get('language', 'uz')
-        stats = await get_system_statistics()
-        if lang == 'uz':
-            welcome_text = (
-                "🎛️ <b>Nazoratchi paneli</b>\n\n"
-                "📊 <b>Tizim holati:</b>\n"
-                f"• Jami buyurtmalar: {stats.get('total_orders', 0)}\n"
-                f"• Bajarilgan: {stats.get('completed_orders', 0)}\n"
-                f"• Kutilayotgan: {stats.get('pending_orders', 0)}\n"
-                f"• Faol mijozlar: {stats.get('active_clients', 0)}\n"
-                f"• Faol texniklar: {stats.get('active_technicians', 0)}\n\n"
-                "Kerakli bo'limni tanlang:"
+
+def get_call_center_supervisor_main_menu_router():
+    """Get router for call center supervisor main menu handlers"""
+    router = get_role_router("call_center_supervisor")
+
+    @router.message(F.text.in_(["📞 Call Center Supervisor", "📞 Супервайзер колл-центра", "📞 Call Center Nazoratchi"]))
+    async def call_center_supervisor_start(message: Message, state: FSMContext):
+        """Call center supervisor main menu"""
+        try:
+            await cleanup_user_inline_messages(message.from_user.id)
+            await state.clear()
+            user = await get_user_by_telegram_id(message.from_user.id)
+            
+            if not user or user['role'] != 'call_center_supervisor':
+                lang = user.get('language', 'uz') if user else 'uz'
+                text = "Sizda call center supervisor huquqi yo'q." if lang == 'uz' else "У вас нет прав супервайзера колл-центра."
+                await message.answer(text)
+                return
+            
+            lang = user.get('language', 'uz')
+            welcome_text = "📞 Call Center Supervisor paneliga xush kelibsiz!" if lang == 'uz' else "📞 Добро пожаловать в панель супервайзера колл-центра!"
+            
+            await message.answer(
+                welcome_text,
+                reply_markup=get_call_center_supervisor_main_menu(lang)
             )
-        else:
-            welcome_text = (
-                "🎛️ <b>Панель контроллера</b>\n\n"
-                "📊 <b>Состояние системы:</b>\n"
-                f"• Всего заказов: {stats.get('total_orders', 0)}\n"
-                f"• Завершено: {stats.get('completed_orders', 0)}\n"
-                f"• Ожидает: {stats.get('pending_orders', 0)}\n"
-                f"• Активные клиенты: {stats.get('active_clients', 0)}\n"
-                f"• Активные техники: {stats.get('active_technicians', 0)}\n\n"
-                "Выберите нужный раздел:"
-            )
-        await message.answer(
-            welcome_text,
-            reply_markup=controllers_main_menu(lang),
-            parse_mode='HTML'
-        )
+            await state.set_state(CallCenterSupervisorStates.main_menu)
+            
+            logger.info(f"Call Center Supervisor {user['id']} accessed main menu")
+            
+        except Exception as e:
+            logger.error(f"Error in call_center_supervisor_start: {str(e)}", exc_info=True)
+            await message.answer("Xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.")
 
     @router.message(F.text.in_(["🏠 Bosh menyu", "🏠 Главное меню"]))
-    async def back_to_main_menu(message: Message, state: FSMContext):
-        """Bosh menyuga qaytish"""
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or user['role'] != 'controller':
-            return
-        await controllers_start(message, state)
-
-    @router.message(F.text.in_(["📊 Statistika", "📊 Статистика"]))
-    async def show_statistics(message: Message, state: FSMContext):
-        """Tizim statistikasini ko'rsatish"""
-        user = await get_user_by_telegram_id(message.from_user.id)
-        if not user or user['role'] != 'controller':
-            return
-        lang = user.get('language', 'uz')
-        stats = await get_system_statistics()
+    async def call_center_supervisor_main_menu_handler(message: Message, state: FSMContext):
+        """Handle call center supervisor main menu button"""
         try:
-            if lang == 'uz':
-                text = (
-                    "📊 <b>Tizim statistikasi</b>\n"
-                    "📈 <b>Buyurtmalar:</b>\n"
-                    f"• Jami: {stats.get('total_orders', 0)}\n"
-                    f"• Bajarilgan: {stats.get('completed_orders', 0)}\n"
-                    f"• Kutilayotgan: {stats.get('pending_orders', 0)}\n\n"
-                    "👥 <b>Foydalanuvchilar:</b>\n"
-                    f"• Faol mijozlar: {stats.get('active_clients', 0)}\n"
-                    f"• Faol texniklar: {stats.get('active_technicians', 0)}\n\n"
-                    "💰 <b>Moliyaviy:</b>\n"
-                    f"• Bugungi tushum: {stats.get('revenue_today', 0):,} so'm\n"
-                    f"• O'rtacha bajarish vaqti: {stats.get('avg_completion_time', 0)} soat"
-                )
-            else:
-                text = (
-                    "📊 <b>Статистика системы</b>\n\n"
-                    "📈 <b>Заказы:</b>\n"
-                    f"• Всего: {stats.get('total_orders', 0)}\n"
-                    f"• Завершено: {stats.get('completed_orders', 0)}\n"
-                    f"• Ожидает: {stats.get('pending_orders', 0)}\n\n"
-                    "👥 <b>Пользователи:</b>\n"
-                    f"• Активные клиенты: {stats.get('active_clients', 0)}\n"
-                    f"• Активные техники: {stats.get('active_technicians', 0)}\n\n"
-                    "💰 <b>Финансы:</b>\n"
-                    f"• Доход сегодня: {stats.get('revenue_today', 0):,} сум\n"
-                    f"• Среднее время выполнения: {stats.get('avg_completion_time', 0)} ч"
-                )
-            await message.answer(text, parse_mode='HTML')
+            await cleanup_user_inline_messages(message.from_user.id)
+            user = await get_user_by_telegram_id(message.from_user.id)
+            if not user or user['role'] != 'call_center_supervisor':
+                return
+            
+            lang = user.get('language', 'uz')
+            main_menu_text = "Bosh menyu" if lang == 'uz' else "Главное меню"
+            
+            await message.answer(
+                main_menu_text,
+                reply_markup=get_call_center_supervisor_main_menu(lang)
+            )
+            if state is not None:
+                await state.set_state(CallCenterSupervisorStates.main_menu)
+            
         except Exception as e:
-            logger.error(f"Error showing statistics: {e}")
-            error_text = "Statistikani olishda xatolik yuz berdi" if lang == 'uz' else "Ошибка при получении статистики"
+            logger.error(f"Error in call center supervisor main menu handler: {str(e)}", exc_info=True)
+            lang = await get_user_lang(message.from_user.id)
+            error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
     # Staff application creation handlers
     @router.message(F.text.in_(["🔌 Ulanish arizasi yaratish", "🔌 Создать заявку на подключение"]))
-    async def controller_create_connection_application(message: Message, state: FSMContext):
-        """Handle controller creating connection application"""
+    async def call_center_supervisor_create_connection_application(message: Message, state: FSMContext):
+        """Handle call center supervisor creating connection application"""
         try:
+            await cleanup_user_inline_messages(message.from_user.id)
             user = await get_user_by_telegram_id(message.from_user.id)
             
-            if not user or user['role'] != 'controller':
+            if not user or user['role'] != 'call_center_supervisor':
                 lang = user.get('language', 'uz') if user else 'uz'
-                error_text = "Sizda controller huquqi yo'q." if lang == 'uz' else "У вас нет прав контроллера."
+                error_text = "Sizda call center supervisor huquqi yo'q." if lang == 'uz' else "У вас нет прав супервайзера колл-центра."
                 await message.answer(error_text)
                 return
             
             lang = user.get('language', 'uz')
-            logger.info(f"Controller {user['id']} starting connection request creation")
+            logger.info(f"Call Center Supervisor {user['id']} starting connection request creation")
             
             # Import the staff application creation handler
             from handlers.staff_application_creation import RoleBasedApplicationHandler
@@ -125,7 +101,7 @@ def get_controller_main_menu_router():
             
             # Start application creation process
             result = await app_handler.start_application_creation(
-                creator_role='controller',
+                creator_role='call_center_supervisor',
                 creator_id=user['id'],
                 application_type='connection_request'
             )
@@ -156,14 +132,16 @@ def get_controller_main_menu_router():
             await state.set_state(StaffApplicationStates.selecting_client_search_method)
             
             prompt_text = (
-                "🔌 Ulanish arizasi yaratish\n\n"
+                "📞 Call Center Supervisor: Ulanish arizasi yaratish\n\n"
+                "Supervisor sifatida mijoz uchun ariza yaratish.\n\n"
                 "Mijozni qanday qidirishni xohlaysiz?\n\n"
                 "📱 Telefon raqami bo'yicha\n"
                 "👤 Ism bo'yicha\n"
                 "🆔 Mijoz ID bo'yicha\n"
                 "➕ Yangi mijoz yaratish"
             ) if lang == 'uz' else (
-                "🔌 Создание заявки на подключение\n\n"
+                "📞 Супервайзер колл-центра: Создание заявки на подключение\n\n"
+                "Создание заявки для клиента в качестве супервайзера.\n\n"
                 "Как вы хотите найти клиента?\n\n"
                 "📱 По номеру телефона\n"
                 "👤 По имени\n"
@@ -177,27 +155,27 @@ def get_controller_main_menu_router():
                 [
                     InlineKeyboardButton(
                         text="📱 Telefon" if lang == 'uz' else "📱 Телефон",
-                        callback_data="ctrl_client_search_phone"
+                        callback_data="ccs_client_search_phone"
                     ),
                     InlineKeyboardButton(
                         text="👤 Ism" if lang == 'uz' else "👤 Имя",
-                        callback_data="ctrl_client_search_name"
+                        callback_data="ccs_client_search_name"
                     )
                 ],
                 [
                     InlineKeyboardButton(
                         text="🆔 ID" if lang == 'uz' else "🆔 ID",
-                        callback_data="ctrl_client_search_id"
+                        callback_data="ccs_client_search_id"
                     ),
                     InlineKeyboardButton(
                         text="➕ Yangi" if lang == 'uz' else "➕ Новый",
-                        callback_data="ctrl_client_search_new"
+                        callback_data="ccs_client_search_new"
                     )
                 ],
                 [
                     InlineKeyboardButton(
                         text="❌ Bekor qilish" if lang == 'uz' else "❌ Отмена",
-                        callback_data="ctrl_cancel_application_creation"
+                        callback_data="ccs_cancel_application_creation"
                     )
                 ]
             ])
@@ -205,25 +183,26 @@ def get_controller_main_menu_router():
             await message.answer(prompt_text, reply_markup=keyboard)
             
         except Exception as e:
-            logger.error(f"Error in controller_create_connection_application: {e}", exc_info=True)
+            logger.error(f"Error in call_center_supervisor_create_connection_application: {e}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)
 
     @router.message(F.text.in_(["🔧 Texnik xizmat yaratish", "🔧 Создать техническую заявку"]))
-    async def controller_create_technical_application(message: Message, state: FSMContext):
-        """Handle controller creating technical service application"""
+    async def call_center_supervisor_create_technical_application(message: Message, state: FSMContext):
+        """Handle call center supervisor creating technical service application"""
         try:
+            await cleanup_user_inline_messages(message.from_user.id)
             user = await get_user_by_telegram_id(message.from_user.id)
             
-            if not user or user['role'] != 'controller':
+            if not user or user['role'] != 'call_center_supervisor':
                 lang = user.get('language', 'uz') if user else 'uz'
-                error_text = "Sizda controller huquqi yo'q." if lang == 'uz' else "У вас нет прав контроллера."
+                error_text = "Sizda call center supervisor huquqi yo'q." if lang == 'uz' else "У вас нет прав супервайзера колл-центра."
                 await message.answer(error_text)
                 return
             
             lang = user.get('language', 'uz')
-            logger.info(f"Controller {user['id']} starting technical service creation")
+            logger.info(f"Call Center Supervisor {user['id']} starting technical service creation")
             
             # Import the staff application creation handler
             from handlers.staff_application_creation import RoleBasedApplicationHandler
@@ -231,7 +210,7 @@ def get_controller_main_menu_router():
             
             # Start application creation process
             result = await app_handler.start_application_creation(
-                creator_role='controller',
+                creator_role='call_center_supervisor',
                 creator_id=user['id'],
                 application_type='technical_service'
             )
@@ -262,14 +241,16 @@ def get_controller_main_menu_router():
             await state.set_state(StaffApplicationStates.selecting_client_search_method)
             
             prompt_text = (
-                "🔧 Texnik xizmat arizasi yaratish\n\n"
+                "📞 Call Center Supervisor: Texnik xizmat arizasi yaratish\n\n"
+                "Supervisor sifatida mijoz uchun texnik xizmat arizasi yaratish.\n\n"
                 "Mijozni qanday qidirishni xohlaysiz?\n\n"
                 "📱 Telefon raqami bo'yicha\n"
                 "👤 Ism bo'yicha\n"
                 "🆔 Mijoz ID bo'yicha\n"
                 "➕ Yangi mijoz yaratish"
             ) if lang == 'uz' else (
-                "🔧 Создание заявки на техническое обслуживание\n\n"
+                "📞 Супервайзер колл-центра: Создание заявки на техническое обслуживание\n\n"
+                "Создание заявки на техническое обслуживание для клиента в качестве супервайзера.\n\n"
                 "Как вы хотите найти клиента?\n\n"
                 "📱 По номеру телефона\n"
                 "👤 По имени\n"
@@ -283,27 +264,27 @@ def get_controller_main_menu_router():
                 [
                     InlineKeyboardButton(
                         text="📱 Telefon" if lang == 'uz' else "📱 Телефон",
-                        callback_data="ctrl_client_search_phone"
+                        callback_data="ccs_client_search_phone"
                     ),
                     InlineKeyboardButton(
                         text="👤 Ism" if lang == 'uz' else "👤 Имя",
-                        callback_data="ctrl_client_search_name"
+                        callback_data="ccs_client_search_name"
                     )
                 ],
                 [
                     InlineKeyboardButton(
                         text="🆔 ID" if lang == 'uz' else "🆔 ID",
-                        callback_data="ctrl_client_search_id"
+                        callback_data="ccs_client_search_id"
                     ),
                     InlineKeyboardButton(
                         text="➕ Yangi" if lang == 'uz' else "➕ Новый",
-                        callback_data="ctrl_client_search_new"
+                        callback_data="ccs_client_search_new"
                     )
                 ],
                 [
                     InlineKeyboardButton(
                         text="❌ Bekor qilish" if lang == 'uz' else "❌ Отмена",
-                        callback_data="ctrl_cancel_application_creation"
+                        callback_data="ccs_cancel_application_creation"
                     )
                 ]
             ])
@@ -311,7 +292,7 @@ def get_controller_main_menu_router():
             await message.answer(prompt_text, reply_markup=keyboard)
             
         except Exception as e:
-            logger.error(f"Error in controller_create_technical_application: {e}", exc_info=True)
+            logger.error(f"Error in call_center_supervisor_create_technical_application: {e}", exc_info=True)
             lang = await get_user_lang(message.from_user.id)
             error_text = "Xatolik yuz berdi" if lang == 'uz' else "Произошла ошибка"
             await message.answer(error_text)

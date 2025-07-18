@@ -1,11 +1,16 @@
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from utils.staff_application_localization import get_text, StaffApplicationTexts
 
 def controllers_main_menu(lang='uz'):
     """Controllers asosiy menyu"""
+    # Use proper localization for staff application creation buttons
+    create_connection_text = get_text(StaffApplicationTexts.CREATE_CONNECTION_REQUEST, lang)
+    create_technical_text = get_text(StaffApplicationTexts.CREATE_TECHNICAL_SERVICE, lang)
+    
     if lang == 'uz':
         keyboard = [
             [KeyboardButton(text="📋 Buyurtmalar nazorati"), KeyboardButton(text="👨‍🔧 Texniklar nazorati")],
-            [KeyboardButton(text="🔌 Ulanish arizasi yaratish"), KeyboardButton(text="🔧 Texnik xizmat yaratish")],
+            [KeyboardButton(text=create_connection_text), KeyboardButton(text=create_technical_text)],
             [KeyboardButton(text="🎯 Sifat nazorati"), KeyboardButton(text="📊 Hisobotlar")],
             [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="🌐 Til o'zgartirish")],
             [KeyboardButton(text="📥 Inbox")],
@@ -13,7 +18,7 @@ def controllers_main_menu(lang='uz'):
     else:
         keyboard = [
             [KeyboardButton(text="📋 Контроль заказов"), KeyboardButton(text="👨‍🔧 Контроль техников")],
-            [KeyboardButton(text="🔌 Создать заявку на подключение"), KeyboardButton(text="🔧 Создать техническую заявку")],
+            [KeyboardButton(text=create_connection_text), KeyboardButton(text=create_technical_text)],
             [KeyboardButton(text="🎯 Контроль качества"), KeyboardButton(text="📊 Отчеты")],
             [KeyboardButton(text="📊 Статистика"), KeyboardButton(text="�� Изменить язык")],
             [KeyboardButton(text="📥 Inbox")],

@@ -1,12 +1,13 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters.callback_data import CallbackData
+from utils.staff_application_localization import get_text, StaffApplicationTexts
 
 def call_center_main_menu_reply(lang: str = 'uz') -> ReplyKeyboardMarkup:
     new_order = "🆕 Yangi buyurtma" if lang == 'uz' else "🆕 Новый заказ"
     search = "🔍 Mijoz qidirish" if lang == 'uz' else "🔍 Поиск клиента"
-    # Staff application creation buttons
-    create_connection = "🔌 Ulanish arizasi yaratish" if lang == 'uz' else "🔌 Создать заявку на подключение"
-    create_technical = "🔧 Texnik xizmat yaratish" if lang == 'uz' else "🔧 Создать техническую заявку"
+    # Staff application creation buttons with proper localization
+    create_connection = get_text(StaffApplicationTexts.CREATE_CONNECTION_REQUEST, lang)
+    create_technical = get_text(StaffApplicationTexts.CREATE_TECHNICAL_SERVICE, lang)
     stats = "📊 Statistikalar" if lang == 'uz' else "📊 Статистика"
     pending = "⏳ Kutilayotgan" if lang == 'uz' else "⏳ Ожидающие"
     feedback = "⭐️ Baholash" if lang == 'uz' else "⭐️ Оценка"
@@ -35,25 +36,22 @@ def new_order_reply_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
 
 def client_search_menu(lang: str = 'uz') -> ReplyKeyboardMarkup:
     """Client search menu keyboard with search methods"""
+    search_by_name = get_text(StaffApplicationTexts.SEARCH_BY_NAME, lang)
+    search_by_phone = get_text(StaffApplicationTexts.SEARCH_BY_PHONE, lang)
+    search_by_id = get_text(StaffApplicationTexts.SEARCH_BY_ID, lang)
+    back_text = get_text(StaffApplicationTexts.BACK, lang)
+    
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(
-                    text="🔤 " + ("Ism bo'yicha qidirish" if lang == 'uz' else "Поиск по имени")
-                ),
-                KeyboardButton(
-                    text="📞 " + ("Telefon raqami bo'yicha" if lang == 'uz' else "По номеру телефона")
-                )
+                KeyboardButton(text=search_by_name),
+                KeyboardButton(text=search_by_phone)
             ],
             [
-                KeyboardButton(
-                    text="🆔 " + ("ID raqami bo'yicha" if lang == 'uz' else "По ID")
-                )
+                KeyboardButton(text=search_by_id)
             ],
             [
-                KeyboardButton(
-                    text="🔙 " + ("Orqaga" if lang == 'uz' else "Назад")
-                )
+                KeyboardButton(text=back_text)
             ]
         ],
         resize_keyboard=True

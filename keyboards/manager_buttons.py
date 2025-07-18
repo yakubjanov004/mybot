@@ -5,7 +5,6 @@ def get_manager_main_keyboard(lang='uz'):
     """Generate main keyboard for manager with locale support"""
     service_order_text = "🆕 Texnik xizmat" if lang == "uz" else "🆕 Техническая поддержка"
     connection_order_text = "🔌 Ulanish uchun ariza" if lang == "uz" else "🔌 Заявка на подключение"
-    # Staff application creation buttons
     create_connection_text = "🔌 Ulanish arizasi yaratish" if lang == "uz" else "🔌 Создать заявку на подключение"
     create_technical_text = "🔧 Texnik xizmat yaratish" if lang == "uz" else "🔧 Создать техническую заявку"
     view_applications_text = "📋 Arizalarni ko'rish" if lang == "uz" else "📋 Просмотр заявок"

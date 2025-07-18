@@ -4,7 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 from keyboards.client_buttons import get_client_profile_menu, get_back_to_profile_menu, get_main_menu_keyboard, get_client_profile_edit_menu, get_cancel_edit_keyboard
 from states.client_states import ProfileStates
-from database.client_queries import get_client_info, get_user_zayavka_statistics
+from database.client_queries import  get_user_zayavka_statistics
 from database.base_queries import get_user_by_telegram_id, update_client_info, get_user_lang, update_user_full_name, update_user_address
 from utils.logger import setup_logger
 from utils.inline_cleanup import answer_and_cleanup, safe_delete_message

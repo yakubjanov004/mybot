@@ -7,6 +7,7 @@ in both Uzbek and Russian languages.
 
 from typing import Dict, Any, Optional
 from enum import Enum
+from utils.staff_application_localization import get_staff_application_error, StaffApplicationErrorMessages
 
 
 class MessageType(Enum):

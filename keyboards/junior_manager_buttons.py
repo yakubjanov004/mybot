@@ -1,9 +1,10 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from utils.staff_application_localization import get_text, StaffApplicationTexts
 
 def get_junior_manager_main_keyboard(lang='uz'):
     """Generate main keyboard for junior_manager with Inbox button"""
-    # Staff application creation button (connection requests only)
-    create_connection_text = "🔌 Ulanish arizasi yaratish" if lang == "uz" else "🔌 Создать заявку на подключение"
+    # Staff application creation button (connection requests only) with proper localization
+    create_connection_text = get_text(StaffApplicationTexts.CREATE_CONNECTION_REQUEST, lang)
     view_applications_text = "📋 Zayavkalarni ko'rish" if lang == "uz" else "📋 Просмотр заявок"
     filter_applications_text = "🔍 Zayavkani filtrlash" if lang == "uz" else "🔍 Фильтровать заявки"
     reports_text = "📊 Hisobotlar" if lang == "uz" else "📊 Отчеты"

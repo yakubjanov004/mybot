@@ -9,10 +9,9 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from utils.staff_form_validation import (
-    ComprehensiveFormValidator, ClientDataValidator, ApplicationDataValidator,
+from utils.validators import (
     SecurityValidator, ValidationResult, ValidationSeverity,
-    validate_staff_form, sanitize_form_data, get_validation_schema
+    validate_staff_form, InputValidator, ApplicationDataValidator
 )
 from utils.form_error_messages import FormErrorMessages, ErrorKeys, WarningKeys
 from utils.role_permissions import ApplicationType, UserRole
